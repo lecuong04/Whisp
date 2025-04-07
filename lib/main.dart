@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:whisp/presentation/screens/chats.dart';
-import 'package:whisp/presentation/screens/contacts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/environment.dart';
+import 'package:whisp/presentation/screens/chats_page.dart';
+import 'package:whisp/presentation/screens/contacts_page.dart';
+import 'package:whisp/presentation/screens/video_call_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const Home());
+  Supabase.initialize(url: 'https://${Environment.supabaseProjectId}.supabase.co', anonKey: Environment.supabseAnonKey);
+  runApp(const MyApp());
 }
 
 class Home extends StatefulWidget {
@@ -44,6 +48,66 @@ class HomeState extends State<Home> {
               _selectedIndex = index;
             });
           },
+        ),
+      ),
+    );
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter WebRTC Supabase',
+      theme: ThemeData(primarySwatch: Colors.blue, visualDensity: VisualDensity.adaptivePlatformDensity),
+      home: const HomeScreen(), // Màn hình chính ban đầu
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _roomIdController = TextEditingController();
+
+  @override
+  void dispose() {
+    _roomIdController.dispose();
+    super.dispose();
+  }
+
+  void _joinRoom() {
+    final roomId = _roomIdController.text.trim();
+    if (roomId.isNotEmpty) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => VideoCallScreen(roomId: roomId)));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập ID phòng')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Nhập ID Phòng')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextField(
+              controller: _roomIdController,
+              decoration: const InputDecoration(labelText: 'Room ID', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _joinRoom, child: const Text('Tham gia phòng')),
+          ],
         ),
       ),
     );

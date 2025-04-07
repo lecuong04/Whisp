@@ -38,6 +38,9 @@ dependencies:
   material_symbols_icons: ^4.2811.0
   intl: ^0.20.2
   image_picker: ^1.1.2
+  supabase_flutter: ^2.8.4
+  flutter_webrtc: ^0.13.1+hotfix.1
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
