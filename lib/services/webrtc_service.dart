@@ -266,8 +266,8 @@ class WebRTCService extends ChangeNotifier {
 
     _createPeerConnection().then((_) {
       if (_localStream != null) {
-        _localStream?.getTracks().forEach((track) {
-          _peerConnection?.addTrack(track, _localStream!);
+        _localStream!.getTracks().forEach((track) {
+          _peerConnection!.addTrack(track, _localStream!);
         });
         //print("Re-added local tracks to new PeerConnection after hangup.");
       }
