@@ -45,10 +45,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   // Hàm được gọi mỗi khi WebRTCService gọi notifyListeners()
-  void _onServiceUpdate() {
+  void _onServiceUpdate() async {
     // Chỉ cần gọi setState để rebuild UI với dữ liệu mới từ service
     if (mounted) {
       // Luôn kiểm tra mounted trước khi gọi setState
+      if (_webRTCService.isClosed && await Navigator.of(context).maybePop()) {
+        if (mounted) Navigator.of(context, rootNavigator: false).pop(context);
+      }
       setState(() {});
     }
   }
@@ -66,9 +69,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     try {
       await _webRTCService.hangUp();
       // Sau khi hangUp thành công, quay lại màn hình trước
-      if (mounted) {
-        Navigator.pop(context);
-      }
     } catch (e) {
       //print("Error during hangup: $e");
       if (mounted) {
@@ -173,38 +173,41 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   // --- Vùng điều khiển ---
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // Nút bắt đầu gọi (chỉ hiển thị nếu chưa kết nối và có stream local)
-                        if (!_webRTCService.isConnectionEstablished && _webRTCService.localStream != null)
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.call),
-                            label: const Text('Bắt đầu gọi'),
-                            onPressed: _performStartCall, // Gọi hàm xử lý bắt đầu gọi
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                          ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Nút bắt đầu gọi (chỉ hiển thị nếu chưa kết nối và có stream local)
+                          if (!_webRTCService.isConnectionEstablished && _webRTCService.localStream != null)
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.call),
+                              label: const Text('Bắt đầu gọi'),
+                              onPressed: _performStartCall, // Gọi hàm xử lý bắt đầu gọi
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                            ),
 
-                        // Hiển thị trạng thái
-                        if (_webRTCService.isConnectionEstablished)
-                          const Chip(label: Text('Đã kết nối'), backgroundColor: Colors.greenAccent)
-                        else if (_webRTCService.isInitialized &&
-                            _webRTCService.localStream != null) // Đã init và có stream local
-                          const Chip(label: Text('Sẵn sàng / Chờ...'), backgroundColor: Colors.orangeAccent)
-                        else if (_webRTCService.isInitialized) // Đã init nhưng chưa có stream local
-                          const Chip(label: Text('Đang lấy camera...'), backgroundColor: Colors.grey)
-                        else // Chưa init xong
-                          const Chip(label: Text('Đang khởi tạo...'), backgroundColor: Colors.grey),
+                          // Hiển thị trạng thái
+                          if (_webRTCService.isConnectionEstablished)
+                            const Chip(label: Text('Đã kết nối'), backgroundColor: Colors.greenAccent)
+                          else if (_webRTCService.isInitialized &&
+                              _webRTCService.localStream != null) // Đã init và có stream local
+                            const Chip(label: Text('Sẵn sàng / Chờ...'), backgroundColor: Colors.orangeAccent)
+                          else if (_webRTCService.isInitialized) // Đã init nhưng chưa có stream local
+                            const Chip(label: Text('Đang lấy camera...'), backgroundColor: Colors.grey)
+                          else // Chưa init xong
+                            const Chip(label: Text('Đang khởi tạo...'), backgroundColor: Colors.grey),
 
-                        // Nút gác máy (luôn hiển thị khi đã khởi tạo)
-                        if (_isServiceInitialized)
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.call_end),
-                            label: const Text('Gác máy'),
-                            onPressed: _performHangup,
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          ),
-                      ],
+                          // Nút gác máy (luôn hiển thị khi đã khởi tạo)
+                          if (_isServiceInitialized)
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.call_end),
+                              label: const Text('Gác máy'),
+                              onPressed: _performHangup,
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

@@ -10,7 +10,6 @@ class WebRTCService extends ChangeNotifier {
   final supabase = Supabase.instance.client;
   final String _selfId = const Uuid().v4();
   final String roomId;
-  late final Map<String, dynamic> _iceServers;
 
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -18,6 +17,7 @@ class WebRTCService extends ChangeNotifier {
   bool _offer = false;
   bool _isConnectionEstablished = false;
   bool _isInitialized = false;
+  bool _isClosed = false;
   RealtimeChannel? _channel;
 
   RTCVideoRenderer get localRenderer => _localRenderer;
@@ -25,18 +25,18 @@ class WebRTCService extends ChangeNotifier {
   MediaStream? get localStream => _localStream;
   bool get isConnectionEstablished => _isConnectionEstablished;
   bool get isInitialized => _isInitialized;
+  bool get isClosed => _isClosed;
 
   final Map<String, dynamic> _mediaConstraints = {
     'audio': true,
     'video': {'facingMode': 'user'},
   };
-  late final Map<String, dynamic> _configuration = {"sdpSemantics": "unified-plan"}..addAll(_iceServers);
+  late final Map<String, dynamic> _configuration;
 
   WebRTCService({required this.roomId, Map<String, dynamic>? iceServers}) {
-    if (iceServers != null) {
-      _iceServers = iceServers;
-    } else {
-      _iceServers = {
+    Map<String, dynamic> configuration = {"sdpSemantics": "unified-plan"};
+    if (iceServers == null || iceServers.isEmpty) {
+      configuration.addAll({
         "iceServers": [
           {"urls": "stun:stun.l.google.com:19302"},
           {"urls": "stun:stun.l.google.com:5349"},
@@ -49,8 +49,11 @@ class WebRTCService extends ChangeNotifier {
           {"urls": "stun:stun4.l.google.com:19302"},
           {"urls": "stun:stun4.l.google.com:5349"},
         ],
-      };
+      });
+    } else {
+      configuration.addAll(iceServers);
     }
+    _configuration = configuration;
   }
 
   Future<void> initialize() async {
@@ -105,7 +108,7 @@ class WebRTCService extends ChangeNotifier {
               } else if (signal['type'] == 'candidate') {
                 _handleCandidate(signal);
               } else if (signal['type'] == 'hangup') {
-                _handleHangup();
+                _handleHangup(notifyPeer: true);
               }
             }
           },
@@ -141,7 +144,7 @@ class WebRTCService extends ChangeNotifier {
       if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
           state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
-        _handleHangup();
+        _handleHangup(notifyPeer: true);
       }
     };
 
@@ -158,7 +161,7 @@ class WebRTCService extends ChangeNotifier {
 
     _peerConnection!.onRemoveStream = (MediaStream stream) {
       //print("Remote stream removed: ${stream.id}");
-      _handleHangup();
+      _handleHangup(notifyPeer: true);
     };
     //print('Peer Connection created.');
   }
@@ -269,7 +272,7 @@ class WebRTCService extends ChangeNotifier {
         //print("Re-added local tracks to new PeerConnection after hangup.");
       }
     });
-
+    _isClosed = true;
     notifyListeners();
   }
 
@@ -302,7 +305,6 @@ class WebRTCService extends ChangeNotifier {
 
   Future<void> hangUp() async {
     //print('Initiating hangup...');
-
     _handleHangup(notifyPeer: true);
   }
 }

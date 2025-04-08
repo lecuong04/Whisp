@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/environment.dart';
 import 'package:whisp/presentation/screens/chats_page.dart';
 import 'package:whisp/presentation/screens/contacts_page.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
-  Supabase.initialize(url: 'https://${Environment.supabaseProjectId}.supabase.co', anonKey: Environment.supabseAnonKey);
-  runApp(const MyApp());
+  Supabase.initialize(
+    url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+  runApp(const Home());
 }
 
 class Home extends StatefulWidget {
