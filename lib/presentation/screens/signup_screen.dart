@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/presentation/screens/login_screen.dart';
+import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
 import 'package:whisp/presentation/widgets/custom_text_field.dart';
 import 'package:whisp/utils/helpers.dart';
@@ -107,100 +107,104 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Form(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 30),
-                Text(
-                  'Welcome back',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 10),
-                Text(
-                  'Đăng nhập để tiếp tục',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
-                ),
-                SizedBox(height: 30),
-                CustomTextField(
-                  controller: emailController,
-                  hintText: "Email",
-                  prefixIcon: const Icon(Icons.email),
-                ),
-                SizedBox(height: 16),
-                CustomTextField(
-                  controller: usernameController,
-                  hintText: "Họ và tên",
-                  prefixIcon: const Icon(Icons.person),
-                ),
-                SizedBox(height: 16),
-                CustomTextField(
-                  controller: phoneController,
-                  hintText: "Số điện thoại",
-                  prefixIcon: const Icon(Icons.phone),
-                ),
-                SizedBox(height: 16),
-                CustomTextField(
-                  controller: passwordController,
-                  hintText: "Mật khẩu",
-                  obscureText: true,
-                  prefixIcon: Icon(Icons.lock_outline),
-                  suffixIcon: const Icon(Icons.visibility),
-                ),
-                SizedBox(height: 16),
-                CustomTextField(
-                  controller: confirmPasswordController,
-                  hintText: "Nhập lại mật khẩu",
-                  obscureText: true,
-                  prefixIcon: Icon(Icons.lock_outline),
-                  suffixIcon: const Icon(Icons.visibility),
-                ),
-
-                SizedBox(height: 20),
-                isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : CustomButton(
-                      onPressed: () => handleSubmit(),
-                      text: 'Đăng ký',
+        child: SingleChildScrollView(
+          reverse: true,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Form(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 30),
+                  Text(
+                    'Welcome back',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Đăng nhập để tiếp tục',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
+                  ),
+                  SizedBox(height: 30),
+                  CustomTextField(
+                    controller: emailController,
+                    hintText: "Email",
+                    prefixIcon: const Icon(Icons.email),
+                  ),
+                  SizedBox(height: 16),
+                  CustomTextField(
+                    controller: usernameController,
+                    hintText: "Họ và tên",
+                    prefixIcon: const Icon(Icons.person),
+                  ),
+                  SizedBox(height: 16),
+                  CustomTextField(
+                    controller: phoneController,
+                    hintText: "Số điện thoại",
+                    prefixIcon: const Icon(Icons.phone),
+                  ),
+                  SizedBox(height: 16),
+                  CustomTextField(
+                    controller: passwordController,
+                    hintText: "Mật khẩu",
+                    obscureText: true,
+                    prefixIcon: Icon(Icons.lock_outline),
+                    suffixIcon: const Icon(Icons.visibility),
+                  ),
+                  SizedBox(height: 16),
+                  CustomTextField(
+                    controller: confirmPasswordController,
+                    hintText: "Nhập lại mật khẩu",
+                    obscureText: true,
+                    prefixIcon: Icon(Icons.lock_outline),
+                    suffixIcon: const Icon(Icons.visibility),
+                  ),
 
-                SizedBox(height: 20),
-                Center(
-                  child: RichText(
-                    text: TextSpan(
-                      text: 'Bạn đã có tài khoản? ',
-                      style: TextStyle(color: Colors.grey[600]),
-                      children: [
-                        TextSpan(
-                          text: 'Đăng nhập ngay',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.w500,
+                  SizedBox(height: 20),
+                  isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : CustomButton(
+                        onPressed: () => handleSubmit(),
+                        text: 'Đăng ký',
+                      ),
+
+                  SizedBox(height: 20),
+                  Center(
+                    child: RichText(
+                      text: TextSpan(
+                        text: 'Bạn đã có tài khoản? ',
+                        style: TextStyle(color: Colors.grey[600]),
+                        children: [
+                          TextSpan(
+                            text: 'Đăng nhập ngay',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            recognizer:
+                                TapGestureRecognizer()
+                                  ..onTap = () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => const LoginScreen(),
+                                      ),
+                                    );
+                                  },
                           ),
-                          recognizer:
-                              TapGestureRecognizer()
-                                ..onTap = () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const LoginScreen(),
-                                    ),
-                                  );
-                                },
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
