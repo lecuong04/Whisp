@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/chats_page.dart';
 import 'package:whisp/presentation/screens/contacts_page.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
+import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
 
 Future<void> main() async {
@@ -55,7 +57,7 @@ class HomeState extends State<Home> {
       //     },
       //   ),
       // ),
-      home: SignupScreen(),
+      home: LoginScreen(),
     );
   }
 }
