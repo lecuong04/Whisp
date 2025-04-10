@@ -11,7 +11,12 @@ class UserService {
               .rpc('get_user_info', params: {'p_user_id': userId})
               .single();
 
-      return {'username': response['username'] as String? ?? userId};
+      return {
+        'username': response['username'] as String? ?? userId,
+        'avatar_url':
+            response['avatar_url'] as String? ??
+            'https://via.placeholder.com/150',
+      };
     } catch (e) {
       print('Error fetching user info via RPC: $e');
       return null;

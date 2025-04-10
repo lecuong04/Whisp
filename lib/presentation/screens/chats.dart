@@ -16,11 +16,12 @@ class Chats extends StatefulWidget {
 class ChatsState extends State<Chats> {
   String? myId;
   String? myUsername;
+  String? myAvatarUrl;
   final ChatService _chatService = ChatService();
   final UserService _userService = UserService();
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  final Map<String, String> _userNameCache = {};
+  final Map<String, Map<String, String>> _userInfoCache = {};
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;
   String? _error;
@@ -33,7 +34,6 @@ class ChatsState extends State<Chats> {
 
   Future<void> _initializeUser() async {
     try {
-      // Lấy thông tin người dùng hiện tại
       final userResponse = await _supabase.auth.getUser();
       final user = userResponse.user;
 
@@ -46,21 +46,22 @@ class ChatsState extends State<Chats> {
         return;
       }
 
-      // Lấy userId
       final userId = user.id;
-
-      // Lấy username từ auth.users
       final userInfo = await _userService.getUserInfo(userId);
       final username = userInfo?['username'] as String? ?? userId;
+      final avatarUrl =
+          userInfo?['avatar_url'] as String? ??
+          'https://via.placeholder.com/150';
 
       setState(() {
         myId = userId;
         myUsername = username;
+        myAvatarUrl = avatarUrl;
         print("myId: $myId");
         print("myUsername: $myUsername");
+        print("myAvatarUrl: $myAvatarUrl");
       });
 
-      // Tải danh sách đoạn chat
       _loadChats();
     } catch (e) {
       print("Lỗi khi lấy thông tin người dùng: $e");
@@ -71,153 +72,181 @@ class ChatsState extends State<Chats> {
     }
   }
 
-  Future<String> _getUserName(String userId) async {
-    if (_userNameCache.containsKey(userId)) {
-      return _userNameCache[userId]!;
+  Future<Map<String, String>> _getUserInfo(String userId) async {
+    if (_userInfoCache.containsKey(userId)) {
+      return _userInfoCache[userId]!;
     }
     final userInfo = await _userService.getUserInfo(userId);
     final name = userInfo?['username'] as String? ?? userId;
-    _userNameCache[userId] = name;
-    return name;
+    final avatarUrl =
+        userInfo?['avatar_url'] as String? ?? 'https://via.placeholder.com/150';
+    final userData = {'username': name, 'avatar_url': avatarUrl};
+    _userInfoCache[userId] = userData;
+    return userData;
   }
 
-  void _loadChats() {
-    // Debug: Lấy tất cả dữ liệu trong bảng chats
+  Future<void> _loadChats() async {
     _chatService.debugGetAllChats().then((allChats) {
       print("Debug: Tất cả đoạn chat trong bảng chats: $allChats");
     });
 
-    // Lấy dữ liệu ban đầu
-    _chatService
-        .loadChatsByUserId(myId!)
-        .then((chats) {
-          setState(() {
-            _chats = chats;
-            _isLoading = false;
-          });
-        })
-        .catchError((error) {
-          setState(() {
-            _error = error.toString();
-            _isLoading = false;
-          });
-        });
+    try {
+      final chats = await _chatService.loadChatsByUserId(myId!);
 
-    // Lắng nghe thay đổi Realtime cho bảng chats
-    _supabase
-        .channel('public:chats')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'chats',
-          callback: (payload) {
-            // Khi có thay đổi, tải lại danh sách đoạn chat
-            _chatService.loadChatsByUserId(myId!).then((chats) {
+      final friendIds =
+          chats
+              .map((chat) {
+                final participants = chat['participants'] as List<dynamic>;
+                return participants.firstWhere((id) => id != myId) as String;
+              })
+              .toSet()
+              .toList();
+
+      for (final friendId in friendIds) {
+        await _getUserInfo(friendId);
+      }
+
+      setState(() {
+        _chats = chats;
+        _isLoading = false;
+      });
+
+      _supabase
+          .channel('public:chats')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'chats',
+            callback: (payload) async {
+              final updatedChats = await _chatService.loadChatsByUserId(myId!);
+
+              final newFriendIds =
+                  updatedChats
+                      .map((chat) {
+                        final participants =
+                            chat['participants'] as List<dynamic>;
+                        return participants.firstWhere((id) => id != myId)
+                            as String;
+                      })
+                      .toSet()
+                      .toList();
+
+              for (final friendId in newFriendIds) {
+                if (!_userInfoCache.containsKey(friendId)) {
+                  await _getUserInfo(friendId);
+                }
+              }
+
               setState(() {
-                _chats = chats;
+                _chats = updatedChats;
               });
-            });
-          },
-        )
-        .subscribe();
+            },
+          )
+          .subscribe();
+    } catch (error) {
+      setState(() {
+        _error = error.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 10),
-              Text("Đang tải thông tin người dùng..."),
-            ],
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 10),
+            Text("Đang tải thông tin người dùng..."),
+          ],
         ),
       );
     }
 
     if (myId == null) {
-      return Scaffold(
-        body: Center(
-          child: Text(
-            "Lỗi: Người dùng chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.",
-            style: TextStyle(color: Colors.red, fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
+      return Center(
+        child: Text(
+          "Lỗi: Người dùng chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.",
+          style: TextStyle(color: Colors.red, fontSize: 16),
+          textAlign: TextAlign.center,
         ),
       );
     }
 
-    return Scaffold(
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Search(),
-          Divider(height: 0),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child:
-                  _isLoading
-                      ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 10),
-                            Text("Đang tải danh sách đoạn chat..."),
-                          ],
-                        ),
-                      )
-                      : _error != null
-                      ? Center(
-                        child: Text(
-                          "Lỗi: $_error",
-                          style: TextStyle(color: Colors.red, fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                      : _chats.isEmpty
-                      ? Center(
-                        child: Text(
-                          "Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới! \n MyId: $myId \n MyUsername: $myUsername",
-                          style: TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                      : ListView.builder(
-                        scrollDirection: Axis.vertical,
-                        padding: EdgeInsets.only(bottom: 10),
-                        itemCount: _chats.length,
-                        itemBuilder: (context, index) {
-                          final chat = _chats[index];
-                          final chatId = chat['id'];
-                          final participants =
-                              chat['participants'] as List<dynamic>;
-                          final friendId = participants.firstWhere(
-                            (id) => id != myId,
-                          );
-                          final lastMessage =
-                              chat['last_message'] ?? "Chưa có tin nhắn";
-                          final lastMessageTime =
-                              chat['last_message_time'] != null
-                                  ? DateTime.parse(chat['last_message_time'])
-                                  : DateTime.now();
-                          final isOnline = chat['is_online'] ?? false;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Search(),
+        Divider(height: 0),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child:
+                _isLoading
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 10),
+                          Text("Đang tải danh sách đoạn chat..."),
+                        ],
+                      ),
+                    )
+                    : _error != null
+                    ? Center(
+                      child: Text(
+                        "Lỗi: $_error",
+                        style: TextStyle(color: Colors.red, fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                    : _chats.isEmpty
+                    ? Center(
+                      child: Text(
+                        "Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới! \n MyId: $myId \n MyUsername: $myUsername \n MyAvatarUrl: $myAvatarUrl",
+                        style: TextStyle(fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                    : ListView.builder(
+                      scrollDirection: Axis.vertical,
+                      padding: EdgeInsets.only(bottom: 10),
+                      itemCount: _chats.length,
+                      itemBuilder: (context, index) {
+                        final chat = _chats[index];
+                        final chatId = chat['id'];
+                        final participants =
+                            chat['participants'] as List<dynamic>;
+                        final friendId = participants.firstWhere(
+                          (id) => id != myId,
+                        );
+                        final lastMessage =
+                            chat['last_message'] ?? "Chưa có tin nhắn";
+                        final lastMessageTime =
+                            chat['last_message_time'] != null
+                                ? DateTime.parse(chat['last_message_time'])
+                                : DateTime.now();
+                        final isOnline = chat['is_online'] ?? false;
 
-                          return FutureBuilder<String>(
-                            future: _getUserName(friendId),
+                        // Placeholder cố định trong thời gian chờ dữ liệu
+                        Widget placeholder = const SizedBox(
+                          height: 72, // Chiều cao cố định để tránh layout shift
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+
+                        // Kiểm tra xem thông tin người dùng đã có trong cache chưa
+                        if (!_userInfoCache.containsKey(friendId)) {
+                          return FutureBuilder<Map<String, String>>(
+                            future: _getUserInfo(friendId),
                             builder: (context, userSnapshot) {
                               if (userSnapshot.connectionState ==
                                   ConnectionState.waiting) {
-                                return ListTile(
-                                  title: Text("Đang tải..."),
-                                  subtitle: Text(lastMessage),
-                                );
+                                return placeholder;
                               }
 
                               if (userSnapshot.hasError) {
@@ -234,9 +263,9 @@ class ChatsState extends State<Chats> {
                                 );
                               }
 
-                              final friendName = userSnapshot.data!;
-                              const defaultProfilePicture =
-                                  "https://via.placeholder.com/150";
+                              final userInfo = userSnapshot.data!;
+                              final friendName = userInfo['username']!;
+                              final friendAvatarUrl = userInfo['avatar_url']!;
 
                               return FutureBuilder<bool>(
                                 future: _chatService.hasUnreadMessages(
@@ -246,10 +275,7 @@ class ChatsState extends State<Chats> {
                                 builder: (context, unreadSnapshot) {
                                   if (unreadSnapshot.connectionState ==
                                       ConnectionState.waiting) {
-                                    return ListTile(
-                                      title: Text(friendName),
-                                      subtitle: Text(lastMessage),
-                                    );
+                                    return placeholder;
                                   }
 
                                   if (unreadSnapshot.hasError) {
@@ -271,7 +297,7 @@ class ChatsState extends State<Chats> {
                                   final hasUnread = unreadSnapshot.data!;
 
                                   return ChatTitle(
-                                    defaultProfilePicture,
+                                    friendAvatarUrl,
                                     friendName,
                                     lastMessageTime,
                                     !hasUnread,
@@ -287,8 +313,7 @@ class ChatsState extends State<Chats> {
                                                 myId: myId!,
                                                 friendId: friendId,
                                                 friendName: friendName,
-                                                friendImage:
-                                                    defaultProfilePicture,
+                                                friendImage: friendAvatarUrl,
                                               ),
                                         ),
                                       );
@@ -298,12 +323,67 @@ class ChatsState extends State<Chats> {
                               );
                             },
                           );
-                        },
-                      ),
-            ),
+                        }
+
+                        // Nếu thông tin đã có trong cache, hiển thị ngay lập tức
+                        final userInfo = _userInfoCache[friendId]!;
+                        final friendName = userInfo['username']!;
+                        final friendAvatarUrl = userInfo['avatar_url']!;
+
+                        return FutureBuilder<bool>(
+                          future: _chatService.hasUnreadMessages(chatId, myId!),
+                          builder: (context, unreadSnapshot) {
+                            if (unreadSnapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return placeholder;
+                            }
+
+                            if (unreadSnapshot.hasError) {
+                              return ListTile(
+                                title: Text(friendName),
+                                subtitle: Text("Lỗi: ${unreadSnapshot.error}"),
+                              );
+                            }
+
+                            if (!unreadSnapshot.hasData) {
+                              return ListTile(
+                                title: Text(friendName),
+                                subtitle: Text(lastMessage),
+                              );
+                            }
+
+                            final hasUnread = unreadSnapshot.data!;
+
+                            return ChatTitle(
+                              friendAvatarUrl,
+                              friendName,
+                              lastMessageTime,
+                              !hasUnread,
+                              isOnline,
+                              lastMessage,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => Messages(
+                                          chatId: chatId,
+                                          myId: myId!,
+                                          friendId: friendId,
+                                          friendName: friendName,
+                                          friendImage: friendAvatarUrl,
+                                        ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

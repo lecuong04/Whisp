@@ -15,6 +15,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   // Tạo instance của WebRTCService
   late WebRTCService _webRTCService;
   bool _isServiceInitialized = false;
+  bool _isClosed = false;
 
   @override
   void initState() {
@@ -27,8 +28,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           // Sau khi service khởi tạo xong, thêm listener
           if (mounted) {
             // Kiểm tra widget còn tồn tại
-            _webRTCService.addListener(_onServiceUpdate);
             setState(() {
+              _webRTCService.addListener(_onServiceUpdate);
               _isServiceInitialized = true; // Đánh dấu service đã sẵn sàng
             });
           }
@@ -42,18 +43,33 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             // Navigator.pop(context);
           }
         });
+    //_countDown();
+  }
+
+  Future<void> _countDown() async {
+    while (!_isServiceInitialized) {
+      await Future.delayed(Duration(seconds: 1));
+      if (_isClosed) return;
+    }
+    for (int i = 0; i <= 20; i++) {
+      if (_isClosed || _webRTCService.isConnectionEstablished) return;
+      await _performStartCall();
+      await Future.delayed(Duration(seconds: 5));
+    }
+    _performHangup();
   }
 
   // Hàm được gọi mỗi khi WebRTCService gọi notifyListeners()
-  void _onServiceUpdate() async {
+  void _onServiceUpdate() {
     // Chỉ cần gọi setState để rebuild UI với dữ liệu mới từ service
     if (mounted) {
       // Luôn kiểm tra mounted trước khi gọi setState
-      if (_webRTCService.isClosed && await Navigator.of(context).maybePop()) {
-        if (mounted) Navigator.of(context, rootNavigator: false).pop(context);
+      if (_webRTCService.isClosed && !_isClosed) {
+        _isClosed = true;
+        Navigator.pop(context);
       }
-      setState(() {});
     }
+    setState(() {});
   }
 
   @override
@@ -101,17 +117,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Phòng: ${widget.roomId}'),
-        actions: [
-          // Nút gác máy
-          IconButton(
-            icon: const Icon(Icons.call_end),
-            onPressed: _performHangup, // Gọi hàm xử lý gác máy
-            tooltip: 'Gác máy',
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text('Phòng: ${widget.roomId}')),
       body:
           !_isServiceInitialized // Hiển thị loading nếu service chưa khởi tạo xong
               ? const Center(child: CircularProgressIndicator())
@@ -143,7 +149,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             child: SizedBox(
                               width: 120,
                               height: 160,
-                              key: const Key('local_video'),
                               // Lấy renderer từ service
                               child: RTCVideoView(
                                 _webRTCService.localRenderer,
@@ -176,6 +181,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
+                        spacing: 10,
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           // Nút bắt đầu gọi (chỉ hiển thị nếu chưa kết nối và có stream local)
@@ -186,17 +192,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               onPressed: _performStartCall, // Gọi hàm xử lý bắt đầu gọi
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                             ),
-
-                          // Hiển thị trạng thái
-                          if (_webRTCService.isConnectionEstablished)
-                            const Chip(label: Text('Đã kết nối'), backgroundColor: Colors.greenAccent)
-                          else if (_webRTCService.isInitialized &&
-                              _webRTCService.localStream != null) // Đã init và có stream local
-                            const Chip(label: Text('Sẵn sàng / Chờ...'), backgroundColor: Colors.orangeAccent)
-                          else if (_webRTCService.isInitialized) // Đã init nhưng chưa có stream local
-                            const Chip(label: Text('Đang lấy camera...'), backgroundColor: Colors.grey)
-                          else // Chưa init xong
-                            const Chip(label: Text('Đang khởi tạo...'), backgroundColor: Colors.grey),
 
                           // Nút gác máy (luôn hiển thị khi đã khởi tạo)
                           if (_isServiceInitialized)
