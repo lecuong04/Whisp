@@ -12,7 +12,38 @@ class UserProfileScreen extends StatefulWidget {
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
   final user = Supabase.instance.client.auth.currentUser;
+
   String? avatarUrl;
+
+  Future<void> handleLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Xác nhận đăng xuất'),
+            content: Text('Bạn có chắc chắn muốn đăng xuất không?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text('Đăng xuất'),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldLogout == true) {
+      await Supabase.instance.client.auth.signOut();
+
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đăng xuất thành công')));
+    }
+  }
 
   Future<void> pickAndUploadAvatar() async {
     final picker = ImagePicker();
@@ -84,7 +115,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
             // Tên và Email
             Text(
-              user?.userMetadata?["username"],
+              user?.userMetadata?["username"] ?? "Cập nhật ngay",
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
@@ -101,7 +132,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             _buildInfoTile(
               Icons.phone,
               'Số điện thoại',
-              user?.userMetadata?["phone"],
+              user?.userMetadata?["phone"] ?? 'Cập nhật ngay',
             ),
             _buildInfoTile(
               Icons.location_on,
@@ -132,10 +163,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
             // Nút đăng xuất
             OutlinedButton.icon(
-              onPressed: () {
-                // Logout
-                print('user: $user');
-              },
+              onPressed: () => handleLogout(context),
               icon: Icon(Icons.logout),
               label: Text('Đăng xuất'),
               style: OutlinedButton.styleFrom(

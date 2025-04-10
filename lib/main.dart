@@ -35,6 +35,11 @@ class HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/home': (context) => HomeScreen(),
+      },
+      initialRoute: '/login',
       // home: Scaffold(
       //   appBar: AppBar(
       //     title: Text("Whisp", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28)),
@@ -57,7 +62,6 @@ class HomeState extends State<Home> {
       //     },
       //   ),
       // ),
-      home: LoginScreen(),
     );
   }
 }
