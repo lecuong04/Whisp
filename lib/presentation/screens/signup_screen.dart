@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/presentation/screens/login_screen.dart';
+import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
 import 'package:whisp/presentation/widgets/custom_text_field.dart';
 import 'package:whisp/utils/helpers.dart';
