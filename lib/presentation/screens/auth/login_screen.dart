@@ -1,8 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/presentation/screens/chats_page.dart';
-import 'package:whisp/presentation/screens/auth/signup_screen.dart';
+import 'package:whisp/presentation/screens/chats.dart';
+// import 'package:whisp/presentation/screens/chats_page.dart';
+import 'package:whisp/presentation/screens/signup_screen.dart';
 import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
 import 'package:whisp/presentation/widgets/custom_text_field.dart';
