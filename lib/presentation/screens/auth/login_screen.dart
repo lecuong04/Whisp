@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 CustomTextField(
                   controller: passwordController,
                   hintText: "Mật khẩu",
-                  obscureText: _isPasswordVisible,
+                  obscureText: !_isPasswordVisible,
                   prefixIcon: Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     onPressed: () {
