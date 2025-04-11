@@ -5,40 +5,18 @@ class ChatService {
 
   // Load 20 tin nhắn gần nhất
   Stream<List<Map<String, dynamic>>> getMessagesStream(String chatId) {
-    return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('chat_id', chatId)
-        .order('timestamp', ascending: true)
-        .limit(20)
-        .map(
-          (data) => data.map((item) => item as Map<String, dynamic>).toList(),
-        );
+    return _supabase.from('messages').stream(primaryKey: ['id']).eq('chat_id', chatId).order('timestamp', ascending: true).limit(20).map((data) => data.map((item) => item).toList());
   }
 
   // Load thêm tin nhắn cũ
-  Future<List<Map<String, dynamic>>> loadMoreMessages(
-    String chatId,
-    Map<String, dynamic> firstMessage,
-  ) async {
-    final response = await _supabase
-        .from('messages')
-        .select()
-        .eq('chat_id', chatId)
-        .lt('timestamp', firstMessage['timestamp'])
-        .order('timestamp', ascending: false)
-        .limit(20);
+  Future<List<Map<String, dynamic>>> loadMoreMessages(String chatId, Map<String, dynamic> firstMessage) async {
+    final response = await _supabase.from('messages').select().eq('chat_id', chatId).lt('timestamp', firstMessage['timestamp']).order('timestamp', ascending: false).limit(20);
 
     return (response as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   // Gửi tin nhắn dạng text
-  Future<Map<String, dynamic>> sendMessage(
-    String chatId,
-    String senderId,
-    String receiverId,
-    String text,
-  ) async {
+  Future<Map<String, dynamic>> sendMessage(String chatId, String senderId, String receiverId, String text) async {
     final messageData = {
       'chat_id': chatId,
       'sender_id': senderId,
@@ -47,27 +25,16 @@ class ChatService {
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    final response =
-        await _supabase.from('messages').insert(messageData).select().single();
+    final response = await _supabase.from('messages').insert(messageData).select().single();
 
-    await _supabase
-        .from('chats')
-        .update({
-          'last_message': text,
-          'last_message_time': DateTime.now().toIso8601String(),
-        })
-        .eq('id', chatId);
+    await _supabase.from('chats').update({'last_message': text, 'last_message_time': DateTime.now().toIso8601String()}).eq('id', chatId);
 
-    return response as Map<String, dynamic>;
+    return response;
   }
 
   // Cập nhật trạng thái isReceived khi người dùng xem tin nhắn
   Future<void> markMessagesAsReceived(String chatId, String userId) async {
-    final messages = await _supabase
-        .from('messages')
-        .select()
-        .eq('chat_id', chatId)
-        .eq('received->$userId', false);
+    final messages = await _supabase.from('messages').select().eq('chat_id', chatId).eq('received->$userId', false);
 
     for (var message in messages) {
       await _supabase
@@ -81,11 +48,7 @@ class ChatService {
 
   // Kiểm tra xem đoạn chat có tin nhắn chưa xem không
   Future<bool> hasUnreadMessages(String chatId, String userId) async {
-    final response = await _supabase
-        .from('messages')
-        .select()
-        .eq('chat_id', chatId)
-        .eq('received->$userId', false);
+    final response = await _supabase.from('messages').select().eq('chat_id', chatId).eq('received->$userId', false);
 
     return response.isNotEmpty;
   }
@@ -100,8 +63,7 @@ class ChatService {
           .withConverter(
             (data) =>
                 data.where((row) {
-                  final participants =
-                      (row['participants'] as List<dynamic>).cast<String>();
+                  final participants = (row['participants'] as List<dynamic>).cast<String>();
                   return participants.contains(userId);
                 }).toList(),
           );

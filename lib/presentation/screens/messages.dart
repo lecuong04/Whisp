@@ -11,14 +11,7 @@ class Messages extends StatefulWidget {
   final String friendName;
   final String friendImage;
 
-  const Messages({
-    super.key,
-    required this.chatId,
-    required this.myId,
-    required this.friendId,
-    required this.friendName,
-    required this.friendImage,
-  });
+  const Messages({super.key, required this.chatId, required this.myId, required this.friendId, required this.friendName, required this.friendImage});
 
   @override
   MessagesState createState() => MessagesState();
@@ -56,10 +49,7 @@ class MessagesState extends State<Messages> {
       _isAtBottom = (maxScroll - currentScroll) <= threshold;
     });
 
-    if (_scrollController.position.pixels ==
-            _scrollController.position.minScrollExtent &&
-        !_isLoadingMore &&
-        _hasMoreMessages) {
+    if (_scrollController.position.pixels == _scrollController.position.minScrollExtent && !_isLoadingMore && _hasMoreMessages) {
       _loadMoreMessages();
     }
   }
@@ -67,11 +57,7 @@ class MessagesState extends State<Messages> {
   void _scrollToBottom() {
     Future.delayed(Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _scrollController.animateTo(_scrollController.position.maxScrollExtent, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
         _isAtBottom = true;
       }
     });
@@ -88,10 +74,7 @@ class MessagesState extends State<Messages> {
       _isLoadingMore = true;
     });
 
-    final newMessages = await _chatService.loadMoreMessages(
-      widget.chatId,
-      _firstMessage!,
-    );
+    final newMessages = await _chatService.loadMoreMessages(widget.chatId, _firstMessage!);
 
     setState(() {
       for (var message in newMessages) {
@@ -113,12 +96,7 @@ class MessagesState extends State<Messages> {
   void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final newMessage = await _chatService.sendMessage(
-      widget.chatId,
-      widget.myId,
-      widget.friendId,
-      _messageController.text,
-    );
+    final newMessage = await _chatService.sendMessage(widget.chatId, widget.myId, widget.friendId, _messageController.text);
 
     setState(() {
       _allMessages.add(newMessage);
@@ -142,16 +120,7 @@ class MessagesState extends State<Messages> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: NetworkImage(widget.friendImage),
-              radius: 20,
-            ),
-            SizedBox(width: 10),
-            Text(widget.friendName),
-          ],
-        ),
+        title: Row(children: [CircleAvatar(backgroundImage: NetworkImage(widget.friendImage), radius: 20), SizedBox(width: 10), Text(widget.friendName)]),
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
@@ -159,12 +128,7 @@ class MessagesState extends State<Messages> {
           },
           icon: const Icon(FontAwesomeIcons.chevronLeft),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(FontAwesomeIcons.video),
-          ),
-        ],
+        actions: [IconButton(onPressed: () {}, icon: const Icon(FontAwesomeIcons.video))],
       ),
       body: Column(
         children: [
@@ -195,12 +159,9 @@ class MessagesState extends State<Messages> {
                         _allMessages.add(message);
                       }
                     } else {
-                      final existingMessageIndex = _allMessages.indexWhere(
-                        (m) => m['id'] == message['id'],
-                      );
+                      final existingMessageIndex = _allMessages.indexWhere((m) => m['id'] == message['id']);
                       if (existingMessageIndex != -1) {
-                        _allMessages[existingMessageIndex]['timestamp'] =
-                            message['timestamp'];
+                        _allMessages[existingMessageIndex]['timestamp'] = message['timestamp'];
                       }
                     }
                   }
@@ -216,8 +177,7 @@ class MessagesState extends State<Messages> {
                   }
                 }
 
-                _firstMessage =
-                    newMessages.isNotEmpty ? newMessages.first : null;
+                _firstMessage = newMessages.isNotEmpty ? newMessages.first : null;
                 _hasMoreMessages = true;
 
                 return MessageList(

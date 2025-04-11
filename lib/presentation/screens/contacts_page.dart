@@ -60,12 +60,7 @@ class ContactsState extends State<Contacts> with SingleTickerProviderStateMixin 
             ),
           ),
           Padding(padding: EdgeInsets.only(bottom: 10)),
-          Expanded(
-            child: TabBarView(
-              controller: tabController,
-              children: [ContactsList(), ContactsList(), ContactsList(), ContactsList(), ContactsList()],
-            ),
-          ),
+          Expanded(child: TabBarView(controller: tabController, children: [ContactsList(), ContactsList(), ContactsList(), ContactsList(), ContactsList()])),
         ],
       ),
     );
@@ -88,9 +83,7 @@ class CustomPainter extends BoxPainter {
   @override
   void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
     assert(configuration.size != null);
-    final Rect rect =
-        Offset(offset.dx, (configuration.size!.height / 2) - indicatorHeight / 2) &
-        Size(configuration.size!.width, indicatorHeight);
+    final Rect rect = Offset(offset.dx, (configuration.size!.height / 2) - indicatorHeight / 2) & Size(configuration.size!.width, indicatorHeight);
     final Paint paint = Paint();
     paint.color = Colors.blueAccent;
     paint.style = PaintingStyle.fill;
