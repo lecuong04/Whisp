@@ -19,20 +19,7 @@ class WhispApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, routes: {'/login': (context) => LoginScreen(), '/home': (context) => HomeScreen()}, initialRoute: '/login');
-  }
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Whisp',
-      theme: ThemeData(primarySwatch: Colors.blue, visualDensity: VisualDensity.adaptivePlatformDensity),
-      home: const AuthWrapper(), // Sử dụng AuthWrapper để kiểm tra trạng thái đăng nhập
-    );
+    return MaterialApp(title: 'Whisp', debugShowCheckedModeBanner: false, routes: {'/login': (context) => LoginScreen(), '/home': (context) => HomeScreen()}, home: const AuthWrapper());
   }
 }
 
