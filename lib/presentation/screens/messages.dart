@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:whisp/services/chat_service.dart';
@@ -106,7 +107,7 @@ class MessagesState extends State<Messages> {
       _firstMessage = _allMessages.isNotEmpty ? _allMessages.first : null;
 
       if (newMessages.isEmpty) {
-        _hasMoreMessages = false; // Không còn tin nhắn để tải
+        _hasMoreMessages = false;
       }
 
       _isLoadingMore = false;
@@ -117,10 +118,11 @@ class MessagesState extends State<Messages> {
     if (_messageController.text.trim().isEmpty) return;
 
     final newMessage = await _chatService.sendMessage(
-      widget.chatId,
-      widget.myId,
-      widget.friendId,
-      _messageController.text,
+      chatId: widget.chatId,
+      senderId: widget.myId,
+      receiverId: widget.friendId,
+      text: _messageController.text,
+      type: 'text',
     );
 
     setState(() {
@@ -128,6 +130,48 @@ class MessagesState extends State<Messages> {
     });
 
     _messageController.clear();
+    _scrollToBottom();
+  }
+
+  void _sendMedia(String mediaData) async {
+    final parts = mediaData.split(':');
+    final type = parts[0];
+    final path = parts[1];
+    final file = File(path);
+
+    Map<String, dynamic> newMessage;
+
+    if (type == 'image') {
+      newMessage = await _chatService.sendImage(
+        widget.chatId,
+        widget.myId,
+        widget.friendId,
+        file,
+      );
+    } else if (type == 'video') {
+      newMessage = await _chatService.sendVideo(
+        widget.chatId,
+        widget.myId,
+        widget.friendId,
+        file,
+      );
+    } else if (type == 'file') {
+      final fileName = parts[2];
+      newMessage = await _chatService.sendFile(
+        widget.chatId,
+        widget.myId,
+        widget.friendId,
+        file,
+        fileName,
+      );
+    } else {
+      return;
+    }
+
+    setState(() {
+      _allMessages.add(newMessage);
+    });
+
     _scrollToBottom();
   }
 
@@ -248,9 +292,7 @@ class MessagesState extends State<Messages> {
               MessageInput(
                 controller: _messageController,
                 onSend: _sendMessage,
-                onSendMedia: (mediaType) {
-                  // Tạm thời bỏ qua gửi ảnh/video
-                },
+                onSendMedia: _sendMedia,
                 onTextFieldTap: () {},
               ),
             ],
