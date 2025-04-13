@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/chats.dart';
 import 'package:whisp/presentation/screens/contacts_page.dart';
@@ -10,7 +11,10 @@ import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co', anonKey: dotenv.env['SUPABASE_ANON_KEY']!);
+  await Supabase.initialize(
+    url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
   runApp(const WhispApp());
 }
 
@@ -19,7 +23,54 @@ class WhispApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(title: 'Whisp', debugShowCheckedModeBanner: false, routes: {'/login': (context) => LoginScreen(), '/home': (context) => HomeScreen()}, home: const AuthWrapper());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/home': (context) => HomeScreen(),
+      },
+      initialRoute: '/login',
+      // home: Scaffold(
+      //   appBar: AppBar(
+      //     title: Text("Whisp", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28)),
+      //     centerTitle: true,
+      //     leading: IconButton(onPressed: () {}, icon: Icon(Symbols.menu, size: 32)),
+      //     actions: [IconButton(onPressed: () {}, icon: Icon(Symbols.add_2_rounded, size: 32, fill: 1))],
+      //   ),
+      //   body: _pages[_selectedIndex],
+      //   bottomNavigationBar: BottomNavigationBar(
+      //     items: [
+      //       BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),
+      //       BottomNavigationBarItem(icon: Icon(Symbols.contacts), label: 'Danh bạ'),
+      //     ],
+      //     currentIndex: _selectedIndex,
+      //     selectedItemColor: Colors.blue,
+      //     onTap: (index) {
+      //       setState(() {
+      //         _selectedIndex = index;
+      //       });
+      //     },
+      //   ),
+      // ),
+    );
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Whisp',
+      theme: AppTheme.lightTheme,
+      debugShowCheckedModeBanner: false,
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/home': (context) => HomeScreen(),
+      },
+      home: const AuthWrapper(),
+    );
   }
 }
 
@@ -48,13 +99,20 @@ class HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   // Danh sách các màn hình tương ứng với từng tab
-  final List<Widget> _pages = [const Chats(), const Contacts(), const UserProfileScreen()];
+  final List<Widget> _pages = [
+    const Chats(),
+    const Contacts(),
+    const UserProfileScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Whisp", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28)),
+        title: const Text(
+          "Whisp",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
+        ),
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
@@ -73,7 +131,17 @@ class HomeScreenState extends State<HomeScreen> {
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: const [BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'), BottomNavigationBarItem(icon: Icon(Symbols.contacts), label: 'Danh bạ'), BottomNavigationBarItem(icon: Icon(Symbols.person), label: 'Cá nhân')],
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),
+          BottomNavigationBarItem(
+            icon: Icon(Symbols.contacts),
+            label: 'Danh bạ',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Symbols.person),
+            label: 'Cá nhân',
+          ),
+        ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
