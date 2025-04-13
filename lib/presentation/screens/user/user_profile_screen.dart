@@ -22,7 +22,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           (context) => AlertDialog(
             title: Text('Xác nhận đăng xuất'),
             content: Text('Bạn có chắc chắn muốn đăng xuất không?'),
-            actions: [TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text('Hủy')), ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: Text('Đăng xuất'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text('Đăng xuất'),
+              ),
+            ],
           ),
     );
 
@@ -30,7 +39,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       await Supabase.instance.client.auth.signOut();
 
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng xuất thành công')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đăng xuất thành công')));
     }
   }
 
@@ -48,13 +59,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final avatarPath = 'public/$fileName';
 
     // Upload lên Supabase Storage
-    await storage.from('avatars').upload(avatarPath, file, fileOptions: const FileOptions(upsert: true));
+    await storage
+        .from('avatars')
+        .upload(avatarPath, file, fileOptions: const FileOptions(upsert: true));
 
     // Lấy public URL
     final url = storage.from('avatars').getPublicUrl(avatarPath);
 
     // Cập nhật metadata
-    await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'avatar_url': url}));
+    await Supabase.instance.client.auth.updateUser(
+      UserAttributes(data: {'avatar_url': url}),
+    );
 
     setState(() {
       avatarUrl = url;
@@ -79,24 +94,55 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               onTap: pickAndUploadAvatar,
               child: CircleAvatar(
                 radius: 50,
-                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : AssetImage('assets/default_avatar.png') as ImageProvider,
-                child: Align(alignment: Alignment.bottomRight, child: CircleAvatar(backgroundColor: Colors.white, radius: 16, child: Icon(Icons.camera_alt, size: 18, color: Colors.grey))),
+                backgroundImage:
+                    avatarUrl != null
+                        ? NetworkImage(avatarUrl!)
+                        : AssetImage('assets/default_avatar.png')
+                            as ImageProvider,
+                child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 16,
+                    child: Icon(Icons.camera_alt, size: 18, color: Colors.grey),
+                  ),
+                ),
               ),
             ),
 
             const SizedBox(height: 16),
 
             // Tên và Email
-            Text(user?.userMetadata?["username"] ?? "Cập nhật ngay", style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              user?.userMetadata?["username"] ?? "Cập nhật ngay",
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
-            Text(user?.email as String, style: TextStyle(color: Colors.grey[600])),
+            Text(
+              user?.email as String,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
 
             const SizedBox(height: 24),
 
             // Thông tin cá nhân
-            _buildInfoTile(Icons.phone, 'Số điện thoại', user?.userMetadata?["phone"] ?? 'Cập nhật ngay'),
-            _buildInfoTile(Icons.location_on, 'Địa chỉ', user?.userMetadata?['address'] ?? 'Cập nhật ngay'),
-            _buildInfoTile(Icons.cake, 'Ngày sinh', user?.userMetadata?['dayOfBirth'] ?? 'Cập nhật ngay'),
+            _buildInfoTile(
+              Icons.phone,
+              'Số điện thoại',
+              user?.userMetadata?["phone"] ?? 'Cập nhật ngay',
+            ),
+            _buildInfoTile(
+              Icons.location_on,
+              'Địa chỉ',
+              user?.userMetadata?['address'] ?? 'Cập nhật ngay',
+            ),
+            _buildInfoTile(
+              Icons.cake,
+              'Ngày sinh',
+              user?.userMetadata?['dayOfBirth'] ?? 'Cập nhật ngay',
+            ),
 
             const SizedBox(height: 30),
 
@@ -107,13 +153,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               },
               icon: Icon(Icons.edit),
               label: Text('Chỉnh sửa thông tin'),
-              style: ElevatedButton.styleFrom(minimumSize: Size(double.infinity, 48)),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 48),
+              ),
             ),
 
             const SizedBox(height: 16),
 
             // Nút đăng xuất
-            OutlinedButton.icon(onPressed: () => handleLogout(context), icon: Icon(Icons.logout), label: Text('Đăng xuất'), style: OutlinedButton.styleFrom(minimumSize: Size(double.infinity, 48))),
+            ElevatedButton.icon(
+              onPressed: () => handleLogout(context),
+              icon: Icon(Icons.logout),
+              label: Text('Đăng xuất'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 48),
+              ),
+            ),
           ],
         ),
       ),
@@ -121,6 +176,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildInfoTile(IconData icon, String label, String value) {
-    return Column(children: [ListTile(leading: Icon(icon, color: Colors.blue), title: Text(label), subtitle: Text(value)), Divider()]);
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.blue),
+          title: Text(label),
+          subtitle: Text(value),
+        ),
+        Divider(),
+      ],
+    );
   }
 }
