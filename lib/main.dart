@@ -25,46 +25,7 @@ class WhispApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      routes: {
-        '/login': (context) => LoginScreen(),
-        '/home': (context) => HomeScreen(),
-      },
-      initialRoute: '/login',
-      // home: Scaffold(
-      //   appBar: AppBar(
-      //     title: Text("Whisp", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28)),
-      //     centerTitle: true,
-      //     leading: IconButton(onPressed: () {}, icon: Icon(Symbols.menu, size: 32)),
-      //     actions: [IconButton(onPressed: () {}, icon: Icon(Symbols.add_2_rounded, size: 32, fill: 1))],
-      //   ),
-      //   body: _pages[_selectedIndex],
-      //   bottomNavigationBar: BottomNavigationBar(
-      //     items: [
-      //       BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),
-      //       BottomNavigationBarItem(icon: Icon(Symbols.contacts), label: 'Danh bạ'),
-      //     ],
-      //     currentIndex: _selectedIndex,
-      //     selectedItemColor: Colors.blue,
-      //     onTap: (index) {
-      //       setState(() {
-      //         _selectedIndex = index;
-      //       });
-      //     },
-      //   ),
-      // ),
-    );
-  }
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Whisp',
-      theme: AppTheme.lightTheme,
-      debugShowCheckedModeBanner: false,
+      // theme: AppTheme.lightTheme,
       routes: {
         '/login': (context) => LoginScreen(),
         '/home': (context) => HomeScreen(),
