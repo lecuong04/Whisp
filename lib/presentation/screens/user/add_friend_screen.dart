@@ -110,7 +110,7 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                         color:
                             user.isRequested
                                 ? Colors.grey[100]
-                                : Color(0xFFFF8654),
+                                : Theme.of(context).primaryColor,
                         borderRadius: BorderRadius.circular(20),
                         border:
                             user.isRequested
@@ -184,7 +184,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
         child: Container(
           padding: EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? Color(0xFFFF8654) : Colors.grey[200],
+            color:
+                isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
