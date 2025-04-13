@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
@@ -45,7 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (res.user != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng nhập thành công.')));
         await Future.delayed(Duration(seconds: 2));
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => FriendRequestScreen()),
+        );
       }
     } on AuthException {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email hoặc mật khẩu không chính xác')));

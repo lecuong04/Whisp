@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Định nghĩa màu chính
-  static const primaryColor = Color(0xFF1565C0);
-  static const secondaryColor = Color(0xFFFFA726);
+  static const primaryColor = Color(0xFFFFA726);
+  static const secondaryColor = Color.fromARGB(255, 254, 254, 254);
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
