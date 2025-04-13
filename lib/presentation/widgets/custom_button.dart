@@ -5,15 +5,7 @@ class CustomButton extends StatelessWidget {
   final String? text;
   final Widget? child;
 
-  const CustomButton({
-    super.key,
-    required this.onPressed,
-    this.text,
-    this.child,
-  }) : assert(
-         text != null || child != null,
-         'Either text or child must be provided',
-       );
+  const CustomButton({super.key, required this.onPressed, this.text, this.child}) : assert(text != null || child != null, 'Either text or child must be provided');
 
   @override
   Widget build(BuildContext context) {
@@ -25,20 +17,9 @@ class CustomButton extends StatelessWidget {
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.black87,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child:
-            child ??
-            Text(
-              text!,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+        child: child ?? Text(text!, style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }

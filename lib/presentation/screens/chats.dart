@@ -49,9 +49,7 @@ class ChatsState extends State<Chats> {
       final userId = user.id;
       final userInfo = await _userService.getUserInfo(userId);
       final username = userInfo?['username'] as String? ?? userId;
-      final avatarUrl =
-          userInfo?['avatar_url'] as String? ??
-          'https://via.placeholder.com/150';
+      final avatarUrl = userInfo?['avatar_url'] as String? ?? 'https://via.placeholder.com/150';
 
       setState(() {
         myId = userId;
@@ -78,8 +76,7 @@ class ChatsState extends State<Chats> {
     }
     final userInfo = await _userService.getUserInfo(userId);
     final name = userInfo?['username'] as String? ?? userId;
-    final avatarUrl =
-        userInfo?['avatar_url'] as String? ?? 'https://via.placeholder.com/150';
+    final avatarUrl = userInfo?['avatar_url'] as String? ?? 'https://via.placeholder.com/150';
     final userData = {'username': name, 'avatar_url': avatarUrl};
     _userInfoCache[userId] = userData;
     return userData;
@@ -123,10 +120,8 @@ class ChatsState extends State<Chats> {
               final newFriendIds =
                   updatedChats
                       .map((chat) {
-                        final participants =
-                            chat['participants'] as List<dynamic>;
-                        return participants.firstWhere((id) => id != myId)
-                            as String;
+                        final participants = chat['participants'] as List<dynamic>;
+                        return participants.firstWhere((id) => id != myId) as String;
                       })
                       .toSet()
                       .toList();
@@ -154,26 +149,11 @@ class ChatsState extends State<Chats> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 10),
-            Text("Đang tải thông tin người dùng..."),
-          ],
-        ),
-      );
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 10), Text("Đang tải thông tin người dùng...")]));
     }
 
     if (myId == null) {
-      return Center(
-        child: Text(
-          "Lỗi: Người dùng chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.",
-          style: TextStyle(color: Colors.red, fontSize: 16),
-          textAlign: TextAlign.center,
-        ),
-      );
+      return Center(child: Text("Lỗi: Người dùng chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.", style: TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center));
     }
 
     return Column(
@@ -187,32 +167,11 @@ class ChatsState extends State<Chats> {
             padding: EdgeInsets.symmetric(horizontal: 12),
             child:
                 _isLoading
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 10),
-                          Text("Đang tải danh sách đoạn chat..."),
-                        ],
-                      ),
-                    )
+                    ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 10), Text("Đang tải danh sách đoạn chat...")]))
                     : _error != null
-                    ? Center(
-                      child: Text(
-                        "Lỗi: $_error",
-                        style: TextStyle(color: Colors.red, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
+                    ? Center(child: Text("Lỗi: $_error", style: TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center))
                     : _chats.isEmpty
-                    ? Center(
-                      child: Text(
-                        "Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới! \n MyId: $myId \n MyUsername: $myUsername \n MyAvatarUrl: $myAvatarUrl",
-                        style: TextStyle(fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
+                    ? Center(child: Text("Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới! \n MyId: $myId \n MyUsername: $myUsername \n MyAvatarUrl: $myAvatarUrl", style: TextStyle(fontSize: 16), textAlign: TextAlign.center))
                     : ListView.builder(
                       scrollDirection: Axis.vertical,
                       padding: EdgeInsets.only(bottom: 10),
@@ -220,17 +179,10 @@ class ChatsState extends State<Chats> {
                       itemBuilder: (context, index) {
                         final chat = _chats[index];
                         final chatId = chat['id'];
-                        final participants =
-                            chat['participants'] as List<dynamic>;
-                        final friendId = participants.firstWhere(
-                          (id) => id != myId,
-                        );
-                        final lastMessage =
-                            chat['last_message'] ?? "Chưa có tin nhắn";
-                        final lastMessageTime =
-                            chat['last_message_time'] != null
-                                ? DateTime.parse(chat['last_message_time'])
-                                : DateTime.now();
+                        final participants = chat['participants'] as List<dynamic>;
+                        final friendId = participants.firstWhere((id) => id != myId);
+                        final lastMessage = chat['last_message'] ?? "Chưa có tin nhắn";
+                        final lastMessageTime = chat['last_message_time'] != null ? DateTime.parse(chat['last_message_time']) : DateTime.now();
                         final isOnline = chat['is_online'] ?? false;
 
                         // Placeholder cố định trong thời gian chờ dữ liệu
@@ -244,23 +196,16 @@ class ChatsState extends State<Chats> {
                           return FutureBuilder<Map<String, String>>(
                             future: _getUserInfo(friendId),
                             builder: (context, userSnapshot) {
-                              if (userSnapshot.connectionState ==
-                                  ConnectionState.waiting) {
+                              if (userSnapshot.connectionState == ConnectionState.waiting) {
                                 return placeholder;
                               }
 
                               if (userSnapshot.hasError) {
-                                return ListTile(
-                                  title: Text("Lỗi: ${userSnapshot.error}"),
-                                  subtitle: Text(lastMessage),
-                                );
+                                return ListTile(title: Text("Lỗi: ${userSnapshot.error}"), subtitle: Text(lastMessage));
                               }
 
                               if (!userSnapshot.hasData) {
-                                return ListTile(
-                                  title: Text(friendId),
-                                  subtitle: Text(lastMessage),
-                                );
+                                return ListTile(title: Text(friendId), subtitle: Text(lastMessage));
                               }
 
                               final userInfo = userSnapshot.data!;
@@ -268,30 +213,18 @@ class ChatsState extends State<Chats> {
                               final friendAvatarUrl = userInfo['avatar_url']!;
 
                               return FutureBuilder<bool>(
-                                future: _chatService.hasUnreadMessages(
-                                  chatId,
-                                  myId!,
-                                ),
+                                future: _chatService.hasUnreadMessages(chatId, myId!),
                                 builder: (context, unreadSnapshot) {
-                                  if (unreadSnapshot.connectionState ==
-                                      ConnectionState.waiting) {
+                                  if (unreadSnapshot.connectionState == ConnectionState.waiting) {
                                     return placeholder;
                                   }
 
                                   if (unreadSnapshot.hasError) {
-                                    return ListTile(
-                                      title: Text(friendName),
-                                      subtitle: Text(
-                                        "Lỗi: ${unreadSnapshot.error}",
-                                      ),
-                                    );
+                                    return ListTile(title: Text(friendName), subtitle: Text("Lỗi: ${unreadSnapshot.error}"));
                                   }
 
                                   if (!unreadSnapshot.hasData) {
-                                    return ListTile(
-                                      title: Text(friendName),
-                                      subtitle: Text(lastMessage),
-                                    );
+                                    return ListTile(title: Text(friendName), subtitle: Text(lastMessage));
                                   }
 
                                   final hasUnread = unreadSnapshot.data!;
@@ -304,19 +237,7 @@ class ChatsState extends State<Chats> {
                                     isOnline,
                                     lastMessage,
                                     onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => Messages(
-                                                chatId: chatId,
-                                                myId: myId!,
-                                                friendId: friendId,
-                                                friendName: friendName,
-                                                friendImage: friendAvatarUrl,
-                                              ),
-                                        ),
-                                      );
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => Messages(chatId: chatId, myId: myId!, friendId: friendId, friendName: friendName, friendImage: friendAvatarUrl)));
                                     },
                                   );
                                 },
@@ -333,23 +254,16 @@ class ChatsState extends State<Chats> {
                         return FutureBuilder<bool>(
                           future: _chatService.hasUnreadMessages(chatId, myId!),
                           builder: (context, unreadSnapshot) {
-                            if (unreadSnapshot.connectionState ==
-                                ConnectionState.waiting) {
+                            if (unreadSnapshot.connectionState == ConnectionState.waiting) {
                               return placeholder;
                             }
 
                             if (unreadSnapshot.hasError) {
-                              return ListTile(
-                                title: Text(friendName),
-                                subtitle: Text("Lỗi: ${unreadSnapshot.error}"),
-                              );
+                              return ListTile(title: Text(friendName), subtitle: Text("Lỗi: ${unreadSnapshot.error}"));
                             }
 
                             if (!unreadSnapshot.hasData) {
-                              return ListTile(
-                                title: Text(friendName),
-                                subtitle: Text(lastMessage),
-                              );
+                              return ListTile(title: Text(friendName), subtitle: Text(lastMessage));
                             }
 
                             final hasUnread = unreadSnapshot.data!;
@@ -362,19 +276,7 @@ class ChatsState extends State<Chats> {
                               isOnline,
                               lastMessage,
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (context) => Messages(
-                                          chatId: chatId,
-                                          myId: myId!,
-                                          friendId: friendId,
-                                          friendName: friendName,
-                                          friendImage: friendAvatarUrl,
-                                        ),
-                                  ),
-                                );
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => Messages(chatId: chatId, myId: myId!, friendId: friendId, friendName: friendName, friendImage: friendAvatarUrl)));
                               },
                             );
                           },
