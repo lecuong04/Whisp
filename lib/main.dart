@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/chats.dart';
 import 'package:whisp/presentation/screens/contacts_page.dart';
@@ -23,8 +24,8 @@ class WhispApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Whisp',
       debugShowCheckedModeBanner: false,
+      // theme: AppTheme.lightTheme,
       routes: {
         '/login': (context) => LoginScreen(),
         '/home': (context) => HomeScreen(),
