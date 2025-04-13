@@ -1,8 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
+import 'package:whisp/main.dart';
+import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
 import 'package:whisp/presentation/widgets/custom_text_field.dart';
 import 'package:whisp/utils/helpers.dart';
@@ -11,62 +12,49 @@ import 'package:whisp/utils/helpers.dart';
 // Supabase.instance.client.auth.currentSession chứa token: access_token, refresh_token
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool _isPasswordVisible = false;
 
   Future<void> handleSubmit() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
       return;
     }
 
     if (!checkEmailValid(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng nhập email đúng định dạng')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Vui lòng nhập email đúng định dạng')));
       return;
     }
 
     setState(() => isLoading = true);
 
     try {
-      final res = await Supabase.instance.client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      final res = await Supabase.instance.client.auth.signInWithPassword(email: email, password: password);
 
       if (res.user != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Đăng nhập thành công.')));
-
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng nhập thành công.')));
         await Future.delayed(Duration(seconds: 2));
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => FriendRequestScreen()),
         );
       }
-    } on AuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Email hoặc mật khẩu không chính xác')),
-      );
+    } on AuthException {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email hoặc mật khẩu không chính xác')));
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra: $e')));
     } finally {
       setState(() => isLoading = false);
     }
@@ -90,40 +78,28 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 30),
-                Text(
-                  'Welcome back',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text('Welcome back', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
                 SizedBox(height: 10),
-                Text(
-                  'Đăng nhập để tiếp tục',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
-                ),
+                Text('Đăng nhập để tiếp tục', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey)),
                 SizedBox(height: 30),
-                CustomTextField(
-                  controller: emailController,
-                  hintText: "Email",
-                  prefixIcon: const Icon(Icons.email),
-                ),
+                CustomTextField(controller: emailController, hintText: "Email", prefixIcon: const Icon(Icons.email)),
                 SizedBox(height: 16),
                 CustomTextField(
                   controller: passwordController,
                   hintText: "Mật khẩu",
-                  obscureText: true,
+                  obscureText: !_isPasswordVisible,
                   prefixIcon: Icon(Icons.lock_outline),
-                  suffixIcon: const Icon(Icons.visibility),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                    icon: !_isPasswordVisible ? Icon(Icons.visibility) : Icon(Icons.visibility_off),
+                  ),
                 ),
                 SizedBox(height: 20),
-                isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : CustomButton(
-                      onPressed: () => handleSubmit(),
-                      text: 'Đăng nhập',
-                    ),
+                isLoading ? Center(child: CircularProgressIndicator()) : CustomButton(onPressed: () => handleSubmit(), text: 'Đăng nhập'),
                 SizedBox(height: 20),
                 Center(
                   child: RichText(
@@ -133,22 +109,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         TextSpan(
                           text: 'Đăng ký ngay',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500),
                           recognizer:
                               TapGestureRecognizer()
                                 ..onTap = () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => const SignupScreen(),
-                                    ),
-                                  );
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupScreen()));
                                 },
                         ),
                       ],

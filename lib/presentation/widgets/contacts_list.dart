@@ -39,12 +39,6 @@ class ContactsListState extends State<ContactsList> {
         children.add(ContactTitle(fullName: user, isOnline: true));
       }
     });
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
-      ),
-    );
+    return Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: SingleChildScrollView(scrollDirection: Axis.vertical, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children)));
   }
 }

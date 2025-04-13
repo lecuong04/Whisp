@@ -11,10 +11,7 @@ import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-    url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
+  await Supabase.initialize(url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co', anonKey: dotenv.env['SUPABASE_ANON_KEY']!);
   runApp(const WhispApp());
 }
 
@@ -72,6 +69,7 @@ class MyApp extends StatelessWidget {
       home:
           const AuthWrapper(), // Sử dụng AuthWrapper để kiểm tra trạng thái đăng nhập
     );
+    return MaterialApp(title: 'Whisp', debugShowCheckedModeBanner: false, routes: {'/login': (context) => LoginScreen(), '/home': (context) => HomeScreen()}, home: const AuthWrapper());
   }
 }
 
@@ -85,35 +83,28 @@ class AuthWrapper extends StatelessWidget {
     if (user == null) {
       return const LoginScreen(); // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
     }
-    return const Home(); // Nếu đã đăng nhập, hiển thị màn hình chính
+    return const HomeScreen(); // Nếu đã đăng nhập, hiển thị màn hình chính
   }
 }
 
-class Home extends StatefulWidget {
-  const Home({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<StatefulWidget> createState() => HomeState();
+  State<StatefulWidget> createState() => HomeScreenState();
 }
 
-class HomeState extends State<Home> {
+class HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   // Danh sách các màn hình tương ứng với từng tab
-  final List<Widget> _pages = [
-    const Chats(),
-    const Contacts(),
-    const UserProfileScreen(),
-  ];
+  final List<Widget> _pages = [const Chats(), const Contacts(), const UserProfileScreen()];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "Whisp",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
-        ),
+        title: const Text("Whisp", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28)),
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
@@ -132,17 +123,7 @@ class HomeState extends State<Home> {
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),
-          BottomNavigationBarItem(
-            icon: Icon(Symbols.contacts),
-            label: 'Danh bạ',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Symbols.person),
-            label: 'Cá nhân',
-          ),
-        ],
+        items: const [BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'), BottomNavigationBarItem(icon: Icon(Symbols.contacts), label: 'Danh bạ'), BottomNavigationBarItem(icon: Icon(Symbols.person), label: 'Cá nhân')],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
