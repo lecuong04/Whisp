@@ -25,6 +25,7 @@ class WhispApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
       routes: {
         '/login': (context) => LoginScreen(),
         '/home': (context) => Home(),
