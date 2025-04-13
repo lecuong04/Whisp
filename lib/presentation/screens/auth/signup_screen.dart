@@ -15,7 +15,6 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -29,13 +28,11 @@ class _SignupScreenState extends State<SignupScreen> {
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
     final username = usernameController.text.trim();
-    final phone = phoneController.text.trim();
 
     if (email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty ||
-        username.isEmpty ||
-        phone.isEmpty) {
+        username.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
@@ -45,13 +42,6 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!checkEmailValid(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Vui lòng nhập email đúng định dạng')),
-      );
-      return;
-    }
-
-    if (!checkPhoneValid(phone)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng nhập số điện thoại đúng định dạng')),
       );
       return;
     }
@@ -69,7 +59,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final res = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
-        data: {'phone': phone, 'username': username},
+        data: {'username': username},
       );
 
       if (res.user != null) {
@@ -150,14 +140,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   SizedBox(height: 16),
                   CustomTextField(
                     controller: usernameController,
-                    hintText: "Họ và tên",
+                    hintText: "Tên người dùng",
                     prefixIcon: const Icon(Icons.person),
-                  ),
-                  SizedBox(height: 16),
-                  CustomTextField(
-                    controller: phoneController,
-                    hintText: "Số điện thoại",
-                    prefixIcon: const Icon(Icons.phone),
                   ),
                   SizedBox(height: 16),
                   CustomTextField(
