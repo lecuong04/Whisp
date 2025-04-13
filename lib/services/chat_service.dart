@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatService {
@@ -5,36 +6,155 @@ class ChatService {
 
   // Load 20 tin nhắn gần nhất
   Stream<List<Map<String, dynamic>>> getMessagesStream(String chatId) {
-    return _supabase.from('messages').stream(primaryKey: ['id']).eq('chat_id', chatId).order('timestamp', ascending: true).limit(20).map((data) => data.map((item) => item).toList());
+    return _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('chat_id', chatId)
+        .order('timestamp', ascending: false)
+        .limit(20)
+        .map((data) => data.map((item) => item).toList());
   }
 
   // Load thêm tin nhắn cũ
-  Future<List<Map<String, dynamic>>> loadMoreMessages(String chatId, Map<String, dynamic> firstMessage) async {
-    final response = await _supabase.from('messages').select().eq('chat_id', chatId).lt('timestamp', firstMessage['timestamp']).order('timestamp', ascending: false).limit(20);
+  Future<List<Map<String, dynamic>>> loadMoreMessages(
+    String chatId,
+    Map<String, dynamic> firstMessage,
+  ) async {
+    final response = await _supabase
+        .from('messages')
+        .select()
+        .eq('chat_id', chatId)
+        .lt('timestamp', firstMessage['timestamp'])
+        .order('timestamp', ascending: false)
+        .limit(20);
 
     return (response as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
-  // Gửi tin nhắn dạng text
-  Future<Map<String, dynamic>> sendMessage(String chatId, String senderId, String receiverId, String text) async {
+  // Lấy receiver_id từ bảng chats
+  Future<String> _getReceiverId(String chatId, String senderId) async {
+    final chat =
+        await _supabase
+            .from('chats')
+            .select('participants')
+            .eq('id', chatId)
+            .single();
+
+    final participants = (chat['participants'] as List<dynamic>).cast<String>();
+    return participants.firstWhere((id) => id != senderId);
+  }
+
+  // Upload file lên Supabase Storage và trả về URL
+  Future<String> _uploadFile(File file, String path) async {
+    final fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_${path.split('/').last}';
+    await _supabase.storage.from('chat-files').upload(fileName, file);
+    final publicUrl = _supabase.storage
+        .from('chat-files')
+        .getPublicUrl(fileName);
+    return publicUrl;
+  }
+
+  // Gửi tin nhắn (text, image, video, file)
+  Future<Map<String, dynamic>> sendMessage({
+    required String chatId,
+    required String senderId,
+    String? receiverId, // Có thể null, sẽ lấy từ bảng chats
+    String? text,
+    String? mediaUrl,
+    String? fileName,
+    required String type, // text, image, video, file
+  }) async {
+    // Nếu receiverId không được cung cấp, lấy từ bảng chats
+    final effectiveReceiverId =
+        receiverId ?? await _getReceiverId(chatId, senderId);
+
     final messageData = {
       'chat_id': chatId,
       'sender_id': senderId,
+      'receiver_id': effectiveReceiverId,
       'text': text,
-      'received': {senderId: true, receiverId: false},
+      'media_url': mediaUrl,
+      'file_name': fileName,
+      'type': type,
+      'received': {senderId: true, effectiveReceiverId: false},
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    final response = await _supabase.from('messages').insert(messageData).select().single();
+    final response =
+        await _supabase.from('messages').insert(messageData).select().single();
 
-    await _supabase.from('chats').update({'last_message': text, 'last_message_time': DateTime.now().toIso8601String()}).eq('id', chatId);
+    await _supabase
+        .from('chats')
+        .update({
+          'last_message': type == 'text' ? text : 'Đã gửi một $type',
+          'last_message_time': DateTime.now().toIso8601String(),
+        })
+        .eq('id', chatId);
 
     return response;
   }
 
+  // Gửi ảnh
+  Future<Map<String, dynamic>> sendImage(
+    String chatId,
+    String senderId,
+    String receiverId,
+    File imageFile,
+  ) async {
+    final imageUrl = await _uploadFile(imageFile, imageFile.path);
+    return await sendMessage(
+      chatId: chatId,
+      senderId: senderId,
+      receiverId: receiverId,
+      mediaUrl: imageUrl,
+      type: 'image',
+    );
+  }
+
+  // Gửi video
+  Future<Map<String, dynamic>> sendVideo(
+    String chatId,
+    String senderId,
+    String receiverId,
+    File videoFile,
+  ) async {
+    final videoUrl = await _uploadFile(videoFile, videoFile.path);
+    return await sendMessage(
+      chatId: chatId,
+      senderId: senderId,
+      receiverId: receiverId,
+      mediaUrl: videoUrl,
+      type: 'video',
+    );
+  }
+
+  // Gửi file
+  Future<Map<String, dynamic>> sendFile(
+    String chatId,
+    String senderId,
+    String receiverId,
+    File file,
+    String fileName,
+  ) async {
+    final fileUrl = await _uploadFile(file, file.path);
+    return await sendMessage(
+      chatId: chatId,
+      senderId: senderId,
+      receiverId: receiverId,
+      mediaUrl: fileUrl,
+      fileName: fileName,
+      type: 'file',
+    );
+  }
+
   // Cập nhật trạng thái isReceived khi người dùng xem tin nhắn
   Future<void> markMessagesAsReceived(String chatId, String userId) async {
-    final messages = await _supabase.from('messages').select().eq('chat_id', chatId).eq('received->$userId', false);
+    final messages = await _supabase
+        .from('messages')
+        .select()
+        .eq('chat_id', chatId)
+        .eq('received->$userId', false);
 
     for (var message in messages) {
       await _supabase
@@ -48,7 +168,11 @@ class ChatService {
 
   // Kiểm tra xem đoạn chat có tin nhắn chưa xem không
   Future<bool> hasUnreadMessages(String chatId, String userId) async {
-    final response = await _supabase.from('messages').select().eq('chat_id', chatId).eq('received->$userId', false);
+    final response = await _supabase
+        .from('messages')
+        .select()
+        .eq('chat_id', chatId)
+        .eq('received->$userId', false);
 
     return response.isNotEmpty;
   }
@@ -63,7 +187,8 @@ class ChatService {
           .withConverter(
             (data) =>
                 data.where((row) {
-                  final participants = (row['participants'] as List<dynamic>).cast<String>();
+                  final participants =
+                      (row['participants'] as List<dynamic>).cast<String>();
                   return participants.contains(userId);
                 }).toList(),
           );
