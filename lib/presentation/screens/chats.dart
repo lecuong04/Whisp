@@ -34,9 +34,7 @@ class ChatsState extends State<Chats> {
 
   Future<void> _initializeUser() async {
     try {
-      final userResponse = await _supabase.auth.getUser();
-      final user = userResponse.user;
-
+      final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
         print("Lỗi: Người dùng chưa đăng nhập.");
         setState(() {
