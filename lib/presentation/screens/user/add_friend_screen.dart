@@ -14,12 +14,14 @@ class UserModel {
   });
 }
 
-class FriendRequestScreen extends StatefulWidget {
+class AddFriendScreen extends StatefulWidget {
+  const AddFriendScreen({super.key});
+
   @override
-  _FriendRequestScreenState createState() => _FriendRequestScreenState();
+  State createState() => _AddFriendScreenState();
 }
 
-class _FriendRequestScreenState extends State<FriendRequestScreen> {
+class _AddFriendScreenState extends State<AddFriendScreen> {
   List<UserModel> users = [
     UserModel(
       name: 'Michael Johnson',
@@ -138,7 +140,12 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   Widget _buildSearchBar() {
     return Row(
       children: [
-        Icon(Icons.arrow_back, color: Colors.black),
+        IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+        ),
         SizedBox(width: 8),
         Expanded(
           child: TextField(

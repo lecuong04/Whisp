@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
@@ -57,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await Future.delayed(Duration(seconds: 2));
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => FriendRequestScreen()),
+          MaterialPageRoute(builder: (_) => HomeScreen()),
         );
       }
     } on AuthException {

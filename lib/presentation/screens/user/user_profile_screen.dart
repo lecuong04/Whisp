@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
 class UserProfileScreen extends StatefulWidget {
-  const UserProfileScreen({Key? key}) : super(key: key);
+  const UserProfileScreen({super.key});
 
   @override
-  _UserProfileScreenState createState() => _UserProfileScreenState();
+  State createState() => _UserProfileScreenState();
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
