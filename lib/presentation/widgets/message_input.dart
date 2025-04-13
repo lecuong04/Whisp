@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,12 +9,12 @@ class MessageInput extends StatelessWidget {
   final Function() onTextFieldTap;
 
   const MessageInput({
-    Key? key,
+    super.key,
     required this.controller,
     required this.onSend,
     required this.onSendMedia,
     required this.onTextFieldTap,
-  }) : super(key: key);
+  });
 
   // Chọn ảnh từ thư viện hoặc camera
   Future<void> _pickImage(BuildContext context) async {
