@@ -95,10 +95,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               child: CircleAvatar(
                 radius: 50,
                 backgroundImage:
-                    avatarUrl != null
-                        ? NetworkImage(avatarUrl!)
-                        : AssetImage('assets/default_avatar.png')
-                            as ImageProvider,
+                    avatarUrl != null ? NetworkImage(avatarUrl!) : null,
                 child: Align(
                   alignment: Alignment.bottomRight,
                   child: CircleAvatar(
