@@ -24,16 +24,7 @@ class ContactTitle extends StatelessWidget {
                   radius: 26,
                 ),
                 if (isOnline) ...[
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Stack(
-                      alignment: AlignmentDirectional.center,
-                      children: [
-                        Icon(Icons.circle, color: Colors.white, size: 18),
-                        Icon(Icons.circle, color: Colors.green, size: 14),
-                      ],
-                    ),
-                  ),
+                  Align(alignment: Alignment.bottomRight, child: Stack(alignment: AlignmentDirectional.center, children: [Icon(Icons.circle, color: Colors.white, size: 18), Icon(Icons.circle, color: Colors.green, size: 14)])),
                 ] else
                   ...[],
               ],

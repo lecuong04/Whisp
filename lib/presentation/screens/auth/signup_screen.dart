@@ -7,10 +7,10 @@ import 'package:whisp/presentation/widgets/custom_text_field.dart';
 import 'package:whisp/utils/helpers.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
-  _SignupScreenState createState() => _SignupScreenState();
+  State createState() => _SignupScreenState();
 }
 
 class _SignupScreenState extends State<SignupScreen> {
@@ -21,6 +21,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
   bool isLoading = false;
+  bool _isPasswordVisible1 = false;
+  bool _isPasswordVisible2 = false;
 
   Future<void> handleSubmit() async {
     final email = emailController.text.trim();
@@ -64,26 +66,31 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (res.user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đăng ký thành công! Vui lòng xác nhận email.'),
-          ),
-        );
-
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đăng ký thành công! Vui lòng xác nhận email.'),
+            ),
+          );
+        }
         await Future.delayed(Duration(seconds: 2));
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => LoginScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => LoginScreen()),
+          );
+        }
       }
     } on AuthException catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Username đã tồn tại')));
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra: $e')));
+      }
     } finally {
       setState(() => isLoading = false);
     }
@@ -93,6 +100,8 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    usernameController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -144,17 +153,37 @@ class _SignupScreenState extends State<SignupScreen> {
                   CustomTextField(
                     controller: passwordController,
                     hintText: "Mật khẩu",
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible1,
                     prefixIcon: Icon(Icons.lock_outline),
-                    suffixIcon: const Icon(Icons.visibility),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible1 = !_isPasswordVisible1;
+                        });
+                      },
+                      icon:
+                          !_isPasswordVisible1
+                              ? Icon(Icons.visibility)
+                              : Icon(Icons.visibility_off),
+                    ),
                   ),
                   SizedBox(height: 16),
                   CustomTextField(
                     controller: confirmPasswordController,
                     hintText: "Nhập lại mật khẩu",
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible2,
                     prefixIcon: Icon(Icons.lock_outline),
-                    suffixIcon: const Icon(Icons.visibility),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible2 = !_isPasswordVisible2;
+                        });
+                      },
+                      icon:
+                          !_isPasswordVisible2
+                              ? Icon(Icons.visibility)
+                              : Icon(Icons.visibility_off),
+                    ),
                   ),
 
                   SizedBox(height: 20),

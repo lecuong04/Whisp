@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/presentation/screens/auth/forgot_password_screen.dart';
 import 'package:whisp/presentation/screens/chats_page.dart';
+import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
 import 'package:whisp/presentation/widgets/custom_text_field.dart';
@@ -12,16 +13,17 @@ import 'package:whisp/utils/helpers.dart';
 // Supabase.instance.client.auth.currentSession chứa token: access_token, refresh_token
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool _isPasswordVisible = false;
 
   Future<void> handleSubmit() async {
     final email = emailController.text.trim();
@@ -57,10 +59,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await Future.delayed(Duration(seconds: 2));
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => Chats()),
+          MaterialPageRoute(builder: (_) => HomeScreen()),
         );
       }
-    } on AuthException catch (e) {
+    } on AuthException {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Email hoặc mật khẩu không chính xác')),
       );
@@ -114,9 +116,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 CustomTextField(
                   controller: passwordController,
                   hintText: "Mật khẩu",
-                  obscureText: true,
+                  obscureText: !_isPasswordVisible,
                   prefixIcon: Icon(Icons.lock_outline),
-                  suffixIcon: const Icon(Icons.visibility),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                    icon:
+                        !_isPasswordVisible
+                            ? Icon(Icons.visibility)
+                            : Icon(Icons.visibility_off),
+                  ),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
