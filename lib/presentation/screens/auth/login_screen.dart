@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/presentation/screens/auth/forgot_password_screen.dart';
 import 'package:whisp/presentation/screens/chats_page.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
@@ -51,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (res.user != null) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Đăng nhập thành công.')));
+        ).showSnackBar(SnackBar(content: Text('Đăng nhập thành công')));
 
         await Future.delayed(Duration(seconds: 2));
         Navigator.pushReplacement(
@@ -117,6 +118,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icon(Icons.lock_outline),
                   suffixIcon: const Icon(Icons.visibility),
                 ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPassword(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Quên mật khẩu?',
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+
                 SizedBox(height: 20),
                 isLoading
                     ? Center(child: CircularProgressIndicator())
