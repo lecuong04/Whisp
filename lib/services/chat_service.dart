@@ -1,215 +1,308 @@
-import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Load 20 tin nhắn gần nhất
-  Stream<List<Map<String, dynamic>>> getMessagesStream(String chatId) {
-    return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('chat_id', chatId)
-        .order('timestamp', ascending: false)
-        .limit(20)
-        .map((data) => data.map((item) => item).toList());
-  }
-
-  // Load thêm tin nhắn cũ
-  Future<List<Map<String, dynamic>>> loadMoreMessages(
-    String chatId,
-    Map<String, dynamic> firstMessage,
-  ) async {
-    final response = await _supabase
-        .from('messages')
-        .select()
-        .eq('chat_id', chatId)
-        .lt('timestamp', firstMessage['timestamp'])
-        .order('timestamp', ascending: false)
-        .limit(20);
-
-    return (response as List<dynamic>).cast<Map<String, dynamic>>();
-  }
-
-  // Lấy receiver_id từ bảng chats
-  Future<String> _getReceiverId(String chatId, String senderId) async {
-    final chat =
-        await _supabase
-            .from('chats')
-            .select('participants')
-            .eq('id', chatId)
-            .single();
-
-    final participants = (chat['participants'] as List<dynamic>).cast<String>();
-    return participants.firstWhere((id) => id != senderId);
-  }
-
-  // Upload file lên Supabase Storage và trả về URL
-  Future<String> _uploadFile(File file, String path) async {
-    final fileName =
-        '${DateTime.now().millisecondsSinceEpoch}_${path.split('/').last}';
-    await _supabase.storage.from('chat-files').upload(fileName, file);
-    final publicUrl = _supabase.storage
-        .from('chat-files')
-        .getPublicUrl(fileName);
-    return publicUrl;
-  }
-
-  // Gửi tin nhắn (text, image, video, file)
-  Future<Map<String, dynamic>> sendMessage({
-    required String chatId,
-    required String senderId,
-    String? receiverId, // Có thể null, sẽ lấy từ bảng chats
-    String? text,
-    String? mediaUrl,
-    String? fileName,
-    required String type, // text, image, video, file
-  }) async {
-    // Nếu receiverId không được cung cấp, lấy từ bảng chats
-    final effectiveReceiverId =
-        receiverId ?? await _getReceiverId(chatId, senderId);
-
-    final messageData = {
-      'chat_id': chatId,
-      'sender_id': senderId,
-      'receiver_id': effectiveReceiverId,
-      'text': text,
-      'media_url': mediaUrl,
-      'file_name': fileName,
-      'type': type,
-      'received': {senderId: true, effectiveReceiverId: false},
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-
-    final response =
-        await _supabase.from('messages').insert(messageData).select().single();
-
-    await _supabase
-        .from('chats')
-        .update({
-          'last_message': type == 'text' ? text : 'Đã gửi một $type',
-          'last_message_time': DateTime.now().toIso8601String(),
-        })
-        .eq('id', chatId);
-
-    return response;
-  }
-
-  // Gửi ảnh
-  Future<Map<String, dynamic>> sendImage(
-    String chatId,
-    String senderId,
-    String receiverId,
-    File imageFile,
-  ) async {
-    final imageUrl = await _uploadFile(imageFile, imageFile.path);
-    return await sendMessage(
-      chatId: chatId,
-      senderId: senderId,
-      receiverId: receiverId,
-      mediaUrl: imageUrl,
-      type: 'image',
-    );
-  }
-
-  // Gửi video
-  Future<Map<String, dynamic>> sendVideo(
-    String chatId,
-    String senderId,
-    String receiverId,
-    File videoFile,
-  ) async {
-    final videoUrl = await _uploadFile(videoFile, videoFile.path);
-    return await sendMessage(
-      chatId: chatId,
-      senderId: senderId,
-      receiverId: receiverId,
-      mediaUrl: videoUrl,
-      type: 'video',
-    );
-  }
-
-  // Gửi file
-  Future<Map<String, dynamic>> sendFile(
-    String chatId,
-    String senderId,
-    String receiverId,
-    File file,
-    String fileName,
-  ) async {
-    final fileUrl = await _uploadFile(file, file.path);
-    return await sendMessage(
-      chatId: chatId,
-      senderId: senderId,
-      receiverId: receiverId,
-      mediaUrl: fileUrl,
-      fileName: fileName,
-      type: 'file',
-    );
-  }
-
-  // Cập nhật trạng thái isReceived khi người dùng xem tin nhắn
-  Future<void> markMessagesAsReceived(String chatId, String userId) async {
-    final messages = await _supabase
-        .from('messages')
-        .select()
-        .eq('chat_id', chatId)
-        .eq('received->$userId', false);
-
-    for (var message in messages) {
-      await _supabase
-          .from('messages')
-          .update({
-            'received': {...message['received'], userId: true},
-          })
-          .eq('id', message['id']);
-    }
-  }
-
-  // Kiểm tra xem đoạn chat có tin nhắn chưa xem không
-  Future<bool> hasUnreadMessages(String chatId, String userId) async {
-    final response = await _supabase
-        .from('messages')
-        .select()
-        .eq('chat_id', chatId)
-        .eq('received->$userId', false);
-
-    return response.isNotEmpty;
-  }
-
-  // Load danh sách đoạn chat theo userId
+  /// Tải danh sách cuộc trò chuyện 1-1 của người dùng
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
     try {
-      print("id trong loadchats: $userId");
       final response = await _supabase
-          .from('chats')
-          .select()
-          .withConverter(
-            (data) =>
-                data.where((row) {
-                  final participants =
-                      (row['participants'] as List<dynamic>).cast<String>();
-                  return participants.contains(userId);
-                }).toList(),
-          );
+          .from('conversation_participants')
+          .select('''
+            conversation_id,
+            conversations!inner(
+              id,
+              name,
+              is_group,
+              created_at,
+              created_by
+            )
+          ''')
+          .eq('user_id', userId)
+          .eq('conversations.is_group', false);
 
-      print("Danh sách đoạn chat trả về: $response");
-      return (response as List<dynamic>).cast<Map<String, dynamic>>();
+      final List<Map<String, dynamic>> userChats = response;
+
+      final processedChats = <Map<String, dynamic>>[];
+      for (var chat in userChats) {
+        final conversationId = chat['conversation_id'];
+
+        final friendResponse =
+            await _supabase
+                .from('conversation_participants')
+                .select(
+                  'user_id, users!inner(id, username, avatar_url, status)',
+                )
+                .eq('conversation_id', conversationId)
+                .neq('user_id', userId)
+                .maybeSingle();
+
+        if (friendResponse == null) {
+          continue;
+        }
+
+        final friend = friendResponse['users'] as Map<String, dynamic>;
+
+        final lastMessage =
+            await _supabase
+                .from('messages')
+                .select('id, content, sent_at')
+                .eq('conversation_id', conversationId)
+                .order('sent_at', ascending: false)
+                .limit(1)
+                .maybeSingle();
+
+        final messageIds = await _supabase
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId);
+        final unreadCount =
+            messageIds.isEmpty
+                ? 0
+                : await _supabase
+                    .from('message_statuses')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('is_read', false)
+                    .inFilter(
+                      'message_id',
+                      messageIds.map((m) => m['id']).toList(),
+                    )
+                    .count();
+
+        processedChats.add({
+          'conversation_id': conversationId,
+          'friend_id': friend['id'],
+          'friend_username': friend['username'] ?? 'Unknown',
+          'friend_avatar_url':
+              friend['avatar_url'] ?? 'https://via.placeholder.com/150',
+          'friend_status': friend['status'] ?? 'offline',
+          'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
+          'last_message_time':
+              lastMessage != null
+                  ? DateTime.parse(lastMessage['sent_at'])
+                  : DateTime.now(),
+          'is_read': unreadCount == 0,
+          'is_group': chat['conversations']['is_group'],
+        });
+      }
+
+      processedChats.sort(
+        (a, b) => b['last_message_time'].compareTo(a['last_message_time']),
+      );
+      return processedChats;
     } catch (e) {
-      print("Lỗi khi tải danh sách đoạn chat: $e");
-      return [];
+      throw Exception('Lỗi khi tải danh sách chat: $e');
     }
   }
 
-  // Hàm debug: Lấy tất cả dữ liệu trong bảng chats để kiểm tra
-  Future<List<Map<String, dynamic>>> debugGetAllChats() async {
+  /// Tạo hoặc lấy cuộc trò chuyện 1-1 với một người dùng khác
+  Future<String> createDirectConversation(
+    String currentUserId,
+    String otherUserId,
+  ) async {
     try {
-      final response = await _supabase.from('chats').select();
-      print("Tất cả dữ liệu trong bảng chats: $response");
-      return (response as List<dynamic>).cast<Map<String, dynamic>>();
+      final existingConversation =
+          await _supabase
+              .from('conversation_participants')
+              .select('conversation_id, conversations!inner(is_group)')
+              .eq('user_id', currentUserId)
+              .inFilter(
+                'conversation_id',
+                await _supabase
+                    .from('conversation_participants')
+                    .select('conversation_id')
+                    .eq('user_id', otherUserId),
+              )
+              .eq('conversations.is_group', false)
+              .maybeSingle();
+
+      if (existingConversation != null) {
+        return existingConversation['conversation_id'] as String;
+      }
+
+      final conversation =
+          await _supabase
+              .from('conversations')
+              .insert({'created_by': currentUserId, 'is_group': false})
+              .select('id')
+              .single();
+
+      final conversationId = conversation['id'] as String;
+
+      await _supabase.from('conversation_participants').insert([
+        {'conversation_id': conversationId, 'user_id': currentUserId},
+        {'conversation_id': conversationId, 'user_id': otherUserId},
+      ]);
+
+      return conversationId;
     } catch (e) {
-      print("Lỗi khi lấy tất cả dữ liệu bảng chats: $e");
-      return [];
+      throw Exception('Lỗi khi tạo cuộc trò chuyện: $e');
     }
+  }
+
+  /// Lấy thông tin người dùng theo ID
+  Future<Map<String, dynamic>?> getUserInfo(String userId) async {
+    try {
+      final response =
+          await _supabase
+              .from('users')
+              .select('id, username, avatar_url, status')
+              .eq('id', userId)
+              .maybeSingle();
+
+      return response;
+    } catch (e) {
+      throw Exception('Lỗi khi lấy thông tin người dùng: $e');
+    }
+  }
+
+  /// Theo dõi thay đổi Realtime cho danh sách cuộc trò chuyện
+  void subscribeToChats(
+    String userId,
+    Function(List<Map<String, dynamic>>) onUpdate,
+  ) {
+    _supabase
+        .channel('public:conversations')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'conversations',
+          callback: (payload) async {
+            final updatedChats = await loadChatsByUserId(userId);
+            onUpdate(updatedChats);
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) async {
+            final updatedChats = await loadChatsByUserId(userId);
+            onUpdate(updatedChats);
+          },
+        )
+        .subscribe();
+  }
+
+  /// Tải danh sách tin nhắn trong một cuộc trò chuyện
+  Future<List<Map<String, dynamic>>> loadMessages(
+    String conversationId, {
+    int limit = 50,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('messages')
+          .select('''
+            id,
+            conversation_id,
+            sender_id,
+            content,
+            sent_at,
+            is_edited,
+            edited_at,
+            message_type,
+            users!sender_id(id, username, avatar_url)
+          ''')
+          .eq('conversation_id', conversationId)
+          .eq('message_type', 'text')
+          .order('sent_at', ascending: true)
+          .limit(limit);
+
+      return response;
+    } catch (e) {
+      throw Exception('Lỗi khi tải tin nhắn: $e');
+    }
+  }
+
+  /// Gửi tin nhắn văn bản
+  Future<Map<String, dynamic>> sendMessage({
+    required String conversationId,
+    required String senderId,
+    required String content,
+  }) async {
+    try {
+      final response =
+          await _supabase
+              .from('messages')
+              .insert({
+                'conversation_id': conversationId,
+                'sender_id': senderId,
+                'content': content,
+                'message_type': 'text',
+              })
+              .select('''
+            id,
+            conversation_id,
+            sender_id,
+            content,
+            sent_at,
+            is_edited,
+            edited_at,
+            message_type,
+            users!sender_id(id, username, avatar_url)
+          ''')
+              .single();
+
+      return response;
+    } catch (e) {
+      throw Exception('Lỗi khi gửi tin nhắn: $e');
+    }
+  }
+
+  /// Đánh dấu tin nhắn là đã đọc
+  Future<void> markMessagesAsRead(String conversationId) async {
+    try {
+      // Lấy danh sách message_id
+      final messageResponse = await _supabase
+          .from('messages')
+          .select('id')
+          .eq('conversation_id', conversationId);
+
+      // Trích xuất danh sách UUID
+      final messageIds =
+          messageResponse.map((msg) => msg['id'] as String).toList();
+
+      // Nếu không có tin nhắn, bỏ qua
+      if (messageIds.isEmpty) {
+        return;
+      }
+
+      // Cập nhật trạng thái đã đọc
+      await _supabase
+          .from('message_statuses')
+          .update({
+            'is_read': true,
+            'read_at': DateTime.now().toIso8601String(),
+          })
+          .match({'user_id': _supabase.auth.currentUser!.id, 'is_read': false})
+          .inFilter('message_id', messageIds);
+    } catch (e) {
+      throw Exception('Lỗi khi đánh dấu đã đọc: $e');
+    }
+  }
+
+  /// Theo dõi tin nhắn mới qua Realtime
+  void subscribeToMessages(
+    String conversationId,
+    Function(List<Map<String, dynamic>>) onUpdate,
+  ) {
+    _supabase
+        .channel('public:messages')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: conversationId,
+          ),
+          callback: (payload) async {
+            final updatedMessages = await loadMessages(conversationId);
+            onUpdate(updatedMessages);
+          },
+        )
+        .subscribe();
   }
 }
