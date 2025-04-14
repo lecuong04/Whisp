@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/chat_service.dart';
-import '../widgets/message_list.dart';
-import '../widgets/message_input.dart';
+import 'package:whisp/presentation/widgets/message_list.dart';
+import 'package:whisp/presentation/widgets/message_input.dart';
 
 class Messages extends StatefulWidget {
   final String chatId;
@@ -28,21 +28,19 @@ class Messages extends StatefulWidget {
 class MessagesState extends State<Messages> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ChatService _chatService = ChatService();
   List<Map<String, dynamic>> _allMessages = [];
-  Set<int> _selectedMessages = {};
-  bool _isLoadingMore = false;
-  bool _hasMoreMessages = true;
-  Map<String, dynamic>? _firstMessage;
-  bool _isFirstLoad = true;
+  bool _isLoading = true;
   bool _isAtBottom = true;
   bool _hasNewMessage = false;
-  final ChatService _chatService = ChatService();
+  String? _error;
+  Set<int> _selectedMessages = {};
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
-    _markMessagesAsReceived();
+    _initializeMessages();
   }
 
   void _scrollListener() {
@@ -56,13 +54,6 @@ class MessagesState extends State<Messages> {
         _hasNewMessage = false;
       }
     });
-
-    if (_scrollController.position.pixels ==
-            _scrollController.position.minScrollExtent &&
-        !_isLoadingMore &&
-        _hasMoreMessages) {
-      _loadMoreMessages();
-    }
   }
 
   void _scrollToBottom() {
@@ -72,8 +63,10 @@ class MessagesState extends State<Messages> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
-      _isAtBottom = true;
-      _hasNewMessage = false;
+      setState(() {
+        _isAtBottom = true;
+        _hasNewMessage = false;
+      });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
@@ -81,98 +74,83 @@ class MessagesState extends State<Messages> {
     }
   }
 
-  void _markMessagesAsReceived() async {
-    await _chatService.markMessagesAsReceived(widget.chatId, widget.myId);
-  }
-
-  void _loadMoreMessages() async {
-    if (_firstMessage == null || !_hasMoreMessages) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    final newMessages = await _chatService.loadMoreMessages(
-      widget.chatId,
-      _firstMessage!,
-    );
-
-    setState(() {
-      for (var message in newMessages) {
-        if (!_allMessages.any((m) => m['id'] == message['id'])) {
-          _allMessages.insert(0, message);
-        }
+  Future<void> _initializeMessages() async {
+    try {
+      // Đánh dấu tin nhắn là đã đọc (không ném lỗi nếu thất bại)
+      try {
+        await _chatService.markMessagesAsRead(widget.chatId);
+      } catch (e) {
+        print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       }
 
-      _firstMessage = _allMessages.isNotEmpty ? _allMessages.first : null;
+      // Tải tin nhắn
+      final messages = await _chatService.loadMessages(widget.chatId);
+      setState(() {
+        _allMessages = messages;
+        _isLoading = false;
+      });
 
-      if (newMessages.isEmpty) {
-        _hasMoreMessages = false;
-      }
+      // Cuộn xuống dưới
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
 
-      _isLoadingMore = false;
-    });
+      // Theo dõi tin nhắn mới qua Realtime
+      _chatService.subscribeToMessages(widget.chatId, (updatedMessages) {
+        setState(() {
+          final newMessages =
+              updatedMessages.where((newMsg) {
+                return !_allMessages.any(
+                  (oldMsg) => oldMsg['id'] == newMsg['id'],
+                );
+              }).toList();
+
+          _allMessages.addAll(newMessages);
+
+          _allMessages.sort((a, b) {
+            final aTime = DateTime.parse(a['sent_at']);
+            final bTime = DateTime.parse(b['sent_at']);
+            return aTime.compareTo(bTime);
+          });
+
+          if (newMessages.isNotEmpty) {
+            if (_isAtBottom) {
+              _scrollToBottom();
+            } else {
+              _hasNewMessage = true;
+            }
+          }
+        });
+      });
+    } catch (e) {
+      setState(() {
+        _error = "Lỗi khi tải tin nhắn: $e";
+        _isLoading = false;
+      });
+    }
   }
 
   void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final newMessage = await _chatService.sendMessage(
-      chatId: widget.chatId,
-      senderId: widget.myId,
-      receiverId: widget.friendId,
-      text: _messageController.text,
-      type: 'text',
-    );
-
-    setState(() {
-      _allMessages.add(newMessage);
-    });
-
-    _messageController.clear();
-    _scrollToBottom();
-  }
-
-  void _sendMedia(String mediaData) async {
-    final parts = mediaData.split(':');
-    final type = parts[0];
-    final path = parts[1];
-    final file = File(path);
-
-    Map<String, dynamic> newMessage;
-
-    if (type == 'image') {
-      newMessage = await _chatService.sendImage(
-        widget.chatId,
-        widget.myId,
-        widget.friendId,
-        file,
+    try {
+      final newMessage = await _chatService.sendMessage(
+        conversationId: widget.chatId,
+        senderId: widget.myId,
+        content: _messageController.text,
       );
-    } else if (type == 'video') {
-      newMessage = await _chatService.sendVideo(
-        widget.chatId,
-        widget.myId,
-        widget.friendId,
-        file,
-      );
-    } else if (type == 'file') {
-      final fileName = parts[2];
-      newMessage = await _chatService.sendFile(
-        widget.chatId,
-        widget.myId,
-        widget.friendId,
-        file,
-        fileName,
-      );
-    } else {
-      return;
+
+      setState(() {
+        _allMessages.add(newMessage);
+      });
+
+      _messageController.clear();
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _error = "Lỗi khi gửi tin nhắn: $e";
+      });
     }
-
-    setState(() {
-      _allMessages.add(newMessage);
-    });
-
-    _scrollToBottom();
   }
 
   void _onMessageTap(int index) {
@@ -208,7 +186,7 @@ class MessagesState extends State<Messages> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {}, // Có thể thêm chức năng gọi video sau
             icon: const Icon(FontAwesomeIcons.video),
           ),
         ],
@@ -218,81 +196,36 @@ class MessagesState extends State<Messages> {
           Column(
             children: [
               Expanded(
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _chatService.getMessagesStream(widget.chatId),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(child: Text("Lỗi: ${snapshot.error}"));
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.data!.isEmpty) {
-                      return const Center(child: Text("Chưa có tin nhắn nào"));
-                    }
-
-                    final newMessages = snapshot.data!;
-
-                    if (_isFirstLoad) {
-                      _allMessages = newMessages.reversed.toList();
-                      _isFirstLoad = false;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _scrollToBottom();
-                      });
-                    } else {
-                      for (var message in newMessages) {
-                        if (message['sender_id'] != widget.myId) {
-                          if (!_allMessages.any(
-                            (m) => m['id'] == message['id'],
-                          )) {
-                            _allMessages.add(message);
-                            if (_isAtBottom) {
-                              _scrollToBottom();
-                            } else {
-                              setState(() {
-                                _hasNewMessage = true;
-                              });
-                            }
-                          }
-                        } else {
-                          final existingMessageIndex = _allMessages.indexWhere(
-                            (m) => m['id'] == message['id'],
-                          );
-                          if (existingMessageIndex != -1) {
-                            _allMessages[existingMessageIndex]['timestamp'] =
-                                message['timestamp'];
-                          }
-                        }
-                      }
-
-                      _allMessages.sort((a, b) {
-                        final aTimestamp = DateTime.parse(a['timestamp']);
-                        final bTimestamp = DateTime.parse(b['timestamp']);
-                        return aTimestamp.compareTo(bTimestamp);
-                      });
-                    }
-
-                    _firstMessage =
-                        _allMessages.isNotEmpty ? _allMessages.first : null;
-                    _hasMoreMessages = true;
-
-                    return MessageList(
-                      messages: _allMessages,
-                      myId: widget.myId,
-                      friendImage: widget.friendImage,
-                      scrollController: _scrollController,
-                      isLoadingMore: _isLoadingMore,
-                      hasMoreMessages: _hasMoreMessages,
-                      selectedMessages: _selectedMessages,
-                      onMessageTap: _onMessageTap,
-                    );
-                  },
-                ),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _error != null
+                        ? Center(
+                          child: Text(
+                            "Lỗi: $_error",
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                        : _allMessages.isEmpty
+                        ? const Center(child: Text("Chưa có tin nhắn nào"))
+                        : MessageList(
+                          messages: _allMessages,
+                          myId: widget.myId,
+                          friendImage: widget.friendImage,
+                          scrollController: _scrollController,
+                          isLoadingMore: false,
+                          hasMoreMessages: false,
+                          selectedMessages: _selectedMessages,
+                          onMessageTap: _onMessageTap,
+                        ),
               ),
               MessageInput(
                 controller: _messageController,
                 onSend: _sendMessage,
-                onSendMedia: _sendMedia,
                 onTextFieldTap: () {},
               ),
             ],
@@ -315,6 +248,7 @@ class MessagesState extends State<Messages> {
   void dispose() {
     _scrollController.dispose();
     _messageController.dispose();
+    Supabase.instance.client.channel('public:messages').unsubscribe();
     super.dispose();
   }
 }

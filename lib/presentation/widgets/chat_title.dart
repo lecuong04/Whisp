@@ -40,11 +40,30 @@ class ChatTitleState extends State<ChatTitle> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(child: Text(widget.alias, style: TextStyle(fontSize: 20, fontWeight: (!widget.isSeen ? FontWeight.bold : FontWeight.normal)), overflow: TextOverflow.ellipsis, maxLines: 1)),
+              Flexible(
+                child: Text(
+                  widget.alias,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight:
+                        (!widget.isSeen ? FontWeight.bold : FontWeight.normal),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(dateTimeFormat(widget.time, is24HourFormat), style: TextStyle(fontWeight: (!widget.isSeen ? FontWeight.bold : FontWeight.normal))),
+                  Text(
+                    dateTimeFormat(widget.time, is24HourFormat),
+                    style: TextStyle(
+                      fontWeight:
+                          (!widget.isSeen
+                              ? FontWeight.bold
+                              : FontWeight.normal),
+                    ),
+                  ),
                   Padding(padding: EdgeInsets.only(right: 2)),
                   Icon(Symbols.arrow_forward_ios, size: 18),
                 ],
@@ -57,9 +76,21 @@ class ChatTitleState extends State<ChatTitle> {
             child: Stack(
               alignment: AlignmentDirectional.center,
               children: [
-                CircleAvatar(backgroundImage: NetworkImage(widget.urlImg), radius: 26),
+                CircleAvatar(
+                  backgroundImage: NetworkImage(widget.urlImg),
+                  radius: 26,
+                ),
                 if (widget.isOnline) ...[
-                  Align(alignment: Alignment.bottomRight, child: Stack(alignment: AlignmentDirectional.center, children: [Icon(Icons.circle, color: Colors.white, size: 18), Icon(Icons.circle, color: Colors.green, size: 14)])),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Stack(
+                      alignment: AlignmentDirectional.center,
+                      children: [
+                        Icon(Icons.circle, color: Colors.white, size: 18),
+                        Icon(Icons.circle, color: Colors.green, size: 14),
+                      ],
+                    ),
+                  ),
                 ] else
                   ...[],
               ],
@@ -70,7 +101,12 @@ class ChatTitleState extends State<ChatTitle> {
             widget.lastMessage, // Sử dụng lastMessage thay vì giá trị tĩnh
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontWeight: (!widget.isSeen ? FontWeight.w700 : FontWeight.normal), fontSize: 16, color: (!widget.isSeen ? Colors.black : Colors.black87)),
+            style: TextStyle(
+              fontWeight:
+                  (!widget.isSeen ? FontWeight.w700 : FontWeight.normal),
+              fontSize: 16,
+              color: (!widget.isSeen ? Colors.black : Colors.black87),
+            ),
           ),
         ),
         Divider(height: 8),
