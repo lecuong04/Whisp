@@ -111,7 +111,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
             // Tên và Email
             Text(
-              user?.userMetadata?["username"] ?? "Cập nhật ngay",
+              user?.userMetadata!["full_name"],
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),

@@ -82,14 +82,16 @@ class _SignupScreenState extends State<SignupScreen> {
         }
       }
     } on AuthException catch (e) {
+      print(e);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Username đã tồn tại')));
+      ).showSnackBar(SnackBar(content: Text('Đăng kí thất bại!')));
     } catch (e) {
+      print(e);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra: $e')));
+        ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra!')));
       }
     } finally {
       setState(() => isLoading = false);

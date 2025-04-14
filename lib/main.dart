@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/chats.dart';
 import 'package:whisp/presentation/screens/contacts_page.dart';
+import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 
 Future<void> main() async {
@@ -84,7 +85,10 @@ class HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              // Xử lý sự kiện khi nhấn vào nút thêm
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AddFriendScreen()),
+              );
             },
             icon: const Icon(Symbols.add_2_rounded, size: 32, fill: 1),
           ),

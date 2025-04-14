@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whisp/services/friend_service.dart';
 
 class UserModel {
   final String name;
@@ -82,7 +83,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       ),
       body: Column(
         children: [
-          _buildTabs(),
+          //_buildTabs(),
           Expanded(
             child: ListView.builder(
               itemCount: users.length,
@@ -149,6 +150,9 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         SizedBox(width: 8),
         Expanded(
           child: TextField(
+            onSubmitted: (value) {
+              FriendService().findUsers(value);
+            },
             decoration: InputDecoration(
               hintText: 'Michael',
               prefixIcon: Icon(Icons.search),
@@ -166,45 +170,45 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     );
   }
 
-  Widget _buildTabs() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: Row(
-        children: [
-          _tabItem("All Friends", 0),
-          SizedBox(width: 8),
-          _tabItem("Users", 1),
-        ],
-      ),
-    );
-  }
+  // Widget _buildTabs() {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+  //     child: Row(
+  //       children: [
+  //         _tabItem("All Friends", 0),
+  //         SizedBox(width: 8),
+  //         _tabItem("Users", 1),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  Widget _tabItem(String label, int index) {
-    final isSelected = selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedTab = index;
-          });
-        },
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color:
-                isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _tabItem(String label, int index) {
+  //   final isSelected = selectedTab == index;
+  //   return Expanded(
+  //     child: GestureDetector(
+  //       onTap: () {
+  //         setState(() {
+  //           selectedTab = index;
+  //         });
+  //       },
+  //       child: Container(
+  //         padding: EdgeInsets.symmetric(vertical: 10),
+  //         decoration: BoxDecoration(
+  //           color:
+  //               isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
+  //           borderRadius: BorderRadius.circular(16),
+  //         ),
+  //         alignment: Alignment.center,
+  //         child: Text(
+  //           label,
+  //           style: TextStyle(
+  //             color: isSelected ? Colors.white : Colors.black87,
+  //             fontWeight: FontWeight.w600,
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }
