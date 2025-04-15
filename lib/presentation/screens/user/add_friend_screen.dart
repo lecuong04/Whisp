@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:whisp/models/friend_request.dart';
+import 'package:whisp/presentation/widgets/friend_request_title.dart';
 import 'package:whisp/services/friend_service.dart';
 
 class UserModel {
@@ -89,45 +91,12 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
               itemCount: users.length,
               itemBuilder: (context, index) {
                 final user = users[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 24,
-                    backgroundImage: NetworkImage(user.avatarUrl),
-                  ),
-                  title: Text(
-                    user.name,
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    user.username,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  trailing: GestureDetector(
-                    onTap: () => toggleFriendRequest(index),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            user.isRequested
-                                ? Colors.grey[100]
-                                : Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border:
-                            user.isRequested
-                                ? Border.all(color: Colors.grey)
-                                : null,
-                      ),
-                      child: Text(
-                        user.isRequested ? 'Đã gửi' : 'Kết bạn',
-                        style: TextStyle(
-                          color: user.isRequested ? Colors.black : Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+                return FriendRequestTitle(
+                  request: FriendRequest(
+                    fullName: user.name,
+                    username: user.username,
+                    avatarURL: user.avatarUrl,
+                    status: "",
                   ),
                 );
               },
