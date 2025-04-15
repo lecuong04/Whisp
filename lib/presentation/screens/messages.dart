@@ -76,12 +76,11 @@ class MessagesState extends State<Messages> {
 
   Future<void> _initializeMessages() async {
     try {
-      // Đánh dấu tin nhắn là đã đọc (không ném lỗi nếu thất bại)
-      try {
-        await _chatService.markMessagesAsRead(widget.chatId);
-      } catch (e) {
+      // Gọi markMessagesAsRead bất đồng bộ
+      _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
-      }
+        // Không đặt _error để tránh hiển thị lỗi giao diện
+      });
 
       // Tải tin nhắn
       final messages = await _chatService.loadMessages(widget.chatId);
@@ -180,7 +179,8 @@ class MessagesState extends State<Messages> {
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
-            Navigator.pop(context);
+            // Trả về conversation_id để Chats cập nhật local
+            Navigator.pop(context, {'conversation_id': widget.chatId});
           },
           icon: const Icon(FontAwesomeIcons.chevronLeft),
         ),

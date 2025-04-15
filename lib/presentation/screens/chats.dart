@@ -14,7 +14,7 @@ class Chats extends StatefulWidget {
 
 class ChatsState extends State<Chats> {
   String? myId;
-  String? myUsername;
+  String? myFullName;
   final ChatService _chatService = ChatService();
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;
@@ -39,11 +39,11 @@ class ChatsState extends State<Chats> {
 
       final userId = user.id;
       final userInfo = await _chatService.getUserInfo(userId);
-      final username = userInfo?['username'] as String? ?? 'User';
+      final fullName = userInfo?['full_name'] as String? ?? 'User';
 
       setState(() {
         myId = userId;
-        myUsername = username;
+        myFullName = fullName;
       });
 
       await _loadChats();
@@ -62,11 +62,13 @@ class ChatsState extends State<Chats> {
         _chats = chats;
         _isLoading = false;
       });
+      print('Chats loaded in Chats: $_chats');
 
       // Theo dõi thay đổi Realtime
       _chatService.subscribeToChats(myId!, (updatedChats) {
         setState(() {
           _chats = updatedChats;
+          print('Chats updated via Realtime in Chats: $_chats');
         });
       });
     } catch (e) {
@@ -77,9 +79,22 @@ class ChatsState extends State<Chats> {
     }
   }
 
+  void _updateChatReadStatus(String conversationId) {
+    setState(() {
+      _chats =
+          _chats.map((chat) {
+            if (chat['conversation_id'] == conversationId) {
+              return {...chat, 'is_read': true};
+            }
+            return chat;
+          }).toList();
+      print('Updated local is_read for $conversationId: $_chats');
+    });
+  }
+
   @override
   void dispose() {
-    Supabase.instance.client.channel('public:conversations').unsubscribe();
+    Supabase.instance.client.channel('public:chats').unsubscribe();
     super.dispose();
   }
 
@@ -131,7 +146,7 @@ class ChatsState extends State<Chats> {
                 _chats.isEmpty
                     ? Center(
                       child: Text(
-                        "Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới!\nMyId: $myId\nMyUsername: $myUsername",
+                        "Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới!\nMyId: $myId\nMyFullName: $myFullName",
                         style: const TextStyle(fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
@@ -145,14 +160,16 @@ class ChatsState extends State<Chats> {
                         final conversationId =
                             chat['conversation_id'] as String;
                         final friendId = chat['friend_id'] as String;
-                        final alias = chat['friend_username'] as String;
+                        final alias = chat['friend_full_name'] as String;
                         final avatarUrl = chat['friend_avatar_url'] as String;
                         final lastMessage = chat['last_message'] as String;
                         final lastMessageTime =
                             chat['last_message_time'] as DateTime;
                         final isOnline = chat['friend_status'] == 'online';
                         final isSeen = chat['is_read'] as bool;
-
+                        print(
+                          'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
+                        );
                         return ChatTitle(
                           avatarUrl,
                           alias,
@@ -173,7 +190,14 @@ class ChatsState extends State<Chats> {
                                       friendImage: avatarUrl,
                                     ),
                               ),
-                            );
+                            ).then((result) {
+                              if (result != null &&
+                                  result['conversation_id'] != null) {
+                                _updateChatReadStatus(
+                                  result['conversation_id'],
+                                );
+                              }
+                            });
                           },
                         );
                       },

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-class MessageList extends StatelessWidget {
+class MessageList extends StatefulWidget {
   final List<Map<String, dynamic>> messages;
   final String myId;
   final String friendImage;
@@ -24,31 +24,53 @@ class MessageList extends StatelessWidget {
   });
 
   @override
+  MessageListState createState() => MessageListState();
+}
+
+class MessageListState extends State<MessageList> {
+  final Set<int> _showTimestampIndices = {};
+
+  void _toggleTimestamp(int index) {
+    setState(() {
+      if (_showTimestampIndices.contains(index)) {
+        _showTimestampIndices.remove(index);
+      } else {
+        _showTimestampIndices.add(index);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      controller: scrollController,
+      controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(vertical: 10),
-      itemCount: messages.length + (isLoadingMore ? 1 : 0),
+      itemCount: widget.messages.length + (widget.isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == messages.length && isLoadingMore) {
+        if (index == widget.messages.length && widget.isLoadingMore) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final message = messages[index];
-        final isMe = message['sender_id'] == myId;
-        final isSelected = selectedMessages.contains(index);
+        final message = widget.messages[index];
+        final isMe = message['sender_id'] == widget.myId;
+        final isSelected = widget.selectedMessages.contains(index);
+        final showTimestamp = _showTimestampIndices.contains(index);
 
         // Kiểm tra trạng thái đã xem cho tin nhắn từ tôi
         bool isReadByAll = false;
         if (isMe && message['message_statuses'] != null) {
           final statuses = message['message_statuses'] as List<dynamic>;
           isReadByAll = statuses.every(
-            (status) => status['user_id'] == myId || status['is_read'] == true,
+            (status) =>
+                status['user_id'] == widget.myId || status['is_read'] == true,
           );
         }
 
         return GestureDetector(
-          onTap: () => onMessageTap(index),
+          onTap: () {
+            _toggleTimestamp(index); // Bật/tắt thời gian
+            widget.onMessageTap(index); // Giữ logic chọn tin nhắn
+          },
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
             child: Row(
@@ -58,7 +80,7 @@ class MessageList extends StatelessWidget {
               children: [
                 if (!isMe) ...[
                   CircleAvatar(
-                    backgroundImage: NetworkImage(friendImage),
+                    backgroundImage: NetworkImage(widget.friendImage),
                     radius: 15,
                   ),
                   const SizedBox(width: 10),
@@ -86,14 +108,15 @@ class MessageList extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text(
-                        _formatTimestamp(message['sent_at']),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
+                      if (showTimestamp) // Chỉ hiển thị nếu nhấp
+                        Text(
+                          _formatTimestamp(message['sent_at']),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                      if (isMe && index == messages.length - 1)
+                      if (isMe && index == widget.messages.length - 1)
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -132,10 +155,15 @@ class MessageList extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+
     if (messageDate == today) {
-      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      return '$hour:$minute';
     } else {
-      return '${dateTime.day}/${dateTime.month} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      final day = dateTime.day.toString().padLeft(2, '0');
+      final month = dateTime.month.toString().padLeft(2, '0');
+      return '$day/$month $hour:$minute';
     }
   }
 }
