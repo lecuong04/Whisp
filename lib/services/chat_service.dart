@@ -6,6 +6,7 @@ class ChatService {
   /// Tải danh sách cuộc trò chuyện 1-1 của người dùng
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
     try {
+      // Lấy danh sách cuộc trò chuyện của người dùng
       final response = await _supabase
           .from('conversation_participants')
           .select('''
@@ -22,27 +23,32 @@ class ChatService {
           .eq('conversations.is_group', false);
 
       final List<Map<String, dynamic>> userChats = response;
+      print('User chats: $userChats');
 
       final processedChats = <Map<String, dynamic>>[];
       for (var chat in userChats) {
         final conversationId = chat['conversation_id'];
+        print('Processing conversation: $conversationId');
 
+        // Lấy thông tin người bạn
         final friendResponse =
             await _supabase
                 .from('conversation_participants')
                 .select(
-                  'user_id, users!inner(id, username, avatar_url, status)',
+                  'user_id, users!inner(id, full_name, avatar_url, status)',
                 )
                 .eq('conversation_id', conversationId)
                 .neq('user_id', userId)
                 .maybeSingle();
 
         if (friendResponse == null) {
+          print('No friend found for conversation: $conversationId');
           continue;
         }
 
         final friend = friendResponse['users'] as Map<String, dynamic>;
 
+        // Lấy tin nhắn mới nhất
         final lastMessage =
             await _supabase
                 .from('messages')
@@ -52,37 +58,40 @@ class ChatService {
                 .limit(1)
                 .maybeSingle();
 
-        final messageIds = await _supabase
-            .from('messages')
-            .select('id')
-            .eq('conversation_id', conversationId);
-        final unreadCount =
-            messageIds.isEmpty
-                ? 0
-                : await _supabase
-                    .from('message_statuses')
-                    .select('id')
-                    .eq('user_id', userId)
-                    .eq('is_read', false)
-                    .inFilter(
-                      'message_id',
-                      messageIds.map((m) => m['id']).toList(),
-                    )
-                    .count();
+        // Lấy trạng thái is_read của tin nhắn mới nhất
+        bool isRead = true;
+        if (lastMessage != null) {
+          final lastMessageStatus =
+              await _supabase
+                  .from('message_statuses')
+                  .select('is_read')
+                  .eq('message_id', lastMessage['id'])
+                  .eq('user_id', userId)
+                  .maybeSingle();
+          isRead = lastMessageStatus?['is_read'] ?? true;
+          print(
+            'Last message for $conversationId: ${lastMessage['content']}, sent_at: ${lastMessage['sent_at']}, is_read: $isRead',
+          );
+        } else {
+          print('No messages for $conversationId');
+        }
+
+        // Chuyển sent_at thành giờ địa phương
+        final lastMessageTime =
+            lastMessage != null
+                ? DateTime.parse(lastMessage['sent_at']).toLocal()
+                : DateTime.now().toLocal();
 
         processedChats.add({
           'conversation_id': conversationId,
           'friend_id': friend['id'],
-          'friend_username': friend['username'] ?? 'Unknown',
+          'friend_full_name': friend['full_name'] ?? 'Unknown',
           'friend_avatar_url':
               friend['avatar_url'] ?? 'https://via.placeholder.com/150',
           'friend_status': friend['status'] ?? 'offline',
           'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
-          'last_message_time':
-              lastMessage != null
-                  ? DateTime.parse(lastMessage['sent_at'])
-                  : DateTime.now(),
-          'is_read': unreadCount == 0,
+          'last_message_time': lastMessageTime,
+          'is_read': isRead,
           'is_group': chat['conversations']['is_group'],
         });
       }
@@ -90,8 +99,10 @@ class ChatService {
       processedChats.sort(
         (a, b) => b['last_message_time'].compareTo(a['last_message_time']),
       );
+      print('Processed chats: $processedChats');
       return processedChats;
     } catch (e) {
+      print('Error loading chats: $e');
       throw Exception('Lỗi khi tải danh sách chat: $e');
     }
   }
@@ -147,7 +158,9 @@ class ChatService {
       final response =
           await _supabase
               .from('users')
-              .select('id, username, avatar_url, status')
+              .select(
+                'id, full_name, avatar_url, status',
+              ) // Thay username thành full_name
               .eq('id', userId)
               .maybeSingle();
 
@@ -162,13 +175,14 @@ class ChatService {
     String userId,
     Function(List<Map<String, dynamic>>) onUpdate,
   ) {
-    _supabase
-        .channel('public:conversations')
+    final channel = _supabase.channel('public:chats');
+    channel
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'conversations',
           callback: (payload) async {
+            print('Realtime: Conversations changed - $payload');
             final updatedChats = await loadChatsByUserId(userId);
             onUpdate(updatedChats);
           },
@@ -178,11 +192,29 @@ class ChatService {
           schema: 'public',
           table: 'messages',
           callback: (payload) async {
+            print('Realtime: Messages changed - $payload');
             final updatedChats = await loadChatsByUserId(userId);
             onUpdate(updatedChats);
           },
         )
-        .subscribe();
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'message_statuses',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (payload) async {
+            print('Realtime: Message statuses changed - $payload');
+            final updatedChats = await loadChatsByUserId(userId);
+            onUpdate(updatedChats);
+          },
+        )
+        .subscribe((status, [error]) {
+          print('Realtime channel status: $status, error: $error');
+        });
   }
 
   /// Tải danh sách tin nhắn trong một cuộc trò chuyện
@@ -202,7 +234,7 @@ class ChatService {
             is_edited,
             edited_at,
             message_type,
-            users!sender_id(id, username, avatar_url)
+            users!sender_id(id, full_name, avatar_url) // Thay username thành full_name
           ''')
           .eq('conversation_id', conversationId)
           .eq('message_type', 'text')
@@ -215,7 +247,6 @@ class ChatService {
     }
   }
 
-  /// Gửi tin nhắn văn bản
   Future<Map<String, dynamic>> sendMessage({
     required String conversationId,
     required String senderId,
@@ -240,12 +271,22 @@ class ChatService {
             is_edited,
             edited_at,
             message_type,
-            users!sender_id(id, username, avatar_url)
+            users!sender_id(id, full_name, avatar_url) // Thay username thành full_name
           ''')
               .single();
 
+      // Kiểm tra message_statuses (để debug)
+      final statusCheck = await _supabase
+          .from('message_statuses')
+          .select('user_id, is_read')
+          .eq('message_id', response['id']);
+      print(
+        'Message statuses created for message ${response['id']}: $statusCheck',
+      );
+
       return response;
     } catch (e) {
+      print('Error sending message: $e');
       throw Exception('Lỗi khi gửi tin nhắn: $e');
     }
   }
@@ -253,22 +294,28 @@ class ChatService {
   /// Đánh dấu tin nhắn là đã đọc
   Future<void> markMessagesAsRead(String conversationId) async {
     try {
-      // Lấy danh sách message_id
       final messageResponse = await _supabase
           .from('messages')
           .select('id')
           .eq('conversation_id', conversationId);
 
-      // Trích xuất danh sách UUID
       final messageIds =
           messageResponse.map((msg) => msg['id'] as String).toList();
+      print('Message IDs for conversation $conversationId: $messageIds');
 
-      // Nếu không có tin nhắn, bỏ qua
       if (messageIds.isEmpty) {
+        print('No messages found for conversation $conversationId');
         return;
       }
 
-      // Cập nhật trạng thái đã đọc
+      final beforeUpdate = await _supabase
+          .from('message_statuses')
+          .select('id, message_id, is_read')
+          .eq('user_id', _supabase.auth.currentUser!.id)
+          .eq('is_read', false)
+          .inFilter('message_id', messageIds);
+      print('Messages to mark as read (before): $beforeUpdate');
+
       await _supabase
           .from('message_statuses')
           .update({
@@ -277,7 +324,15 @@ class ChatService {
           })
           .match({'user_id': _supabase.auth.currentUser!.id, 'is_read': false})
           .inFilter('message_id', messageIds);
+
+      final afterUpdate = await _supabase
+          .from('message_statuses')
+          .select('id, message_id, is_read')
+          .eq('user_id', _supabase.auth.currentUser!.id)
+          .inFilter('message_id', messageIds);
+      print('Messages after marking as read: $afterUpdate');
     } catch (e) {
+      print('Error marking messages as read: $e');
       throw Exception('Lỗi khi đánh dấu đã đọc: $e');
     }
   }

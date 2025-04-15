@@ -3,21 +3,21 @@ import 'package:whisp/utilities.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 class ChatTitle extends StatefulWidget {
-  final String alias;
+  final String avatarUrl;
+  final String fullName;
   final DateTime time;
   final bool isSeen;
-  final String urlImg;
   final bool isOnline;
-  final String lastMessage; // Thêm tham số lastMessage
+  final String lastMessage;
   final VoidCallback? onTap;
 
   const ChatTitle(
-    this.urlImg,
-    this.alias,
+    this.avatarUrl,
+    this.fullName,
     this.time,
     this.isSeen,
     this.isOnline,
-    this.lastMessage, { // Thêm vào constructor
+    this.lastMessage, {
     this.onTap,
     super.key,
   });
@@ -32,17 +32,18 @@ class ChatTitleState extends State<ChatTitle> {
   @override
   Widget build(BuildContext context) {
     bool is24HourFormat = MediaQuery.of(context).alwaysUse24HourFormat;
+    print('ChatTitle time: ${widget.time}');
     return Column(
       children: [
         ListTile(
           onTap: widget.onTap,
-          contentPadding: EdgeInsets.symmetric(horizontal: 8),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
                 child: Text(
-                  widget.alias,
+                  widget.fullName,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight:
@@ -64,8 +65,8 @@ class ChatTitleState extends State<ChatTitle> {
                               : FontWeight.normal),
                     ),
                   ),
-                  Padding(padding: EdgeInsets.only(right: 2)),
-                  Icon(Symbols.arrow_forward_ios, size: 18),
+                  const Padding(padding: EdgeInsets.only(right: 2)),
+                  const Icon(Symbols.arrow_forward_ios, size: 18),
                 ],
               ),
             ],
@@ -77,7 +78,7 @@ class ChatTitleState extends State<ChatTitle> {
               alignment: AlignmentDirectional.center,
               children: [
                 CircleAvatar(
-                  backgroundImage: NetworkImage(widget.urlImg),
+                  backgroundImage: NetworkImage(widget.avatarUrl),
                   radius: 26,
                 ),
                 if (widget.isOnline) ...[
@@ -85,20 +86,19 @@ class ChatTitleState extends State<ChatTitle> {
                     alignment: Alignment.bottomRight,
                     child: Stack(
                       alignment: AlignmentDirectional.center,
-                      children: [
+                      children: const [
                         Icon(Icons.circle, color: Colors.white, size: 18),
                         Icon(Icons.circle, color: Colors.green, size: 14),
                       ],
                     ),
                   ),
-                ] else
-                  ...[],
+                ],
               ],
             ),
           ),
           horizontalTitleGap: 8,
           subtitle: Text(
-            widget.lastMessage, // Sử dụng lastMessage thay vì giá trị tĩnh
+            widget.lastMessage,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -109,7 +109,7 @@ class ChatTitleState extends State<ChatTitle> {
             ),
           ),
         ),
-        Divider(height: 8),
+        const Divider(height: 8),
       ],
     );
   }
