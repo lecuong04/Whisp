@@ -1,19 +1,22 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FriendRequest {
-  final String username;
   final String fullName;
-  final String avatarURL;
+  final String username;
+  late String _avatarURL;
   late String _status;
 
   String get status => _status;
+  String get avatarURL => _avatarURL;
 
   FriendRequest({
     required this.fullName,
     required this.username,
-    required this.avatarURL,
-    required String status,
+    required String? avatarURL,
+    required String? status,
   }) {
+    _avatarURL = (avatarURL ??= "");
+    status ??= "";
     switch (status) {
       case "":
       case "pending":

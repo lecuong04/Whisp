@@ -16,14 +16,14 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
     return ListTile(
       leading: CircleAvatar(
         radius: 24,
-        backgroundImage: NetworkImage(widget.request.avatarURL),
+        backgroundImage: NetworkImage(widget.request.avatarURL ?? ""),
       ),
       title: Text(
         widget.request.fullName,
         style: TextStyle(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        widget.request.username,
+        "@${widget.request.username}",
         style: TextStyle(color: Colors.grey),
       ),
       trailing: GestureDetector(
@@ -38,14 +38,15 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
                     ? Theme.of(context).primaryColor
                     : null,
             borderRadius: BorderRadius.circular(20),
-            border: true ? Border.all(color: Colors.grey) : null,
+            border: Border.all(color: Colors.grey),
           ),
           child: Text(
-            true ? 'Đã gửi' : 'Kết bạn',
-            style: TextStyle(
-              color: true ? Colors.black : Colors.white,
-              fontWeight: FontWeight.w500,
-            ),
+            widget.request.status == ""
+                ? 'Kết bạn'
+                : widget.request.status == "pending"
+                ? 'Đã gửi'
+                : "Đã kết bạn",
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
           ),
         ),
       ),

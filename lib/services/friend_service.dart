@@ -3,16 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class FriendService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<List<dynamic>> findUsers(String username) async {
-    if (username.length < 3) return List.empty();
+  Future<List<Map<String, dynamic>>> findUsers(String username) async {
+    if (username.length < 2) return List.empty();
     var data = await _supabase.rpc(
       "find_users",
-      params: {
-        "search": username,
-        "user_query": _supabase.auth.currentUser?.id,
-      },
+      params: {"search": username, "user_id": _supabase.auth.currentUser?.id},
     );
-    print(data);
-    return data;
+    List<Map<String, dynamic>> result = List.empty(growable: true);
+    for (var item in data) {
+      print(item);
+      result.add(item);
+    }
+    return result;
   }
 }
