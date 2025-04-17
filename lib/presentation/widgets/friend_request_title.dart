@@ -16,7 +16,7 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
     return ListTile(
       leading: CircleAvatar(
         radius: 24,
-        backgroundImage: NetworkImage(widget.request.avatarURL ?? ""),
+        backgroundImage: NetworkImage(widget.request.avatarURL),
       ),
       title: Text(
         widget.request.fullName,
@@ -27,7 +27,11 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
         style: TextStyle(color: Colors.grey),
       ),
       trailing: GestureDetector(
-        onTap: () {},
+        onTap: () {
+          setState(() {
+            widget.request.requestFriend();
+          });
+        },
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(

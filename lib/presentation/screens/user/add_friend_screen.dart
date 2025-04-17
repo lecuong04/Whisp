@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:whisp/models/friend_request.dart';
 import 'package:whisp/presentation/widgets/friend_request_title.dart';
 import 'package:whisp/services/friend_service.dart';
+import 'package:whisp/services/user_service.dart';
 
 class UserModel {
   final String name;
@@ -46,7 +45,6 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
             child: FutureBuilder(
               future: data,
               builder: (context, snapshot) {
-                print(snapshot.connectionState);
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -94,7 +92,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
           child: TextField(
             onSubmitted: (value) {
               setState(() {
-                data = FriendService().findUsers(value);
+                data = UserService().findUsers(value);
               });
             },
             decoration: InputDecoration(
