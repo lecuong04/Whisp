@@ -49,7 +49,7 @@ class ChatsState extends State<Chats> {
       await _loadChats();
     } catch (e) {
       setState(() {
-        _error = "Lỗi khi khởi tạo: $e";
+        _error = "Lỗi khi khởi tạo!";
         _isLoading = false;
       });
     }

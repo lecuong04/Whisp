@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:whisp/models/friend_request.dart';
 import 'package:whisp/presentation/widgets/friend_request_title.dart';
-import 'package:whisp/services/friend_service.dart';
 import 'package:whisp/services/user_service.dart';
 
 class UserModel {

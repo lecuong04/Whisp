@@ -15,6 +15,7 @@ class Contacts extends StatefulWidget {
 class ContactsState extends State<Contacts>
     with SingleTickerProviderStateMixin {
   late TabController tabController;
+  var data = FriendService().listFriends();
   @override
   void initState() {
     tabController = TabController(length: 5, vsync: this);
@@ -30,9 +31,11 @@ class ContactsState extends State<Contacts>
     return Scaffold(
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Search(),
+          Divider(height: 0),
+          Padding(padding: EdgeInsets.symmetric(vertical: 5), child: null),
           Divider(height: 0),
           SizedBox(
             height: 46,
@@ -70,15 +73,30 @@ class ContactsState extends State<Contacts>
           ),
           Padding(padding: EdgeInsets.only(bottom: 10)),
           Expanded(
-            child: TabBarView(
-              controller: tabController,
-              children: [
-                ContactsList(),
-                // ContactsList(),
-                // ContactsList(),
-                // ContactsList(),
-                // ContactsList(),
-              ],
+            child: FutureBuilder(
+              future: data,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [CircularProgressIndicator()],
+                  );
+                }
+                if (snapshot.hasData) {
+                  return TabBarView(
+                    controller: tabController,
+                    children: [
+                      ContactsList(snapshot.data!),
+                      // ContactsList(),
+                      // ContactsList(),
+                      // ContactsList(),
+                      // ContactsList(),
+                    ],
+                  );
+                }
+                return Container();
+              },
             ),
           ),
         ],
