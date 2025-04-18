@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
 class ContactTitle extends StatelessWidget {
+  final String id;
   final String fullName;
   final bool isOnline;
   final String avatarUrl;
   final String username;
+  final VoidCallback? onTap;
   const ContactTitle({
+    required this.id,
     required this.fullName,
     required this.isOnline,
     required this.avatarUrl,
     required this.username,
     super.key,
+    this.onTap,
   });
 
   @override
@@ -18,6 +22,7 @@ class ContactTitle extends StatelessWidget {
     return Column(
       children: [
         ListTile(
+          onTap: onTap,
           contentPadding: EdgeInsets.symmetric(horizontal: 8),
           leading: SizedBox(
             width: 56,

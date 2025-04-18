@@ -1,7 +1,10 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/models/friend.dart';
+import 'package:whisp/presentation/screens/messages.dart';
 import 'package:whisp/presentation/widgets/contact_title.dart';
 import 'package:flutter/material.dart';
 import 'package:diacritic/diacritic.dart';
+import 'package:whisp/services/chat_service.dart';
 
 class ContactsList extends StatefulWidget {
   final List<Friend> friends;
@@ -20,6 +23,7 @@ class ContactsListState extends State<ContactsList> {
 
   @override
   Widget build(BuildContext context) {
+    var user = Supabase.instance.client.auth.currentUser!;
     List<Widget> children = [];
     Map<String, List<Friend>> grouped = {};
     for (Friend user in widget.friends) {
@@ -53,10 +57,29 @@ class ContactsListState extends State<ContactsList> {
       for (Friend f in value) {
         children.add(
           ContactTitle(
+            id: f.id,
             fullName: f.fullName,
             avatarUrl: f.avatarUrl,
             username: f.username,
             isOnline: f.isOnline,
+            onTap: () async {
+              var chatId = await ChatService().getDirectConversation(f.id);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    return Messages(
+                      chatId: chatId,
+                      myId: user.id,
+                      friendId: f.id,
+                      friendName: f.fullName,
+                      friendImage: f.avatarUrl,
+                    );
+                  },
+                ),
+              );
+              ;
+            },
           ),
         );
       }
