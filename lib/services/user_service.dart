@@ -4,6 +4,10 @@ import 'package:whisp/models/friend_request.dart';
 class UserService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  String? getMyId() {
+    return _supabase.auth.currentUser?.id;
+  }
+
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
     try {
       final response =
@@ -46,5 +50,16 @@ class UserService {
       result.add(FriendRequest.json(item));
     }
     return result;
+  }
+
+  Future<String> getIdFromUsername(String username) async {
+    var data = await _supabase.rpc(
+      "get_id_from_username",
+      params: {
+        "_username": username,
+        "user_query": _supabase.auth.currentUser?.id,
+      },
+    );
+    return data ??= "";
   }
 }

@@ -38,31 +38,6 @@ class FriendRequest {
     }
   }
 
-  void requestFriend() async {
-    final supabase = Supabase.instance.client;
-    if (_status == "" || _status == "rejected") {
-      var data = await supabase.rpc(
-        "request_friend",
-        params: {
-          "request_username": username,
-          "user_id": supabase.auth.currentUser?.id,
-        },
-      );
-      _status = data.toString();
-    } else if (_status == "pending") {
-      if (!_isYourReq) {
-        var data = await supabase.rpc(
-          "accept_friend_request",
-          params: {
-            "self_id": supabase.auth.currentUser?.id,
-            "request_username": _username,
-          },
-        );
-        _status = data.toString();
-      }
-    }
-  }
-
   FriendRequest.json(dynamic data) {
     _fullName = data["full_name"];
     _username = data["username"];
@@ -79,6 +54,44 @@ class FriendRequest {
         break;
       default:
         throw Exception("Invalid status!");
+    }
+  }
+
+  Future requestFriend() async {
+    final supabase = Supabase.instance.client;
+    if (_status == "" || _status == "rejected") {
+      var data = await supabase.rpc(
+        "request_friend",
+        params: {
+          "request_username": username,
+          "user_id": supabase.auth.currentUser?.id,
+        },
+      );
+      _status = data.toString();
+      _isYourReq = true;
+    } else if (_status == "pending" && !_isYourReq) {
+      var data = await supabase.rpc(
+        "accept_friend_request",
+        params: {
+          "self_id": supabase.auth.currentUser?.id,
+          "request_username": _username,
+        },
+      );
+      _status = data.toString();
+    }
+  }
+
+  Future rejectFriend() async {
+    final supabase = Supabase.instance.client;
+    if (_status == "pending" && !_isYourReq) {
+      var data = await supabase.rpc(
+        "reject_friend_request",
+        params: {
+          "self_id": supabase.auth.currentUser?.id,
+          "request_username": _username,
+        },
+      );
+      _status = data.toString();
     }
   }
 }

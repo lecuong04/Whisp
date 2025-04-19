@@ -60,7 +60,7 @@ class _AddFriendScreenState extends State<AddFriendScreen>
         automaticallyImplyLeading: false,
         bottom: TabBar(
           onTap: (value) {
-            if (value == 1 && txtSearchController.text.isNotEmpty) {
+            if (value == 1) {
               tmpSearch = txtSearchController.text;
               txtSearchController.clear();
               isReadOnly = true;
@@ -79,7 +79,17 @@ class _AddFriendScreenState extends State<AddFriendScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildFindUsers(data), _buidRequestUsers()],
+        children: [
+          RefreshIndicator(
+            child: _buildFindUsers(data),
+            onRefresh: () async {
+              setState(() {
+                data = UserService().findUsers(txtSearchController.text);
+              });
+            },
+          ),
+          _buidRequestUsers(),
+        ],
       ),
     );
   }
@@ -131,37 +141,35 @@ class _AddFriendScreenState extends State<AddFriendScreen>
   }
 
   Widget _buildFindUsers(Future<List<FriendRequest>> data) {
-    return Expanded(
-      child: FutureBuilder(
-        future: data,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(padding: EdgeInsets.only(top: 10)),
-                    CircularProgressIndicator(),
-                  ],
-                ),
-              ],
-            );
-          }
-          if (snapshot.hasData) {
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final request = snapshot.data![index];
-                return FriendRequestTitle(request: request);
-              },
-            );
-          }
-          return Container();
-        },
-      ),
+    return FutureBuilder(
+      future: data,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(padding: EdgeInsets.only(top: 10)),
+                  CircularProgressIndicator(),
+                ],
+              ),
+            ],
+          );
+        }
+        if (snapshot.hasData) {
+          return ListView.builder(
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final request = snapshot.data![index];
+              return FriendRequestTitle(request: request);
+            },
+          );
+        }
+        return Container();
+      },
     );
   }
 

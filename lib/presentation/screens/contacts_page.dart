@@ -18,7 +18,7 @@ class ContactsState extends State<Contacts>
   var data = FriendService().listFriends();
   @override
   void initState() {
-    tabController = TabController(length: 5, vsync: this);
+    tabController = TabController(length: 1, vsync: this);
     tabController.addListener(() {
       setState(() {});
     });

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/friend_request.dart';
+import 'package:whisp/presentation/screens/messages.dart';
+import 'package:whisp/services/chat_service.dart';
+import 'package:whisp/services/user_service.dart';
 
 class FriendRequestTitle extends StatefulWidget {
   final FriendRequest request;
@@ -14,6 +18,37 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: () async {
+        var req = widget.request;
+        var userId = await UserService().getIdFromUsername(req.username);
+        if (userId.isNotEmpty) {
+          var chatId = await ChatService().getDirectConversation(userId);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => Messages(
+                    chatId: chatId,
+                    myId: UserService().getMyId()!,
+                    friendId: userId,
+                    friendName: req.fullName,
+                    friendImage: req.avatarURL,
+                  ),
+            ),
+          );
+        } else {
+          showDialog(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: Text("Thông báo"),
+                  content: Text(
+                    "Người dùng này không muốn nhận tin nhắn từ người lạ!",
+                  ),
+                ),
+          );
+        }
+      },
       leading: CircleAvatar(
         radius: 24,
         backgroundImage: NetworkImage(widget.request.avatarURL),
@@ -26,45 +61,59 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
         "@${widget.request.username}",
         style: TextStyle(color: Colors.grey),
       ),
-      trailing: GestureDetector(
-        onTap: () {
-          setState(() {
-            widget.request.requestFriend();
-          });
-        },
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color:
-                widget.request.status == ""
-                    ? Colors.grey[100]
-                    : widget.request.status == "pending"
-                    ? Theme.of(context).primaryColor
-                    : null,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey),
+      trailing: Wrap(
+        spacing: 5,
+        children: [
+          if (widget.request.status == "pending" &&
+              !widget.request.isYourRequest) ...[
+            GestureDetector(
+              onTap: () async {
+                await widget.request.rejectFriend();
+                setState(() {});
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.grey),
+                ),
+                child: Icon(Symbols.close),
+              ),
+            ),
+          ],
+          GestureDetector(
+            onTap: () async {
+              await widget.request.requestFriend();
+              setState(() {});
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey),
+              ),
+              child: Icon(_getStatus()),
+            ),
           ),
-          child: Text(
-            _getStatus(),
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
-          ),
-        ),
+        ],
       ),
     );
   }
 
-  String _getStatus() {
+  IconData? _getStatus() {
     String s = widget.request.status;
     if (s == "" || s == "rejected") {
-      return "Kết bạn";
+      return Symbols.add;
     } else if (s == "pending") {
       if (widget.request.isYourRequest) {
-        return "Đã gửi";
+        return Symbols.send;
       } else {
-        return "Chấp nhận";
+        return Symbols.done;
       }
+    } else if (s == 'accepted') {
+      return Symbols.person;
     } else {
-      return "Đã kết bạn";
+      return Symbols.send;
     }
   }
 }

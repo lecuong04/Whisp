@@ -78,7 +78,6 @@ class ContactsListState extends State<ContactsList> {
                   },
                 ),
               );
-              ;
             },
           ),
         );
