@@ -31,8 +31,10 @@ class MessagesState extends State<Messages> {
   final ChatService _chatService = ChatService();
   List<Map<String, dynamic>> _allMessages = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false; // Đổi tên để rõ ràng
   bool _isAtBottom = true;
   bool _hasNewMessage = false;
+  bool _hasMoreMessages = true;
   String? _error;
   Set<int> _selectedMessages = {};
 
@@ -54,6 +56,11 @@ class MessagesState extends State<Messages> {
         _hasNewMessage = false;
       }
     });
+
+    // Tải thêm tin nhắn khi cuộn đến đầu
+    if (currentScroll <= 100 && _hasMoreMessages && !_isLoadingMore) {
+      _loadMoreMessages();
+    }
   }
 
   void _scrollToBottom() {
@@ -76,17 +83,20 @@ class MessagesState extends State<Messages> {
 
   Future<void> _initializeMessages() async {
     try {
-      // Gọi markMessagesAsRead bất đồng bộ
+      // Đánh dấu tin nhắn là đã đọc bất đồng bộ
       _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
-        // Không đặt _error để tránh hiển thị lỗi giao diện
       });
 
-      // Tải tin nhắn
-      final messages = await _chatService.loadMessages(widget.chatId);
+      // Tải 20 tin nhắn mới nhất
+      final messages = await _chatService.loadMessages(
+        widget.chatId,
+        limit: 20,
+      );
       setState(() {
-        _allMessages = messages;
+        _allMessages = messages.reversed.toList();
         _isLoading = false;
+        _hasMoreMessages = messages.length == 20;
       });
 
       // Cuộn xuống dưới
@@ -104,8 +114,7 @@ class MessagesState extends State<Messages> {
                 );
               }).toList();
 
-          _allMessages.addAll(newMessages);
-
+          _allMessages.addAll(newMessages.reversed);
           _allMessages.sort((a, b) {
             final aTime = DateTime.parse(a['sent_at']);
             final bTime = DateTime.parse(b['sent_at']);
@@ -129,6 +138,35 @@ class MessagesState extends State<Messages> {
     }
   }
 
+  Future<void> _loadMoreMessages() async {
+    if (!_hasMoreMessages || _isLoadingMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final oldestMessage = _allMessages.first;
+      final beforeSentAt = oldestMessage['sent_at'];
+      final olderMessages = await _chatService.loadMessages(
+        widget.chatId,
+        limit: 20,
+        beforeSentAt: beforeSentAt,
+      );
+
+      setState(() {
+        _allMessages.insertAll(0, olderMessages.reversed);
+        _isLoadingMore = false;
+        _hasMoreMessages = olderMessages.length == 20;
+      });
+    } catch (e) {
+      setState(() {
+        _error = "Lỗi khi tải thêm tin nhắn: $e";
+        _isLoadingMore = false;
+      });
+    }
+  }
+
   void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
@@ -141,14 +179,19 @@ class MessagesState extends State<Messages> {
 
       setState(() {
         _allMessages.add(newMessage);
+        _allMessages.sort((a, b) {
+          final aTime = DateTime.parse(a['sent_at']);
+          final bTime = DateTime.parse(b['sent_at']);
+          return aTime.compareTo(bTime);
+        });
       });
 
       _messageController.clear();
       _scrollToBottom();
     } catch (e) {
-      setState(() {
-        _error = "Lỗi khi gửi tin nhắn: $e";
-      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi gửi tin nhắn: $e')));
     }
   }
 
@@ -179,7 +222,6 @@ class MessagesState extends State<Messages> {
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
-            // Trả về conversation_id để Chats cập nhật local
             Navigator.pop(context, {'conversation_id': widget.chatId});
           },
           icon: const Icon(FontAwesomeIcons.chevronLeft),
@@ -197,7 +239,7 @@ class MessagesState extends State<Messages> {
             children: [
               Expanded(
                 child:
-                    _isLoading
+                    _isLoading && _allMessages.isEmpty
                         ? const Center(child: CircularProgressIndicator())
                         : _error != null
                         ? Center(
@@ -217,8 +259,8 @@ class MessagesState extends State<Messages> {
                           myId: widget.myId,
                           friendImage: widget.friendImage,
                           scrollController: _scrollController,
-                          isLoadingMore: false,
-                          hasMoreMessages: false,
+                          isLoadingMore: _isLoadingMore,
+                          hasMoreMessages: _hasMoreMessages,
                           selectedMessages: _selectedMessages,
                           onMessageTap: _onMessageTap,
                         ),
