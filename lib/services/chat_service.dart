@@ -87,19 +87,20 @@ class ChatService {
             lastMessage != null
                 ? DateTime.parse(lastMessage['sent_at']).toLocal()
                 : DateTime.now().toLocal();
-
-        processedChats.add({
-          'conversation_id': conversationId,
-          'friend_id': friend['id'],
-          'friend_full_name': friend['full_name'] ?? 'Unknown',
-          'friend_avatar_url':
-              friend['avatar_url'] ?? 'https://via.placeholder.com/150',
-          'friend_status': friend['status'] ?? 'offline',
-          'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
-          'last_message_time': lastMessageTime,
-          'is_read': isRead,
-          'is_group': chat['conversations']['is_group'],
-        });
+        if (lastMessage != null) {
+          processedChats.add({
+            'conversation_id': conversationId,
+            'friend_id': friend['id'],
+            'friend_full_name': friend['full_name'] ?? 'Unknown',
+            'friend_avatar_url':
+                friend['avatar_url'] ?? 'https://via.placeholder.com/150',
+            'friend_status': friend['status'] ?? 'offline',
+            'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
+            'last_message_time': lastMessageTime,
+            'is_read': isRead,
+            'is_group': chat['conversations']['is_group'],
+          });
+        }
       }
 
       processedChats.sort(
@@ -440,6 +441,7 @@ class ChatService {
         .subscribe();
   }
 
+
   /// Cập nhật trạng thái đã đọc cho một đoạn chat
   Future<void> updateChatReadStatus(
     String userId,
@@ -460,5 +462,15 @@ class ChatService {
       print('Error updating chat read status: $e');
       throw Exception('Lỗi khi cập nhật trạng thái chat: $e');
     }
+
+  Future<String> getDirectConversation(String friendId) async {
+    var data = await _supabase.rpc(
+      "get_direct_conversation",
+      params: {
+        "user_id1": _supabase.auth.currentUser!.id,
+        "user_id2": friendId,
+      },
+    );
+    return data.toString();
   }
 }

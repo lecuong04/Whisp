@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:whisp/models/friend_request.dart';
+import 'package:whisp/presentation/widgets/friend_request_title.dart';
+import 'package:whisp/services/user_service.dart';
 
 class UserModel {
   final String name;
@@ -22,53 +25,7 @@ class AddFriendScreen extends StatefulWidget {
 }
 
 class _AddFriendScreenState extends State<AddFriendScreen> {
-  List<UserModel> users = [
-    UserModel(
-      name: 'Michael Johnson',
-      username: '@michael.johnson',
-      avatarUrl: 'https://i.pravatar.cc/150?img=1',
-    ),
-    UserModel(
-      name: 'Michael Thompson',
-      username: '@michael.thompson',
-      avatarUrl: 'https://i.pravatar.cc/150?img=2',
-    ),
-    UserModel(
-      name: 'Michael Rodriguez',
-      username: '@michael_rodriguez',
-      avatarUrl: 'https://i.pravatar.cc/150?img=3',
-      isRequested: true,
-    ),
-    UserModel(
-      name: 'Michael Wilson',
-      username: '@michael.wilson',
-      avatarUrl: 'https://i.pravatar.cc/150?img=4',
-    ),
-    UserModel(
-      name: 'Michael Martinez',
-      username: '@michael_martinez',
-      avatarUrl: 'https://i.pravatar.cc/150?img=5',
-      isRequested: true,
-    ),
-    UserModel(
-      name: 'Michael Clark',
-      username: '@michael.clark',
-      avatarUrl: 'https://i.pravatar.cc/150?img=6',
-    ),
-    UserModel(
-      name: 'Michael Bailey',
-      username: '@michael_bailey',
-      avatarUrl: 'https://i.pravatar.cc/150?img=7',
-    ),
-  ];
-
-  int selectedTab = 1; // 0: All Friends, 1: Users
-
-  void toggleFriendRequest(int index) {
-    setState(() {
-      users[index].isRequested = !users[index].isRequested;
-    });
-  }
+  Future<List<Map<String, dynamic>>> data = Future.value(List.empty());
 
   @override
   Widget build(BuildContext context) {
@@ -81,54 +38,37 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         automaticallyImplyLeading: false,
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildTabs(),
           Expanded(
-            child: ListView.builder(
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                final user = users[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 24,
-                    backgroundImage: NetworkImage(user.avatarUrl),
-                  ),
-                  title: Text(
-                    user.name,
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    user.username,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  trailing: GestureDetector(
-                    onTap: () => toggleFriendRequest(index),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            user.isRequested
-                                ? Colors.grey[100]
-                                : Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border:
-                            user.isRequested
-                                ? Border.all(color: Colors.grey)
-                                : null,
-                      ),
-                      child: Text(
-                        user.isRequested ? 'Đã gửi' : 'Kết bạn',
-                        style: TextStyle(
-                          color: user.isRequested ? Colors.black : Colors.white,
-                          fontWeight: FontWeight.w500,
+            child: FutureBuilder(
+              future: data,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [CircularProgressIndicator()],
+                  );
+                }
+                if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                  return ListView.builder(
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      final user = snapshot.data![index];
+                      return FriendRequestTitle(
+                        request: FriendRequest(
+                          fullName: user["full_name"],
+                          username: user["username"],
+                          avatarURL: user["avatar_url"],
+                          status: user["status"],
                         ),
-                      ),
-                    ),
-                  ),
-                );
+                      );
+                    },
+                  );
+                } else {
+                  return Container();
+                }
               },
             ),
           ),
@@ -149,8 +89,13 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         SizedBox(width: 8),
         Expanded(
           child: TextField(
+            onSubmitted: (value) {
+              setState(() {
+                data = UserService().findUsers(value);
+              });
+            },
             decoration: InputDecoration(
-              hintText: 'Michael',
+              hintText: '',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
@@ -163,48 +108,6 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildTabs() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: Row(
-        children: [
-          _tabItem("All Friends", 0),
-          SizedBox(width: 8),
-          _tabItem("Users", 1),
-        ],
-      ),
-    );
-  }
-
-  Widget _tabItem(String label, int index) {
-    final isSelected = selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedTab = index;
-          });
-        },
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color:
-                isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
