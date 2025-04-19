@@ -136,11 +136,17 @@ class _AddFriendScreenState extends State<AddFriendScreen>
         future: data,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Padding(padding: EdgeInsets.only(top: 10)),
-                CircularProgressIndicator(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Padding(padding: EdgeInsets.only(top: 10)),
+                    CircularProgressIndicator(),
+                  ],
+                ),
               ],
             );
           }
@@ -161,6 +167,13 @@ class _AddFriendScreenState extends State<AddFriendScreen>
 
   Widget _buidRequestUsers() {
     var data = UserService().listFriendRequest();
-    return _buildFindUsers(data);
+    return RefreshIndicator(
+      child: _buildFindUsers(data),
+      onRefresh: () async {
+        setState(() {
+          data = UserService().listFriendRequest();
+        });
+      },
+    );
   }
 }
