@@ -4,6 +4,7 @@ import 'package:whisp/presentation/screens/messages.dart';
 import 'package:whisp/presentation/widgets/chat_title.dart';
 import 'package:whisp/presentation/widgets/search.dart';
 import 'package:whisp/services/chat_service.dart';
+import 'package:whisp/services/db_service.dart';
 
 class Chats extends StatefulWidget {
   const Chats({super.key});
@@ -16,6 +17,7 @@ class ChatsState extends State<Chats> {
   String? myId;
   String? myFullName;
   final ChatService _chatService = ChatService();
+  final DatabaseService _dbService = DatabaseService.instance;
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;
   String? _error;
@@ -38,7 +40,24 @@ class ChatsState extends State<Chats> {
       }
 
       final userId = user.id;
-      final userInfo = await _chatService.getUserInfo(userId);
+      Map<String, dynamic>? userInfo;
+
+      try {
+        userInfo = await _chatService.getUserInfo(userId);
+      } catch (e) {
+        print('Error fetching user info: $e');
+        // Nếu offline, dùng dữ liệu cục bộ
+        userInfo = await _dbService.loadUser(userId);
+        if (userInfo == null) {
+          setState(() {
+            _error =
+                "Không thể lấy thông tin người dùng và không có dữ liệu cục bộ.";
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
       final fullName = userInfo?['full_name'] as String? ?? 'User';
 
       setState(() {
@@ -72,10 +91,26 @@ class ChatsState extends State<Chats> {
         });
       });
     } catch (e) {
-      setState(() {
-        _error = "Lỗi khi tải danh sách chat: $e";
-        _isLoading = false;
-      });
+      print('Error loading chats: $e');
+      // Nếu offline, thử tải từ SQLite
+      final localChats = await _dbService.loadChats(myId!);
+      if (localChats.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đang sử dụng dữ liệu cục bộ (offline)'),
+          ),
+        );
+        setState(() {
+          _chats = localChats;
+          _isLoading = false;
+        });
+        print('Loaded ${localChats.length} chats from SQLite in offline mode');
+      } else {
+        setState(() {
+          _error = "Không có mạng và không có chat cục bộ: $e";
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -89,6 +124,11 @@ class ChatsState extends State<Chats> {
             return chat;
           }).toList();
       print('Updated local is_read for $conversationId: $_chats');
+    });
+
+    // Cập nhật SQLite
+    _chatService.updateChatReadStatus(myId!, conversationId).catchError((e) {
+      print('Error updating chat read status: $e');
     });
   }
 

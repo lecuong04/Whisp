@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/chat_service.dart';
+import 'package:whisp/services/db_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 
@@ -29,9 +30,10 @@ class MessagesState extends State<Messages> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
+  final DatabaseService _dbService = DatabaseService.instance;
   List<Map<String, dynamic>> _allMessages = [];
   bool _isLoading = true;
-  bool _isLoadingMore = false; // Đổi tên để rõ ràng
+  bool _isLoadingMore = false;
   bool _isAtBottom = true;
   bool _hasNewMessage = false;
   bool _hasMoreMessages = true;
@@ -88,7 +90,7 @@ class MessagesState extends State<Messages> {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       });
 
-      // Tải 20 tin nhắn mới nhất
+      // Tải từ SQLite hoặc Supabase
       final messages = await _chatService.loadMessages(
         widget.chatId,
         limit: 20,
@@ -163,6 +165,9 @@ class MessagesState extends State<Messages> {
       setState(() {
         _error = "Lỗi khi tải thêm tin nhắn: $e";
         _isLoadingMore = false;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thêm tin nhắn')));
       });
     }
   }
