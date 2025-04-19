@@ -42,21 +42,43 @@ class MessageListState extends State<MessageList> {
 
   @override
   Widget build(BuildContext context) {
+    // Thêm 1 item ở đầu cho loading hoặc thông báo
+    final itemCount = widget.messages.length + 1;
+
     return ListView.builder(
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(vertical: 10),
-      itemCount: widget.messages.length + (widget.isLoadingMore ? 1 : 0),
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        if (index == widget.messages.length && widget.isLoadingMore) {
-          return const Center(child: CircularProgressIndicator());
+        // Item đầu: Loading hoặc thông báo
+        if (index == 0) {
+          if (widget.isLoadingMore) {
+            return const Padding(
+              padding: EdgeInsets.all(10),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          } else if (!widget.hasMoreMessages) {
+            return const Padding(
+              padding: EdgeInsets.all(10),
+              child: Center(
+                child: Text(
+                  'Không còn tin nhắn',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ),
+            );
+          } else {
+            return const SizedBox.shrink(); // Ẩn nếu không tải và còn tin nhắn
+          }
         }
 
-        final message = widget.messages[index];
+        // Các item tin nhắn
+        final messageIndex = index - 1;
+        final message = widget.messages[messageIndex];
         final isMe = message['sender_id'] == widget.myId;
-        final isSelected = widget.selectedMessages.contains(index);
-        final showTimestamp = _showTimestampIndices.contains(index);
+        final isSelected = widget.selectedMessages.contains(messageIndex);
+        final showTimestamp = _showTimestampIndices.contains(messageIndex);
 
-        // Kiểm tra trạng thái đã xem cho tin nhắn từ tôi
         bool isReadByAll = false;
         if (isMe && message['message_statuses'] != null) {
           final statuses = message['message_statuses'] as List<dynamic>;
@@ -68,8 +90,8 @@ class MessageListState extends State<MessageList> {
 
         return GestureDetector(
           onTap: () {
-            _toggleTimestamp(index); // Bật/tắt thời gian
-            widget.onMessageTap(index); // Giữ logic chọn tin nhắn
+            _toggleTimestamp(messageIndex);
+            widget.onMessageTap(messageIndex);
           },
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
@@ -108,7 +130,7 @@ class MessageListState extends State<MessageList> {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      if (showTimestamp) // Chỉ hiển thị nếu nhấp
+                      if (showTimestamp)
                         Text(
                           _formatTimestamp(message['sent_at']),
                           style: const TextStyle(
@@ -116,14 +138,14 @@ class MessageListState extends State<MessageList> {
                             color: Colors.grey,
                           ),
                         ),
-                      if (isMe && index == widget.messages.length - 1)
+                      if (isMe && messageIndex == widget.messages.length - 1)
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               isReadByAll
-                                  ? FontAwesomeIcons.checkDouble
-                                  : FontAwesomeIcons.check,
+                                  ? FontAwesomeIcons.solidCircleCheck
+                                  : FontAwesomeIcons.circleCheck,
                               size: 14,
                               color: isReadByAll ? Colors.blue : Colors.grey,
                             ),
