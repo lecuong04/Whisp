@@ -31,7 +31,6 @@ class UserService {
     );
     List<Map<String, dynamic>> result = List.empty(growable: true);
     for (var item in data) {
-      print(item);
       result.add(item);
     }
     return result;
