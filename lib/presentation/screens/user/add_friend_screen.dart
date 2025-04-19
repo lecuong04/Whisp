@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:whisp/models/friend_request.dart';
 import 'package:whisp/presentation/widgets/friend_request_title.dart';
 import 'package:whisp/services/user_service.dart';
@@ -24,15 +25,32 @@ class AddFriendScreen extends StatefulWidget {
   State createState() => _AddFriendScreenState();
 }
 
-class _AddFriendScreenState extends State<AddFriendScreen> {
-  Future<List<Map<String, dynamic>>> data = Future.value(List.empty());
+class _AddFriendScreenState extends State<AddFriendScreen>
+    with TickerProviderStateMixin {
+  late final TabController _tabController;
+  Future<List<FriendRequest>> data = Future.value(List.empty());
+  TextEditingController txtSearchController = TextEditingController();
+  String tmpSearch = "";
+  bool isReadOnly = false;
+
+  @override
+  void initState() {
+    _tabController = TabController(length: 2, vsync: this);
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: _buildSearchBar((value) {
+        title: _buildSearchBar(txtSearchController, (value) {
           setState(() {
             data = UserService().findUsers(value);
           });
@@ -40,16 +58,36 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
+        bottom: TabBar(
+          onTap: (value) {
+            if (value == 1 && txtSearchController.text.isNotEmpty) {
+              tmpSearch = txtSearchController.text;
+              txtSearchController.clear();
+              isReadOnly = true;
+            } else {
+              txtSearchController.text = tmpSearch;
+              isReadOnly = false;
+            }
+            setState(() {});
+          },
+          controller: _tabController,
+          tabs: [
+            Tab(text: "Tìm kiếm người dùng"),
+            Tab(text: "Chờ kết bạn"),
+          ],
+        ),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [_buildFindUsers(data)],
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildFindUsers(data), _buidRequestUsers()],
       ),
     );
   }
 
-  Widget _buildSearchBar(ValueChanged<String>? onSubmitted) {
+  Widget _buildSearchBar(
+    TextEditingController controller,
+    ValueChanged<String>? onSubmitted,
+  ) {
     return Row(
       children: [
         IconButton(
@@ -61,6 +99,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         SizedBox(width: 8),
         Expanded(
           child: TextField(
+            enabled: !isReadOnly,
+            controller: controller,
             onSubmitted: onSubmitted,
             decoration: InputDecoration(
               hintText: '',
@@ -69,6 +109,17 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                 borderRadius: BorderRadius.circular(24),
                 borderSide: BorderSide.none,
               ),
+              suffixIcon:
+                  controller.text.isNotEmpty
+                      ? IconButton(
+                        onPressed: () {
+                          setState(() {
+                            controller.clear();
+                          });
+                        },
+                        icon: Icon(Symbols.close),
+                      )
+                      : null,
               filled: true,
               fillColor: Colors.grey[200],
               contentPadding: EdgeInsets.zero,
@@ -79,7 +130,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     );
   }
 
-  Widget _buildFindUsers(Future<List<Map<String, dynamic>>> data) {
+  Widget _buildFindUsers(Future<List<FriendRequest>> data) {
     return Expanded(
       child: FutureBuilder(
         future: data,
@@ -87,22 +138,18 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: [CircularProgressIndicator()],
+              children: [
+                Padding(padding: EdgeInsets.only(top: 10)),
+                CircularProgressIndicator(),
+              ],
             );
           }
           if (snapshot.hasData) {
             return ListView.builder(
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                final user = snapshot.data![index];
-                return FriendRequestTitle(
-                  request: FriendRequest(
-                    fullName: user["full_name"],
-                    username: user["username"],
-                    avatarURL: user["avatar_url"],
-                    status: user["status"],
-                  ),
-                );
+                final request = snapshot.data![index];
+                return FriendRequestTitle(request: request);
               },
             );
           }
@@ -110,5 +157,10 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         },
       ),
     );
+  }
+
+  Widget _buidRequestUsers() {
+    var data = UserService().listFriendRequest();
+    return _buildFindUsers(data);
   }
 }

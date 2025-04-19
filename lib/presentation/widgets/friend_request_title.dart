@@ -45,15 +45,26 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
             border: Border.all(color: Colors.grey),
           ),
           child: Text(
-            widget.request.status == ""
-                ? 'Kết bạn'
-                : widget.request.status == "pending"
-                ? 'Đã gửi'
-                : "Đã kết bạn",
+            _getStatus(),
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
           ),
         ),
       ),
     );
+  }
+
+  String _getStatus() {
+    String s = widget.request.status;
+    if (s == "" || s == "rejected") {
+      return "Kết bạn";
+    } else if (s == "pending") {
+      if (widget.request.isYourRequest) {
+        return "Đã gửi";
+      } else {
+        return "Chấp nhận";
+      }
+    } else {
+      return "Đã kết bạn";
+    }
   }
 }

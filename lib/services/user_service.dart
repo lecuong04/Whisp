@@ -1,12 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/models/friend_request.dart';
 
 class UserService {
-  // Lấy thông tin người dùng bằng RPC
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
-    final SupabaseClient supabase = Supabase.instance.client;
     try {
       final response =
-          await supabase
+          await _supabase
               .rpc('get_user_info', params: {'p_user_id': userId})
               .single();
 
@@ -22,16 +23,27 @@ class UserService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> findUsers(String username) async {
-    final SupabaseClient supabase = Supabase.instance.client;
+  Future<List<FriendRequest>> findUsers(String username) async {
     if (username.length < 2) return List.empty();
-    var data = await supabase.rpc(
+    var data = await _supabase.rpc(
       "find_users",
-      params: {"search": username, "user_id": supabase.auth.currentUser?.id},
+      params: {"search": username, "user_id": _supabase.auth.currentUser?.id},
     );
-    List<Map<String, dynamic>> result = List.empty(growable: true);
+    List<FriendRequest> result = List.empty(growable: true);
     for (var item in data) {
-      result.add(item);
+      result.add(FriendRequest.json(item));
+    }
+    return result;
+  }
+
+  Future<List<FriendRequest>> listFriendRequest() async {
+    var data = await _supabase.rpc(
+      "list_friend_request",
+      params: {"user_id": _supabase.auth.currentUser?.id},
+    );
+    List<FriendRequest> result = List.empty(growable: true);
+    for (var item in data) {
+      result.add(FriendRequest.json(item));
     }
     return result;
   }
