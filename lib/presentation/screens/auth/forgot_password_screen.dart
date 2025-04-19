@@ -6,10 +6,10 @@ import 'package:whisp/presentation/widgets/custom_text_field.dart';
 import 'package:whisp/utils/helpers.dart';
 
 class ForgotPassword extends StatefulWidget {
-  const ForgotPassword({Key? key}) : super(key: key);
+  const ForgotPassword({super.key});
 
   @override
-  _ForgotPasswordState createState() => _ForgotPasswordState();
+  State createState() => _ForgotPasswordState();
 }
 
 class _ForgotPasswordState extends State<ForgotPassword> {

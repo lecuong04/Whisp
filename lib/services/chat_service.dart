@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/db_service.dart';
 
@@ -95,7 +94,7 @@ class ChatService {
             'friend_avatar_url':
                 friend['avatar_url'] ?? 'https://via.placeholder.com/150',
             'friend_status': friend['status'] ?? 'offline',
-            'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
+            'last_message': lastMessage['content'] ?? 'Chưa có tin nhắn',
             'last_message_time': lastMessageTime,
             'is_read': isRead,
             'is_group': chat['conversations']['is_group'],
@@ -242,7 +241,7 @@ class ChatService {
           table: 'users',
           callback: (payload) async {
             print('Realtime payload for users: $payload');
-            final user = payload.newRecord as Map<String, dynamic>;
+            final user = payload.newRecord;
             await _dbService.saveUser(user); // Cập nhật thông tin người dùng
             final chats = await loadChatsByUserId(userId);
             await _dbService.saveChats(
@@ -416,7 +415,7 @@ class ChatService {
           ),
           callback: (payload) async {
             print('Realtime message payload: $payload');
-            final newMessage = payload.newRecord as Map<String, dynamic>;
+            final newMessage = payload.newRecord;
             // Tải thông tin bổ sung
             final message =
                 await _supabase
@@ -441,7 +440,6 @@ class ChatService {
         .subscribe();
   }
 
-
   /// Cập nhật trạng thái đã đọc cho một đoạn chat
   Future<void> updateChatReadStatus(
     String userId,
@@ -462,6 +460,7 @@ class ChatService {
       print('Error updating chat read status: $e');
       throw Exception('Lỗi khi cập nhật trạng thái chat: $e');
     }
+  }
 
   Future<String> getDirectConversation(String friendId) async {
     var data = await _supabase.rpc(

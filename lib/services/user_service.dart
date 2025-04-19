@@ -3,10 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class UserService {
   // Lấy thông tin người dùng bằng RPC
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
-    final SupabaseClient _supabase = Supabase.instance.client;
+    final SupabaseClient supabase = Supabase.instance.client;
     try {
       final response =
-          await _supabase
+          await supabase
               .rpc('get_user_info', params: {'p_user_id': userId})
               .single();
 
