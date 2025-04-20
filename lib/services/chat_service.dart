@@ -103,8 +103,7 @@ class ChatService {
           'conversation_id': conversationId,
           'friend_id': friend['id'],
           'friend_full_name': friend['full_name'] ?? 'Unknown',
-          'friend_avatar_url':
-              friend['avatar_url'] ?? 'https://via.placeholder.com/150',
+          'friend_avatar_url': friend['avatar_url'] ?? '',
           'friend_status': friend['status'] ?? 'offline',
           'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
           'last_message_time': lastMessageTime,

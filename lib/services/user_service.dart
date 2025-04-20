@@ -4,7 +4,7 @@ import 'package:whisp/models/friend_request.dart';
 class UserService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  String? getMyId() {
+  String? get id {
     return _supabase.auth.currentUser?.id;
   }
 
@@ -17,9 +17,7 @@ class UserService {
 
       return {
         'username': response['username'] as String? ?? userId,
-        'avatar_url':
-            response['avatar_url'] as String? ??
-            'https://via.placeholder.com/150',
+        'avatar_url': response['avatar_url'] ?? '',
       };
     } catch (e) {
       print('Error fetching user info via RPC: $e');
@@ -61,5 +59,15 @@ class UserService {
       },
     );
     return data ??= "";
+  }
+
+  Future blockUser(String username) async {
+    await _supabase.rpc(
+      "block_user",
+      params: {
+        "_username": username,
+        "user_query": _supabase.auth.currentUser?.id,
+      },
+    );
   }
 }

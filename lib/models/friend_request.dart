@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FriendRequest {
+  final _supabase = Supabase.instance.client;
+
   late String _fullName;
   late String _username;
   late String _avatarURL;
@@ -58,22 +60,21 @@ class FriendRequest {
   }
 
   Future requestFriend() async {
-    final supabase = Supabase.instance.client;
     if (_status == "" || _status == "rejected") {
-      var data = await supabase.rpc(
+      var data = await _supabase.rpc(
         "request_friend",
         params: {
           "request_username": username,
-          "user_id": supabase.auth.currentUser?.id,
+          "user_id": _supabase.auth.currentUser?.id,
         },
       );
       _status = data.toString();
       _isYourReq = true;
     } else if (_status == "pending" && !_isYourReq) {
-      var data = await supabase.rpc(
+      var data = await _supabase.rpc(
         "accept_friend_request",
         params: {
-          "self_id": supabase.auth.currentUser?.id,
+          "self_id": _supabase.auth.currentUser?.id,
           "request_username": _username,
         },
       );
@@ -82,12 +83,11 @@ class FriendRequest {
   }
 
   Future rejectFriend() async {
-    final supabase = Supabase.instance.client;
     if (_status == "pending" && !_isYourReq) {
-      var data = await supabase.rpc(
+      var data = await _supabase.rpc(
         "reject_friend_request",
         params: {
-          "self_id": supabase.auth.currentUser?.id,
+          "self_id": _supabase.auth.currentUser?.id,
           "request_username": _username,
         },
       );

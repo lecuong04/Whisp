@@ -1,19 +1,17 @@
 import 'package:whisp/presentation/widgets/classify_tab_item.dart';
-import 'package:whisp/presentation/widgets/contacts_list.dart';
-import 'package:whisp/presentation/widgets/search.dart';
+import 'package:whisp/presentation/widgets/friend_list.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/services/friend_service.dart';
 
-class Contacts extends StatefulWidget {
-  const Contacts({super.key});
+class Friends extends StatefulWidget {
+  const Friends({super.key});
 
   @override
-  State<StatefulWidget> createState() => ContactsState();
+  State<StatefulWidget> createState() => _FriendsState();
 }
 
-class ContactsState extends State<Contacts>
-    with SingleTickerProviderStateMixin {
+class _FriendsState extends State<Friends> with SingleTickerProviderStateMixin {
   late TabController tabController;
   var data = FriendService().listFriends();
   @override
@@ -30,13 +28,10 @@ class ContactsState extends State<Contacts>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Search(),
-          Divider(height: 0),
-          Padding(padding: EdgeInsets.symmetric(vertical: 5), child: null),
-          Divider(height: 0),
+          Divider(height: 1),
           SizedBox(
             height: 46,
             child: Row(
@@ -49,7 +44,7 @@ class ContactsState extends State<Contacts>
                 Expanded(
                   child: TabBar(
                     enableFeedback: false,
-                    indicator: CustomTabIndicator(),
+                    indicator: _CustomTabIndicator(),
                     tabAlignment: TabAlignment.start,
                     isScrollable: true,
                     labelPadding: EdgeInsets.symmetric(horizontal: 5),
@@ -87,7 +82,14 @@ class ContactsState extends State<Contacts>
                   return TabBarView(
                     controller: tabController,
                     children: [
-                      ContactsList(snapshot.data!),
+                      RefreshIndicator(
+                        child: FriendList(snapshot.data!),
+                        onRefresh: () async {
+                          setState(() {
+                            data = FriendService().listFriends();
+                          });
+                        },
+                      ),
                       // ContactsList(),
                       // ContactsList(),
                       // ContactsList(),
@@ -105,18 +107,18 @@ class ContactsState extends State<Contacts>
   }
 }
 
-class CustomTabIndicator extends Decoration {
+class _CustomTabIndicator extends Decoration {
   @override
   BoxPainter createBoxPainter([VoidCallback? onChanged]) {
-    return CustomPainter(this, onChanged);
+    return _CustomPainter(this, onChanged);
   }
 }
 
-class CustomPainter extends BoxPainter {
+class _CustomPainter extends BoxPainter {
   final double indicatorHeight = 32;
-  final CustomTabIndicator decoration;
+  final _CustomTabIndicator decoration;
 
-  CustomPainter(this.decoration, VoidCallback? onChanged) : super(onChanged);
+  _CustomPainter(this.decoration, VoidCallback? onChanged) : super(onChanged);
 
   @override
   void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {

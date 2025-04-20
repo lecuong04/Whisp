@@ -24,11 +24,11 @@ class ChatTitle extends StatefulWidget {
 
   @override
   State<StatefulWidget> createState() {
-    return ChatTitleState();
+    return _ChatTitleState();
   }
 }
 
-class ChatTitleState extends State<ChatTitle> {
+class _ChatTitleState extends State<ChatTitle> {
   @override
   Widget build(BuildContext context) {
     bool is24HourFormat = MediaQuery.of(context).alwaysUse24HourFormat;

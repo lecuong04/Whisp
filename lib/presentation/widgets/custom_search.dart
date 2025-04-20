@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
-class Search extends StatefulWidget {
-  const Search({super.key});
+class CustomSearch extends StatefulWidget {
+  const CustomSearch({super.key});
 
   @override
-  State<StatefulWidget> createState() => SearchState();
+  State<StatefulWidget> createState() => _CustomSearchState();
 }
 
-class SearchState extends State<Search> {
+class _CustomSearchState extends State<CustomSearch> {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -17,12 +17,17 @@ class SearchState extends State<Search> {
         builder: (BuildContext context, SearchController controller) {
           return SearchBar(
             controller: controller,
-            leading: Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Symbols.search, size: 24)),
+            leading: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Icon(Symbols.search, size: 24),
+            ),
             hintText: "Tìm kiếm...",
             hintStyle: WidgetStatePropertyAll(TextStyle(fontSize: 16)),
             textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 16)),
             elevation: WidgetStatePropertyAll(0),
-            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
             onChanged: (_) {
               controller.openView();
             },
@@ -46,7 +51,10 @@ class SearchState extends State<Search> {
             ],
           );
         },
-        suggestionsBuilder: (BuildContext context, SearchController controller) {
+        suggestionsBuilder: (
+          BuildContext context,
+          SearchController controller,
+        ) {
           return [];
         },
       ),

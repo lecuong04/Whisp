@@ -4,20 +4,6 @@ import 'package:whisp/models/friend_request.dart';
 import 'package:whisp/presentation/widgets/friend_request_title.dart';
 import 'package:whisp/services/user_service.dart';
 
-class UserModel {
-  final String name;
-  final String username;
-  final String avatarUrl;
-  bool isRequested;
-
-  UserModel({
-    required this.name,
-    required this.username,
-    required this.avatarUrl,
-    this.isRequested = false,
-  });
-}
-
 class AddFriendScreen extends StatefulWidget {
   const AddFriendScreen({super.key});
 
@@ -50,7 +36,7 @@ class _AddFriendScreenState extends State<AddFriendScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: _buildSearchBar(txtSearchController, (value) {
+        title: buildSearchBar(txtSearchController, (value) {
           setState(() {
             data = UserService().findUsers(value);
           });
@@ -81,20 +67,20 @@ class _AddFriendScreenState extends State<AddFriendScreen>
         controller: _tabController,
         children: [
           RefreshIndicator(
-            child: _buildFindUsers(data),
+            child: buildFindUsers(data),
             onRefresh: () async {
               setState(() {
                 data = UserService().findUsers(txtSearchController.text);
               });
             },
           ),
-          _buidRequestUsers(),
+          buidRequestUsers(),
         ],
       ),
     );
   }
 
-  Widget _buildSearchBar(
+  Widget buildSearchBar(
     TextEditingController controller,
     ValueChanged<String>? onSubmitted,
   ) {
@@ -140,7 +126,7 @@ class _AddFriendScreenState extends State<AddFriendScreen>
     );
   }
 
-  Widget _buildFindUsers(Future<List<FriendRequest>> data) {
+  Widget buildFindUsers(Future<List<FriendRequest>> data) {
     return FutureBuilder(
       future: data,
       builder: (context, snapshot) {
@@ -173,10 +159,10 @@ class _AddFriendScreenState extends State<AddFriendScreen>
     );
   }
 
-  Widget _buidRequestUsers() {
+  Widget buidRequestUsers() {
     var data = UserService().listFriendRequest();
     return RefreshIndicator(
-      child: _buildFindUsers(data),
+      child: buildFindUsers(data),
       onRefresh: () async {
         setState(() {
           data = UserService().listFriendRequest();

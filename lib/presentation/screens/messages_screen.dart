@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
@@ -22,10 +21,10 @@ class Messages extends StatefulWidget {
   });
 
   @override
-  MessagesState createState() => MessagesState();
+  State createState() => _MessagesState();
 }
 
-class MessagesState extends State<Messages> {
+class _MessagesState extends State<Messages> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();

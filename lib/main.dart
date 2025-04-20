@@ -4,10 +4,11 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
-import 'package:whisp/presentation/screens/chats.dart';
-import 'package:whisp/presentation/screens/contacts_page.dart';
+import 'package:whisp/presentation/screens/chats_page.dart';
+import 'package:whisp/presentation/screens/friends_page.dart';
 import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
+import 'package:whisp/presentation/widgets/custom_search.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -51,7 +52,8 @@ class AuthWrapper extends StatelessWidget {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int? selectedIndex;
+  const HomeScreen({super.key, this.selectedIndex});
 
   @override
   State<StatefulWidget> createState() => HomeScreenState();
@@ -63,9 +65,19 @@ class HomeScreenState extends State<HomeScreen> {
   // Danh sách các màn hình tương ứng với từng tab
   final List<Widget> _pages = [
     const Chats(),
-    const Contacts(),
+    const Friends(),
     const UserProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    if (widget.selectedIndex != null &&
+        widget.selectedIndex! >= 0 &&
+        widget.selectedIndex! < _pages.length) {
+      _selectedIndex = widget.selectedIndex!;
+    }
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +105,13 @@ class HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Symbols.add_2_rounded, size: 32, fill: 1),
           ),
         ],
+        bottom:
+            _selectedIndex != 2
+                ? PreferredSize(
+                  preferredSize: Size(double.infinity, 64),
+                  child: CustomSearch(),
+                )
+                : null,
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(

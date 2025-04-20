@@ -1,3 +1,6 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/services/user_service.dart';
+
 class Friend {
   final String id;
   final String username;
@@ -13,8 +16,12 @@ class Friend {
     }
   }
 
-  @override
-  String toString() {
-    return "$id | @$username | $fullName";
+  Future<bool> remove() async {
+    var supabase = Supabase.instance.client;
+    var data = await supabase.rpc(
+      "remove_friend",
+      params: {"self_id": UserService().id, "friend_id": id},
+    );
+    return data;
   }
 }

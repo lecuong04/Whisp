@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/friend_request.dart';
-import 'package:whisp/presentation/screens/messages.dart';
+import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/services/user_service.dart';
 
@@ -11,10 +11,10 @@ class FriendRequestTitle extends StatefulWidget {
   const FriendRequestTitle({required this.request, super.key});
 
   @override
-  State<StatefulWidget> createState() => FriendRequestTitleState();
+  State<StatefulWidget> createState() => _FriendRequestTitleState();
 }
 
-class FriendRequestTitleState extends State<FriendRequestTitle> {
+class _FriendRequestTitleState extends State<FriendRequestTitle> {
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -29,7 +29,7 @@ class FriendRequestTitleState extends State<FriendRequestTitle> {
               builder:
                   (context) => Messages(
                     chatId: chatId,
-                    myId: UserService().getMyId()!,
+                    myId: UserService().id!,
                     friendId: userId,
                     friendName: req.fullName,
                     friendImage: req.avatarURL,

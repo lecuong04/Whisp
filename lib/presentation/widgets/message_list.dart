@@ -24,10 +24,10 @@ class MessageList extends StatefulWidget {
   });
 
   @override
-  MessageListState createState() => MessageListState();
+  State createState() => _MessageListState();
 }
 
-class MessageListState extends State<MessageList> {
+class _MessageListState extends State<MessageList> {
   final Set<int> _showTimestampIndices = {};
 
   void _toggleTimestamp(int index) {
