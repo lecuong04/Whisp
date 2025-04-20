@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/presentation/screens/messages.dart';
@@ -46,18 +47,10 @@ class ChatsState extends State<Chats> {
         userInfo = await _chatService.getUserInfo(userId);
       } catch (e) {
         print('Error fetching user info: $e');
-        // Nếu offline, dùng dữ liệu cục bộ
         userInfo = await _dbService.loadUser(userId);
-        if (userInfo == null) {
-          setState(() {
-            _error =
-                "Không thể lấy thông tin người dùng và không có dữ liệu cục bộ.";
-            _isLoading = false;
-          });
-          return;
-        }
       }
 
+      // Nếu không có thông tin người dùng, dùng mặc định
       final fullName = userInfo?['full_name'] as String? ?? 'User';
 
       setState(() {
@@ -68,7 +61,7 @@ class ChatsState extends State<Chats> {
       await _loadChats();
     } catch (e) {
       setState(() {
-        _error = "Lỗi khi khởi tạo!";
+        _error = "Lỗi khi khởi tạo: $e";
         _isLoading = false;
       });
     }
@@ -83,6 +76,17 @@ class ChatsState extends State<Chats> {
       });
       print('Chats loaded in Chats: $_chats');
 
+      // Nếu offline, hiển thị thông báo
+      final isOnline =
+          await Connectivity().checkConnectivity() != ConnectivityResult.none;
+      if (!isOnline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đang sử dụng dữ liệu cục bộ (offline)'),
+          ),
+        );
+      }
+
       // Theo dõi thay đổi Realtime
       _chatService.subscribeToChats(myId!, (updatedChats) {
         setState(() {
@@ -92,25 +96,16 @@ class ChatsState extends State<Chats> {
       });
     } catch (e) {
       print('Error loading chats: $e');
-      // Nếu offline, thử tải từ SQLite
+      // Tải dữ liệu cục bộ
       final localChats = await _dbService.loadChats(myId!);
-      if (localChats.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đang sử dụng dữ liệu cục bộ (offline)'),
-          ),
-        );
-        setState(() {
-          _chats = localChats;
-          _isLoading = false;
-        });
-        print('Loaded ${localChats.length} chats from SQLite in offline mode');
-      } else {
-        setState(() {
-          _error = "Không có mạng và không có chat cục bộ: $e";
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _chats = localChats;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đang sử dụng dữ liệu cục bộ (offline)')),
+      );
+      print('Loaded ${localChats.length} chats from SQLite in offline mode');
     }
   }
 

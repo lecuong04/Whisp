@@ -44,7 +44,8 @@ class DatabaseService {
     ''');
     await db.execute('''
       CREATE TABLE chats (
-        conversation_id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id TEXT,
         user_id TEXT,
         friend_id TEXT,
         friend_full_name TEXT,
@@ -53,7 +54,8 @@ class DatabaseService {
         last_message TEXT,
         last_message_time TEXT,
         is_read INTEGER,
-        is_group INTEGER
+        is_group INTEGER,
+        UNIQUE(conversation_id, user_id)
       )
     ''');
     await db.execute('''
