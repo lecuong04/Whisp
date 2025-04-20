@@ -443,13 +443,21 @@ class ChatService {
   }
 
   /// Theo dõi các tin nhắn mới trong một cuộc trò chuyện
+  RealtimeChannel? _messageChannel;
+
   void subscribeToMessages(
     String conversationId,
     Function(List<Map<String, dynamic>>) onUpdate,
   ) {
-    final channel = _supabase.channel('public:messages');
+    // Nếu đã có channel, unsubscribe trước
+    if (_messageChannel != null) {
+      _supabase.removeChannel(_messageChannel!);
+    }
 
-    channel
+    // Tạo channel mới với tên duy nhất cho mỗi conversation
+    _messageChannel = _supabase.channel('messages:$conversationId');
+
+    _messageChannel!
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -462,7 +470,8 @@ class ChatService {
           callback: (payload) async {
             print('Realtime message payload: $payload');
             final newMessage = payload.newRecord;
-            // Tải thông tin bổ sung
+
+            // Tải thông tin chi tiết của tin nhắn
             final message =
                 await _supabase
                     .from('messages')
@@ -480,10 +489,30 @@ class ChatService {
               await _dbService.saveUser(message['users']);
             }
 
+            // Gọi callback để cập nhật giao diện
             onUpdate([message]);
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            print('Subscribed to messages for conversation $conversationId');
+          } else if (status == RealtimeSubscribeStatus.closed) {
+            print(
+              'Unsubscribed from messages for conversation $conversationId',
+            );
+          } else if (error != null) {
+            print('Error subscribing to messages: $error');
+          }
+        });
+  }
+
+  /// Hủy subscription cho messages
+  void unsubscribeMessages() {
+    if (_messageChannel != null) {
+      _supabase.removeChannel(_messageChannel!);
+      _messageChannel = null;
+      print('Unsubscribed from all message channels');
+    }
   }
 
   /// Cập nhật trạng thái đã đọc cho một đoạn chat
