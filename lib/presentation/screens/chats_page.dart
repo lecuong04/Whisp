@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/widgets/chat_title.dart';
 import 'package:whisp/services/chat_service.dart';
@@ -86,8 +87,8 @@ class _ChatsState extends State<Chats> {
 
       // Theo dõi thay đổi Realtime
       _chatService.subscribeToChats(myId!, (updatedChats) {
+        _chats = updatedChats;
         setState(() {
-          _chats = updatedChats;
           print('Chats updated via Realtime in Chats: $_chats');
         });
       });
@@ -182,54 +183,64 @@ class _ChatsState extends State<Chats> {
                         textAlign: TextAlign.center,
                       ),
                     )
-                    : ListView.builder(
-                      scrollDirection: Axis.vertical,
-                      padding: const EdgeInsets.only(bottom: 10),
-                      itemCount: _chats.length,
-                      itemBuilder: (context, index) {
-                        final chat = _chats[index];
-                        final conversationId =
-                            chat['conversation_id'] as String;
-                        final friendId = chat['friend_id'] as String;
-                        final alias = chat['friend_full_name'] as String;
-                        final avatarUrl = chat['friend_avatar_url'] as String;
-                        final lastMessage = chat['last_message'] as String;
-                        final lastMessageTime =
-                            chat['last_message_time'] as DateTime;
-                        final isOnline = chat['friend_status'] == 'online';
-                        final isSeen = chat['is_read'] as bool;
-                        print(
-                          'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
-                        );
-                        return ChatTitle(
-                          avatarUrl,
-                          alias,
-                          lastMessageTime,
-                          isSeen,
-                          isOnline,
-                          lastMessage,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => Messages(
-                                      chatId: conversationId,
-                                      myId: myId!,
-                                      friendId: friendId,
-                                      friendName: alias,
-                                      friendImage: avatarUrl,
-                                    ),
-                              ),
-                            ).then((result) {
-                              if (result != null &&
-                                  result['conversation_id'] != null) {
-                                _updateChatReadStatus(
-                                  result['conversation_id'],
-                                );
-                              }
-                            });
-                          },
+                    : RefreshIndicator(
+                      child: ListView.builder(
+                        scrollDirection: Axis.vertical,
+                        padding: const EdgeInsets.only(bottom: 10),
+                        itemCount: _chats.length,
+                        itemBuilder: (context, index) {
+                          final chat = _chats[index];
+                          final conversationId =
+                              chat['conversation_id'] as String;
+                          final friendId = chat['friend_id'] as String;
+                          final alias = chat['friend_full_name'] as String;
+                          final avatarUrl = chat['friend_avatar_url'] as String;
+                          final lastMessage = chat['last_message'] as String;
+                          final lastMessageTime =
+                              chat['last_message_time'] as DateTime;
+                          final isOnline = chat['friend_status'] == 'online';
+                          final isSeen = chat['is_read'] as bool;
+                          print(
+                            'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
+                          );
+                          return ChatTitle(
+                            avatarUrl,
+                            alias,
+                            lastMessageTime,
+                            isSeen,
+                            isOnline,
+                            lastMessage,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => Messages(
+                                        chatId: conversationId,
+                                        myId: myId!,
+                                        contactId: friendId,
+                                        contactName: alias,
+                                        contactImage: avatarUrl,
+                                      ),
+                                ),
+                              ).then((result) {
+                                if (result != null &&
+                                    result['conversation_id'] != null) {
+                                  _updateChatReadStatus(
+                                    result['conversation_id'],
+                                  );
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+                      onRefresh: () async {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HomeScreen(selectedIndex: 0),
+                          ),
                         );
                       },
                     ),

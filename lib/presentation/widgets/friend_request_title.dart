@@ -30,9 +30,9 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
                   (context) => Messages(
                     chatId: chatId,
                     myId: UserService().id!,
-                    friendId: userId,
-                    friendName: req.fullName,
-                    friendImage: req.avatarURL,
+                    contactId: userId,
+                    contactName: req.fullName,
+                    contactImage: req.avatarURL,
                   ),
             ),
           );

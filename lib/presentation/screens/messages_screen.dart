@@ -7,17 +7,17 @@ import 'package:whisp/presentation/widgets/message_input.dart';
 class Messages extends StatefulWidget {
   final String chatId;
   final String myId;
-  final String friendId;
-  final String friendName;
-  final String friendImage;
+  final String contactId;
+  final String contactName;
+  final String contactImage;
 
   const Messages({
     super.key,
     required this.chatId,
     required this.myId,
-    required this.friendId,
-    required this.friendName,
-    required this.friendImage,
+    required this.contactId,
+    required this.contactName,
+    required this.contactImage,
   });
 
   @override
@@ -224,13 +224,13 @@ class _MessagesState extends State<Messages> {
           children: [
             CircleAvatar(
               backgroundImage:
-                  widget.friendImage.isNotEmpty
-                      ? NetworkImage(widget.friendImage)
+                  widget.contactImage.isNotEmpty
+                      ? NetworkImage(widget.contactImage)
                       : null,
               radius: 20,
             ),
             const SizedBox(width: 10),
-            Text(widget.friendName),
+            Text(widget.contactName),
           ],
         ),
         centerTitle: true,
@@ -271,7 +271,7 @@ class _MessagesState extends State<Messages> {
                         : MessageList(
                           messages: _allMessages,
                           myId: widget.myId,
-                          friendImage: widget.friendImage,
+                          friendImage: widget.contactImage,
                           scrollController: _scrollController,
                           isLoadingMore: _isLoadingMore,
                           hasMoreMessages: _hasMoreMessages,

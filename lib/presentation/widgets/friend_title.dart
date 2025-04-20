@@ -24,9 +24,9 @@ class FriendTitle extends StatelessWidget {
                   return Messages(
                     chatId: chatId,
                     myId: UserService().id!,
-                    friendId: friend.id,
-                    friendName: friend.fullName,
-                    friendImage: friend.avatarUrl,
+                    contactId: friend.id,
+                    contactName: friend.fullName,
+                    contactImage: friend.avatarUrl,
                   );
                 },
               ),
