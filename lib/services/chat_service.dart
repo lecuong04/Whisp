@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/db_service.dart';
 
@@ -5,16 +6,25 @@ class ChatService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final DatabaseService _dbService = DatabaseService.instance;
 
+  /// Kiểm tra trạng thái kết nối mạng
+  Future<bool> _isOnline() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return connectivityResult != ConnectivityResult.none;
+  }
+
   /// Tải danh sách cuộc trò chuyện 1-1 của người dùng
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
     try {
       // Ưu tiên tải từ SQLite
       final localChats = await _dbService.loadChats(userId);
-      if (localChats.isNotEmpty) {
+      if (!(await _isOnline())) {
+        print(
+          'Offline: Returning ${localChats.length} local chats for user $userId',
+        );
         return localChats;
       }
 
-      // Nếu SQLite trống, truy vấn Supabase
+      // Nếu online, truy vấn Supabase
       final response = await _supabase
           .from('conversation_participants')
           .select('''
@@ -85,21 +95,22 @@ class ChatService {
         final lastMessageTime =
             lastMessage != null
                 ? DateTime.parse(lastMessage['sent_at']).toLocal()
+                : chat['conversations']['created_at'] != null
+                ? DateTime.parse(chat['conversations']['created_at']).toLocal()
                 : DateTime.now().toLocal();
-        if (lastMessage != null) {
-          processedChats.add({
-            'conversation_id': conversationId,
-            'friend_id': friend['id'],
-            'friend_full_name': friend['full_name'] ?? 'Unknown',
-            'friend_avatar_url':
-                friend['avatar_url'] ?? 'https://via.placeholder.com/150',
-            'friend_status': friend['status'] ?? 'offline',
-            'last_message': lastMessage['content'] ?? 'Chưa có tin nhắn',
-            'last_message_time': lastMessageTime,
-            'is_read': isRead,
-            'is_group': chat['conversations']['is_group'],
-          });
-        }
+
+        processedChats.add({
+          'conversation_id': conversationId,
+          'friend_id': friend['id'],
+          'friend_full_name': friend['full_name'] ?? 'Unknown',
+          'friend_avatar_url':
+              friend['avatar_url'] ?? 'https://via.placeholder.com/150',
+          'friend_status': friend['status'] ?? 'offline',
+          'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
+          'last_message_time': lastMessageTime,
+          'is_read': isRead,
+          'is_group': chat['conversations']['is_group'],
+        });
       }
 
       processedChats.sort(
@@ -115,7 +126,12 @@ class ChatService {
       return processedChats;
     } catch (e) {
       print('Error loading chats: $e');
-      throw Exception('Lỗi khi tải danh sách chat: $e');
+      // Nếu offline, trả về dữ liệu cục bộ
+      final localChats = await _dbService.loadChats(userId);
+      print(
+        'Offline: Returning ${localChats.length} local chats for user $userId',
+      );
+      return localChats;
     }
   }
 
@@ -181,6 +197,12 @@ class ChatService {
         return localUser;
       }
 
+      // Nếu không có trong SQLite và offline, trả về null
+      if (!(await _isOnline())) {
+        print('Offline: No local user data for userId $userId');
+        return null;
+      }
+
       // Nếu không có trong SQLite, truy vấn Supabase
       final response =
           await _supabase
@@ -196,12 +218,9 @@ class ChatService {
       return response;
     } catch (e) {
       print('Error fetching user info: $e');
-      // Nếu có lỗi (ví dụ: offline), thử tải lại từ SQLite
+      // Nếu có lỗi, thử tải lại từ SQLite
       final localUser = await _dbService.loadUser(userId);
-      if (localUser != null) {
-        return localUser;
-      }
-      throw Exception('Lỗi khi lấy thông tin người dùng: $e');
+      return localUser;
     }
   }
 
@@ -262,17 +281,23 @@ class ChatService {
   }) async {
     try {
       // Ưu tiên tải từ SQLite
-      if (beforeSentAt == null) {
-        final localMessages = await _dbService.loadMessages(
-          conversationId,
-          limit: limit,
-        );
-        if (localMessages.length >= limit) {
-          return localMessages;
-        }
+      final localMessages = await _dbService.loadMessages(
+        conversationId,
+        limit: limit,
+      );
+      if (beforeSentAt == null && localMessages.isNotEmpty) {
+        return localMessages;
       }
 
-      // Nếu không có đủ dữ liệu cục bộ, truy vấn Supabase
+      // Nếu không có dữ liệu cục bộ hoặc cần tải thêm, kiểm tra mạng
+      if (!(await _isOnline())) {
+        print(
+          'Offline: Returning local messages for conversation $conversationId',
+        );
+        return localMessages;
+      }
+
+      // Truy vấn Supabase
       var query = _supabase
           .from('messages')
           .select('''
@@ -308,7 +333,15 @@ class ChatService {
       return messages;
     } catch (e) {
       print('Error loading messages: $e');
-      throw Exception('Lỗi khi tải tin nhắn: $e');
+      // Nếu offline, trả về dữ liệu cục bộ
+      final localMessages = await _dbService.loadMessages(
+        conversationId,
+        limit: limit,
+      );
+      print(
+        'Offline: Returning ${localMessages.length} local messages for conversation $conversationId',
+      );
+      return localMessages;
     }
   }
 
@@ -320,6 +353,11 @@ class ChatService {
     String messageType = 'text',
   }) async {
     try {
+      // Kiểm tra mạng trước khi gửi
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
       // Chèn tin nhắn mới
       final messageResponse =
           await _supabase
@@ -356,6 +394,14 @@ class ChatService {
   /// Đánh dấu tin nhắn là đã đọc
   Future<void> markMessagesAsRead(String conversationId) async {
     try {
+      // Kiểm tra mạng
+      if (!(await _isOnline())) {
+        print(
+          'Offline: Cannot mark messages as read for conversation $conversationId',
+        );
+        return;
+      }
+
       final messageIds = await _supabase
           .from('messages')
           .select('id')
