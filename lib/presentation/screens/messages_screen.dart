@@ -223,7 +223,10 @@ class _MessagesState extends State<Messages> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: NetworkImage(widget.friendImage),
+              backgroundImage:
+                  widget.friendImage.isNotEmpty
+                      ? NetworkImage(widget.friendImage)
+                      : null,
               radius: 20,
             ),
             const SizedBox(width: 10),

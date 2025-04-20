@@ -78,7 +78,10 @@ class _ChatTitleState extends State<ChatTitle> {
               alignment: AlignmentDirectional.center,
               children: [
                 CircleAvatar(
-                  backgroundImage: NetworkImage(widget.avatarUrl),
+                  backgroundImage:
+                      widget.avatarUrl.isNotEmpty
+                          ? NetworkImage(widget.avatarUrl)
+                          : null,
                   radius: 26,
                 ),
                 if (widget.isOnline) ...[

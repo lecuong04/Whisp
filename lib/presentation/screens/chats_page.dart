@@ -29,16 +29,15 @@ class _ChatsState extends State<Chats> {
   }
 
   Future<void> _initializeUser() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      setState(() {
+        _error = "Người dùng chưa đăng nhập.";
+        _isLoading = false;
+      });
+      return;
+    }
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        setState(() {
-          _error = "Người dùng chưa đăng nhập.";
-          _isLoading = false;
-        });
-        return;
-      }
-
       final userId = user.id;
       Map<String, dynamic>? userInfo;
 

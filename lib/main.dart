@@ -113,7 +113,7 @@ class HomeScreenState extends State<HomeScreen> {
                 )
                 : null,
       ),
-      body: _pages[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),

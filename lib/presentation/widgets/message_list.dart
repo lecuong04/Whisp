@@ -102,7 +102,10 @@ class _MessageListState extends State<MessageList> {
               children: [
                 if (!isMe) ...[
                   CircleAvatar(
-                    backgroundImage: NetworkImage(widget.friendImage),
+                    backgroundImage:
+                        widget.friendImage.isNotEmpty
+                            ? NetworkImage(widget.friendImage)
+                            : null,
                     radius: 15,
                   ),
                   const SizedBox(width: 10),

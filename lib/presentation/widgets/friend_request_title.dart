@@ -51,7 +51,10 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
       },
       leading: CircleAvatar(
         radius: 24,
-        backgroundImage: NetworkImage(widget.request.avatarURL),
+        backgroundImage:
+            widget.request.avatarURL.isNotEmpty
+                ? NetworkImage(widget.request.avatarURL)
+                : null,
       ),
       title: Text(
         widget.request.fullName,

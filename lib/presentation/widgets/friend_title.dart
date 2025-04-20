@@ -40,7 +40,10 @@ class FriendTitle extends StatelessWidget {
               alignment: AlignmentDirectional.center,
               children: [
                 CircleAvatar(
-                  backgroundImage: NetworkImage(friend.avatarUrl),
+                  backgroundImage:
+                      friend.avatarUrl.isNotEmpty
+                          ? NetworkImage(friend.avatarUrl)
+                          : null,
                   radius: 26,
                 ),
                 if (friend.isOnline) ...[

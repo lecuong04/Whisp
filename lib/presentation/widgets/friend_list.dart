@@ -65,7 +65,10 @@ class _FriendListState extends State<FriendList> {
                         spacing: 10,
                         children: [
                           CircleAvatar(
-                            backgroundImage: NetworkImage(f.avatarUrl),
+                            backgroundImage:
+                                f.avatarUrl.isNotEmpty
+                                    ? NetworkImage(f.avatarUrl)
+                                    : null,
                           ),
                           Text(f.fullName),
                         ],
