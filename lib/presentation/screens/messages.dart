@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/chat_service.dart';
-// import 'package:whisp/services/db_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 
@@ -30,7 +29,6 @@ class MessagesState extends State<Messages> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
-  // final DatabaseService _dbService = DatabaseService.instance;
   List<Map<String, dynamic>> _allMessages = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -116,16 +114,25 @@ class MessagesState extends State<Messages> {
                 );
               }).toList();
 
-          _allMessages.addAll(newMessages.reversed);
-          _allMessages.sort((a, b) {
-            final aTime = DateTime.parse(a['sent_at']);
-            final bTime = DateTime.parse(b['sent_at']);
-            return aTime.compareTo(bTime);
-          });
-
           if (newMessages.isNotEmpty) {
+            _allMessages.addAll(newMessages);
+            _allMessages.sort((a, b) {
+              final aTime = DateTime.parse(a['sent_at']);
+              final bTime = DateTime.parse(b['sent_at']);
+              return aTime.compareTo(bTime);
+            });
+
+            // Đánh dấu tin nhắn là đã đọc nếu đang xem cuộc trò chuyện
+            if (newMessages.any((msg) => msg['sender_id'] != widget.myId)) {
+              _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
+                print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
+              });
+            }
+
             if (_isAtBottom) {
-              _scrollToBottom();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _scrollToBottom();
+              });
             } else {
               _hasNewMessage = true;
             }
@@ -295,7 +302,7 @@ class MessagesState extends State<Messages> {
   void dispose() {
     _scrollController.dispose();
     _messageController.dispose();
-    Supabase.instance.client.channel('public:messages').unsubscribe();
+    _chatService.unsubscribeMessages(); // Hủy subscription khi rời màn hình
     super.dispose();
   }
 }
