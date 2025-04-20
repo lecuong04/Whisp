@@ -90,6 +90,7 @@ class ChatService {
           );
         } else {
           print('No messages for $conversationId');
+          continue;
         }
 
         final lastMessageTime =
