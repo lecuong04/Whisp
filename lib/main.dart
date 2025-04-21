@@ -61,6 +61,7 @@ class HomeScreen extends StatefulWidget {
 
 class HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  late PageController _pageController;
 
   // Danh sách các màn hình tương ứng với từng tab
   final List<Widget> _pages = [
@@ -76,6 +77,7 @@ class HomeScreenState extends State<HomeScreen> {
         widget.selectedIndex! < _pages.length) {
       _selectedIndex = widget.selectedIndex!;
     }
+    _pageController = PageController(initialPage: _selectedIndex);
     super.initState();
   }
 
@@ -113,7 +115,11 @@ class HomeScreenState extends State<HomeScreen> {
                 )
                 : null,
       ),
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: PageView(
+        controller: _pageController,
+        physics: NeverScrollableScrollPhysics(),
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),
@@ -132,6 +138,7 @@ class HomeScreenState extends State<HomeScreen> {
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
+            _pageController.jumpToPage(_selectedIndex);
           });
         },
       ),
