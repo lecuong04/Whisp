@@ -1,3 +1,4 @@
+import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/classify_tab_item.dart';
 import 'package:whisp/presentation/widgets/friend_list.dart';
 import 'package:flutter/material.dart';
@@ -12,27 +13,36 @@ class Friends extends StatefulWidget {
 }
 
 class _FriendsState extends State<Friends>
-    with
-        SingleTickerProviderStateMixin,
-        AutomaticKeepAliveClientMixin<Friends> {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin<Friends> {
   @override
   bool get wantKeepAlive => true;
 
   late TabController tabController;
-  var data = FriendService().listFriends();
+  var friends = FriendService().listFriends();
+  List<ClassifyTabItem> tags = List.empty(growable: true);
+
   @override
   void initState() {
     tabController = TabController(length: 1, vsync: this);
     tabController.addListener(() {
       setState(() {});
     });
-    FriendService().listFriends();
     super.initState();
+    buildTags();
+  }
+
+  void buildTags() async {
+    for (Tag t in await FriendService().listTags()) {
+      tags.add(ClassifyTabItem.tag(tag: t));
+    }
+    tabController = TabController(length: tags.length + 1, vsync: this);
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
     return Scaffold(
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -58,16 +68,7 @@ class _FriendsState extends State<Friends>
                     labelStyle: TextStyle(color: Colors.white),
                     unselectedLabelStyle: TextStyle(color: Colors.black),
                     controller: tabController,
-                    tabs: [
-                      ClassifyTabItem(name: "Tất cả"),
-                      // ClassifyTabItem(name: "Gia đình", color: Colors.cyan),
-                      // ClassifyTabItem(name: "Bạn thân", color: Colors.orange),
-                      // ClassifyTabItem(
-                      //   name: "Đồng nghiệp",
-                      //   color: Colors.brown,
-                      // ),
-                      // ClassifyTabItem(name: "Hàng xóm", color: Colors.grey),
-                    ],
+                    tabs: [ClassifyTabItem(name: "Tất cả"), ...tags],
                   ),
                 ),
               ],
@@ -76,7 +77,7 @@ class _FriendsState extends State<Friends>
           Padding(padding: EdgeInsets.only(bottom: 10)),
           Expanded(
             child: FutureBuilder(
-              future: data,
+              future: friends,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Column(
@@ -86,22 +87,30 @@ class _FriendsState extends State<Friends>
                   );
                 }
                 if (snapshot.hasData) {
-                  return TabBarView(
-                    controller: tabController,
-                    children: [
+                  List<Widget> views = List.empty(growable: true);
+                  views.add(
+                    RefreshIndicator(
+                      child: FriendList(snapshot.data!),
+                      onRefresh: () async {
+                        friends = FriendService().listFriends();
+                        setState(() {});
+                      },
+                    ),
+                  );
+                  for (ClassifyTabItem w in tags) {
+                    views.add(
                       RefreshIndicator(
-                        child: FriendList(snapshot.data!),
+                        child: FriendList(snapshot.data!, tagId: w.id),
                         onRefresh: () async {
-                          setState(() {
-                            data = FriendService().listFriends();
-                          });
+                          friends = FriendService().listFriends();
+                          setState(() {});
                         },
                       ),
-                      // ContactsList(),
-                      // ContactsList(),
-                      // ContactsList(),
-                      // ContactsList(),
-                    ],
+                    );
+                  }
+                  return TabBarView(
+                    controller: tabController,
+                    children: [...views],
                   );
                 }
                 return Container();

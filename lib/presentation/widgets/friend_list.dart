@@ -5,14 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:diacritic/diacritic.dart';
 
 class FriendList extends StatefulWidget {
+  final String? tagId;
   final List<Friend> friends;
-  const FriendList(this.friends, {super.key});
+  const FriendList(this.friends, {super.key, this.tagId});
 
   @override
   State<StatefulWidget> createState() => _FriendListState();
 }
 
 class _FriendListState extends State<FriendList> {
+  late List<Friend> friends;
   final TextStyle charStyle = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.bold,
@@ -20,10 +22,22 @@ class _FriendListState extends State<FriendList> {
   );
 
   @override
+  void initState() {
+    friends = widget.friends;
+    if (widget.tagId != null && widget.tagId!.isNotEmpty) {
+      friends =
+          widget.friends.where((x) => x.tags.contains(widget.tagId)).toList();
+    } else {
+      friends = widget.friends;
+    }
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     List<Widget> children = [];
     Map<String, List<Friend>> grouped = {};
-    for (Friend user in widget.friends) {
+    for (Friend user in friends) {
       String lastString = user.fullName.split(" ").last;
       String lastChar =
           (lastString.isEmpty)

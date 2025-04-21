@@ -61,14 +61,11 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => HomeScreen()),
         );
       }
-    } on AuthException {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Email hoặc mật khẩu không chính xác')),
-      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra: $e')));
+      ).showSnackBar(SnackBar(content: Text('Có lỗi xảy ra!')));
+      print(e);
     } finally {
       setState(() => isLoading = false);
     }

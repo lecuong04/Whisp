@@ -1,7 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/widgets/chat_title.dart';
 import 'package:whisp/services/chat_service.dart';

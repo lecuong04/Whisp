@@ -94,11 +94,7 @@ class ChatService {
         }
 
         final lastMessageTime =
-            lastMessage != null
-                ? DateTime.parse(lastMessage['sent_at']).toLocal()
-                : chat['conversations']['created_at'] != null
-                ? DateTime.parse(chat['conversations']['created_at']).toLocal()
-                : DateTime.now().toLocal();
+            DateTime.parse(lastMessage['sent_at']).toLocal();
 
         processedChats.add({
           'conversation_id': conversationId,
@@ -106,7 +102,7 @@ class ChatService {
           'friend_full_name': friend['full_name'] ?? 'Unknown',
           'friend_avatar_url': friend['avatar_url'] ?? '',
           'friend_status': friend['status'] ?? 'offline',
-          'last_message': lastMessage?['content'] ?? 'Chưa có tin nhắn',
+          'last_message': lastMessage['content'] ?? 'Chưa có tin nhắn',
           'last_message_time': lastMessageTime,
           'is_read': isRead,
           'is_group': chat['conversations']['is_group'],

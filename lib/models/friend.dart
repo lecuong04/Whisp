@@ -6,9 +6,17 @@ class Friend {
   final String username;
   final String fullName;
   final String avatarUrl;
+  final List<String> tags;
   late final bool isOnline;
 
-  Friend(this.id, this.username, this.fullName, this.avatarUrl, String status) {
+  Friend(
+    this.id,
+    this.username,
+    this.fullName,
+    this.avatarUrl,
+    String status,
+    this.tags,
+  ) {
     if (status == "offline") {
       isOnline = false;
     } else {
