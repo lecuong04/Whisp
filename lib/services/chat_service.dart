@@ -285,19 +285,16 @@ class ChatService {
         conversationId,
         limit: limit,
       );
-      if (beforeSentAt == null && localMessages.isNotEmpty) {
-        return localMessages;
-      }
 
-      // Nếu không có dữ liệu cục bộ hoặc cần tải thêm, kiểm tra mạng
-      if (!(await _isOnline())) {
+      // Chỉ trả về dữ liệu cục bộ nếu offline hoặc đang tải tin nhắn cũ hơn
+      if (!(await _isOnline()) || beforeSentAt != null) {
         print(
-          'Offline: Returning local messages for conversation $conversationId',
+          'Offline or loading older messages: Returning ${localMessages.length} local messages for conversation $conversationId',
         );
         return localMessages;
       }
 
-      // Truy vấn Supabase
+      // Nếu online và không phải tải tin nhắn cũ, truy vấn Supabase để lấy tin nhắn mới nhất
       var query = _supabase
           .from('messages')
           .select('''
@@ -306,10 +303,6 @@ class ChatService {
             message_statuses(user_id, is_read, read_at)
           ''')
           .eq('conversation_id', conversationId);
-
-      if (beforeSentAt != null) {
-        query = query.lt('sent_at', beforeSentAt);
-      }
 
       final messages = await query
           .order('sent_at', ascending: false)
