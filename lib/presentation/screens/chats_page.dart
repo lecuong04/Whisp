@@ -26,6 +26,7 @@ class _ChatsState extends State<Chats>
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;
   String? _error;
+  RealtimeChannel? _chatChannel;
 
   @override
   void initState() {
@@ -91,8 +92,8 @@ class _ChatsState extends State<Chats>
 
       // Theo dõi thay đổi Realtime
       _chatService.subscribeToChats(myId!, (updatedChats) {
-        _chats = updatedChats;
         setState(() {
+          _chats = updatedChats;
           print('Chats updated via Realtime in Chats: $_chats');
         });
       });
@@ -131,7 +132,10 @@ class _ChatsState extends State<Chats>
 
   @override
   void dispose() {
-    Supabase.instance.client.channel('public:chats').unsubscribe();
+    if (_chatChannel != null) {
+      Supabase.instance.client.removeChannel(_chatChannel!);
+      _chatChannel = null;
+    }
     super.dispose();
   }
 
@@ -241,12 +245,7 @@ class _ChatsState extends State<Chats>
                         },
                       ),
                       onRefresh: () async {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => HomeScreen(selectedIndex: 0),
-                          ),
-                        );
+                        await _loadChats();
                       },
                     ),
           ),
