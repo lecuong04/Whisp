@@ -15,7 +15,6 @@ class ForgotPassword extends StatefulWidget {
 class _ForgotPasswordState extends State<ForgotPassword> {
   final TextEditingController emailController = TextEditingController();
   bool isLoading = false;
-  late StreamSubscription _sub;
 
   // Xử lý việc gửi yêu cầu đặt lại mật khẩu
   Future<void> handleSubmit() async {
@@ -41,7 +40,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
       await Supabase.instance.client.auth.resetPasswordForEmail(
         email,
         redirectTo:
-            'whisp://reset-password', // Deep link sau khi đặt lại mật khẩu
+            'io.supabase.whisp://reset-callback/', // Deep link sau khi đặt lại mật khẩu
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,7 +62,6 @@ class _ForgotPasswordState extends State<ForgotPassword> {
   @override
   void dispose() {
     emailController.dispose();
-    _sub.cancel(); // Hủy bỏ việc lắng nghe deep link khi widget bị hủy
     super.dispose();
   }
 
