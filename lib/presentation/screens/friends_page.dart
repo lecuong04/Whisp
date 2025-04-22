@@ -4,6 +4,7 @@ import 'package:whisp/presentation/widgets/friend_list.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/services/friend_service.dart';
+import 'package:whisp/services/tag_service.dart';
 
 class Friends extends StatefulWidget {
   const Friends({super.key});
@@ -31,11 +32,13 @@ class _FriendsState extends State<Friends>
     buildTags();
   }
 
-  void buildTags() async {
-    for (Tag t in await FriendService().listTags()) {
+  Future buildTags() async {
+    tags.clear();
+    for (Tag t in await TagService().listTags()) {
       tags.add(ClassifyTabItem.tag(tag: t));
     }
     tabController = TabController(length: tags.length + 1, vsync: this);
+    friends = FriendService().listFriends();
     setState(() {});
   }
 
@@ -54,8 +57,85 @@ class _FriendsState extends State<Friends>
             child: Row(
               children: [
                 IconButton(
-                  onPressed: () {},
-                  icon: Icon(Symbols.mode_edit, fill: 1),
+                  onPressed: () async {
+                    await showDialog(
+                      context: context,
+                      builder: (context) {
+                        var screenSize = MediaQuery.of(context).size;
+                        return StatefulBuilder(
+                          builder: (context, sfSetState) {
+                            List<Widget> widgets = List.empty(growable: true);
+                            for (ClassifyTabItem t in tags) {
+                              widgets.add(
+                                ListTile(
+                                  contentPadding: EdgeInsets.all(0),
+                                  title: Text(t.name),
+                                  leading: Icon(
+                                    Symbols.bookmark,
+                                    color: t.color,
+                                    fill: 1,
+                                  ),
+                                  trailing: Wrap(
+                                    children: [
+                                      IconButton(
+                                        onPressed: () {},
+                                        icon: Icon(Symbols.edit),
+                                      ),
+                                      IconButton(
+                                        onPressed: () async {
+                                          if (await TagService().removeTag(
+                                            t.id!,
+                                          )) {
+                                            await buildTags();
+                                            sfSetState(() {});
+                                          }
+                                        },
+                                        icon: Icon(Symbols.delete),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+                            return Dialog(
+                              alignment: Alignment.center,
+                              child: SizedBox(
+                                width: screenSize.width * 0.8,
+                                height: screenSize.height * 0.6,
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      Padding(
+                                        padding: EdgeInsets.only(bottom: 8),
+                                        child: Text(
+                                          "Quản lý thẻ phân loại",
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 24,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: ListView(children: [...widgets]),
+                                      ),
+                                      ElevatedButton.icon(
+                                        onPressed: () {},
+                                        label: Text("Thêm thẻ phân loại"),
+                                        icon: Icon(Symbols.add),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                  icon: Icon(Symbols.tune, fill: 1),
                 ),
                 VerticalDivider(width: 0),
                 Expanded(
@@ -70,6 +150,13 @@ class _FriendsState extends State<Friends>
                     controller: tabController,
                     tabs: [ClassifyTabItem(name: "Tất cả"), ...tags],
                   ),
+                ),
+                VerticalDivider(width: 0),
+                IconButton(
+                  onPressed: () {
+                    buildTags();
+                  },
+                  icon: Icon(Symbols.refresh),
                 ),
               ],
             ),
@@ -88,25 +175,9 @@ class _FriendsState extends State<Friends>
                 }
                 if (snapshot.hasData) {
                   List<Widget> views = List.empty(growable: true);
-                  views.add(
-                    RefreshIndicator(
-                      child: FriendList(snapshot.data!),
-                      onRefresh: () async {
-                        friends = FriendService().listFriends();
-                        setState(() {});
-                      },
-                    ),
-                  );
+                  views.add(FriendList(snapshot.data!));
                   for (ClassifyTabItem w in tags) {
-                    views.add(
-                      RefreshIndicator(
-                        child: FriendList(snapshot.data!, tagId: w.id),
-                        onRefresh: () async {
-                          friends = FriendService().listFriends();
-                          setState(() {});
-                        },
-                      ),
-                    );
+                    views.add(FriendList(snapshot.data!, tagId: w.id));
                   }
                   return TabBarView(
                     controller: tabController,

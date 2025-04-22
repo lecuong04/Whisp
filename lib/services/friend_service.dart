@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/models/friend.dart';
-import 'package:whisp/models/tag.dart';
 
 class FriendService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -26,18 +25,6 @@ class FriendService {
           tags,
         ),
       );
-    }
-    return output;
-  }
-
-  Future<List<Tag>> listTags() async {
-    var data = await _supabase.rpc(
-      "list_tags",
-      params: {"_user_id": _supabase.auth.currentUser?.id},
-    );
-    List<Tag> output = List.empty(growable: true);
-    for (dynamic f in data) {
-      output.add(Tag.json(f));
     }
     return output;
   }

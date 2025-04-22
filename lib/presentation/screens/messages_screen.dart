@@ -141,7 +141,9 @@ class _MessagesState extends State<Messages> {
     } catch (e) {
       _error = "Lỗi khi tải tin nhắn: $e";
       _isLoading = false;
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
