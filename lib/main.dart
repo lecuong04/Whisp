@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
+import 'package:whisp/presentation/screens/auth/reset_password_screen.dart';
 import 'package:whisp/presentation/screens/chats_page.dart';
 import 'package:whisp/presentation/screens/friends_page.dart';
 import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
@@ -20,8 +24,47 @@ Future<void> main() async {
   runApp(const WhispApp());
 }
 
-class WhispApp extends StatelessWidget {
-  const WhispApp({super.key});
+class WhispApp extends StatefulWidget {
+  const WhispApp({Key? key}) : super(key: key);
+
+  @override
+  _WhispAppState createState() => _WhispAppState();
+}
+
+class _WhispAppState extends State<WhispApp> {
+  final _appLinks = AppLinks();
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinkListener();
+  }
+
+  Future<void> _initDeepLinkListener() async {
+    // Xử lý deep link khi app được mở bằng deep link
+    final appLink = await _appLinks.getInitialAppLink();
+    _handleDeepLink(appLink?.toString());
+
+    // Lắng nghe deep link khi app đang chạy
+    _appLinks.uriLinkStream.listen((Uri? uri) {
+      _handleDeepLink(uri?.toString());
+    });
+  }
+
+  void _handleDeepLink(String? link) {
+    if (link == null) return;
+
+    // Kiểm tra nếu link liên quan đến đặt lại mật khẩu
+    if (link.contains('reset-callback')) {
+      // Điều hướng đến màn hình đặt lại mật khẩu
+      Navigator.of(context).pushNamed('/reset_password');
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +74,7 @@ class WhispApp extends StatelessWidget {
       routes: {
         '/login': (context) => LoginScreen(),
         '/home': (context) => HomeScreen(),
+        '/reset_password': (context) => ResetPasswordScreen(),
       },
       home: const AuthWrapper(),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -55,22 +56,42 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
     if (pickedFile == null) return;
 
-    final file = File(pickedFile.path);
-    final fileExt = pickedFile.path.split('.').last;
+    // Crop ảnh
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: pickedFile.path,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Chỉnh sửa ảnh',
+          toolbarColor: Colors.deepOrange,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: true,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9,
+          ],
+        ),
+        IOSUiSettings(title: 'Chỉnh sửa ảnh', aspectRatioLockEnabled: true),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    final file = File(croppedFile.path);
+    final fileExt = croppedFile.path.split('.').last;
     final fileName = '${user!.id}.$fileExt';
 
     final storage = Supabase.instance.client.storage;
     final avatarPath = 'public/$fileName';
 
-    // Upload lên Supabase Storage
     await storage
         .from('avatars')
         .upload(avatarPath, file, fileOptions: const FileOptions(upsert: true));
 
-    // Lấy public URL
     final url = storage.from('avatars').getPublicUrl(avatarPath);
 
-    // Cập nhật metadata
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(data: {'avatar_url': url}),
     );
@@ -78,6 +99,60 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     setState(() {
       avatarUrl = url;
     });
+  }
+
+  Future<void> handleUpdateInfo() async {
+    // Kiểm tra user có tồn tại không
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể lấy thông tin người dùng')),
+      );
+      return;
+    }
+
+    final userData = user!.userMetadata ?? {};
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return EditProfileModal(
+          fullName: userData["full_name"]?.toString() ?? '',
+          username: userData["username"]?.toString() ?? '',
+          onSave: (data) async {
+            try {
+              await Supabase.instance.client.auth.updateUser(
+                UserAttributes(data: data),
+              );
+
+              if (mounted) {
+                setState(() {}); // cập nhật giao diện
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Cập nhật thông tin thành công'),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Lỗi khi cập nhật thông tin: ${e.toString()}',
+                    ),
+                  ),
+                );
+              }
+            }
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -133,19 +208,14 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
             // Thông tin cá nhân
             _buildInfoTile(
-              Icons.phone,
-              'Số điện thoại',
-              user?.userMetadata?["phone"] ?? 'Cập nhật ngay',
+              Icons.person_outline_rounded,
+              'Họ và tên',
+              user?.userMetadata?["full_name"] ?? 'Cập nhật ngay',
             ),
             _buildInfoTile(
-              Icons.location_on,
-              'Địa chỉ',
-              user?.userMetadata?['address'] ?? 'Cập nhật ngay',
-            ),
-            _buildInfoTile(
-              Icons.cake,
-              'Ngày sinh',
-              user?.userMetadata?['dayOfBirth'] ?? 'Cập nhật ngay',
+              Icons.person,
+              'Username',
+              user?.userMetadata?["username"] ?? 'Cập nhật ngay',
             ),
 
             const SizedBox(height: 30),
@@ -153,7 +223,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
             // Nút chỉnh sửa
             ElevatedButton.icon(
               onPressed: () {
-                // Navigate to edit profile
+                handleUpdateInfo();
               },
               icon: Icon(Icons.edit),
               label: Text('Chỉnh sửa thông tin'),
@@ -189,6 +259,82 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         ),
         Divider(),
       ],
+    );
+  }
+}
+
+class EditProfileModal extends StatefulWidget {
+  final String fullName;
+  final String username;
+  final Function(Map<String, dynamic>) onSave;
+
+  const EditProfileModal({
+    super.key,
+    required this.fullName,
+    required this.username,
+    required this.onSave,
+  });
+
+  @override
+  State<EditProfileModal> createState() => _EditProfileModalState();
+}
+
+class _EditProfileModalState extends State<EditProfileModal> {
+  late TextEditingController _usernameController;
+  late TextEditingController _fullNameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameController = TextEditingController(text: widget.username);
+    _fullNameController = TextEditingController(text: widget.fullName);
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _fullNameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Chỉnh sửa thông tin',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _fullNameController,
+            decoration: const InputDecoration(labelText: 'Họ và tên'),
+            keyboardType: TextInputType.text, // Sửa thành text thay vì phone
+          ),
+          TextField(
+            controller: _usernameController,
+            decoration: InputDecoration(labelText: 'Username'),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              widget.onSave({
+                'full_name': _fullNameController.text,
+                'username': _usernameController.text,
+              });
+            },
+            child: Text('Lưu'),
+          ),
+        ],
+      ),
     );
   }
 }
