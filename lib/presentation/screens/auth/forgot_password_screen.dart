@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/presentation/screens/auth/verify_otp_screen.dart';
 import 'package:whisp/presentation/widgets/custom_button.dart';
 import 'package:whisp/presentation/widgets/custom_text_field.dart';
 import 'package:whisp/utils/helpers.dart';
@@ -16,14 +17,14 @@ class _ForgotPasswordState extends State<ForgotPassword> {
   final TextEditingController emailController = TextEditingController();
   bool isLoading = false;
 
-  // Xử lý việc gửi yêu cầu đặt lại mật khẩu
+  // Xử lý việc gửi yêu cầu OTP đặt lại mật khẩu
   Future<void> handleSubmit() async {
     final email = emailController.text.trim();
 
     if (email.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
+      ).showSnackBar(SnackBar(content: Text('Vui lòng nhập email')));
       return;
     }
 
@@ -37,19 +38,25 @@ class _ForgotPasswordState extends State<ForgotPassword> {
     setState(() => isLoading = true);
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(
-        email,
-        redirectTo:
-            'io.supabase.whisp://reset-callback/', // Deep link sau khi đặt lại mật khẩu
+      // Gọi Edge Function để gửi OTP
+      final response = await Supabase.instance.client.functions.invoke(
+        'send-reset-otp',
+        body: {'email': email},
       );
 
+      if (response.status != 200) {
+        throw Exception(response.data['error'] ?? 'Không thể gửi OTP');
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng kiểm tra email để đặt lại mật khẩu')),
+        SnackBar(content: Text('Mã OTP đã được gửi đến email của bạn')),
       );
-    } on AuthException catch (e) {
-      ScaffoldMessenger.of(
+
+      // Chuyển đến màn hình nhập OTP
+      Navigator.push(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+        MaterialPageRoute(builder: (context) => VerifyOTPScreen(email: email)),
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -86,6 +93,11 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                SizedBox(height: 10),
+                Text(
+                  'Vui lòng nhập email của bạn để nhận mã OTP 6 số',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
                 SizedBox(height: 30),
                 CustomTextField(
                   controller: emailController,
@@ -97,7 +109,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                     ? Center(child: CircularProgressIndicator())
                     : CustomButton(
                       onPressed: () => handleSubmit(),
-                      text: 'Gửi xác nhận qua email',
+                      text: 'Gửi mã OTP',
                     ),
               ],
             ),
@@ -107,3 +119,4 @@ class _ForgotPasswordState extends State<ForgotPassword> {
     );
   }
 }
+// 
