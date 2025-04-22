@@ -139,10 +139,9 @@ class _MessagesState extends State<Messages> {
         });
       });
     } catch (e) {
-      setState(() {
-        _error = "Lỗi khi tải tin nhắn: $e";
-        _isLoading = false;
-      });
+      _error = "Lỗi khi tải tin nhắn: $e";
+      _isLoading = false;
+      setState(() {});
     }
   }
 
