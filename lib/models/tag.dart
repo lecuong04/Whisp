@@ -10,6 +10,6 @@ class Tag {
   Tag.json(dynamic data) {
     id = data["id"];
     name = data["name"];
-    color = Color(0xFF000000 | int.parse(data["color"].toString()));
+    color = Color(int.parse(data["color"].toString()));
   }
 }

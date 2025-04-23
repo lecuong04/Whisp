@@ -1,5 +1,6 @@
 import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/classify_tab_item.dart';
+import 'package:whisp/presentation/widgets/color_slider.dart';
 import 'package:whisp/presentation/widgets/friend_list.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -61,7 +62,7 @@ class _FriendsState extends State<Friends>
                     await showDialog(
                       context: context,
                       builder: (context) {
-                        return buildTagsManagement();
+                        return showTagsManagement();
                       },
                     );
                   },
@@ -123,7 +124,7 @@ class _FriendsState extends State<Friends>
     );
   }
 
-  Widget buildTagsManagement() {
+  Widget showTagsManagement() {
     var screenSize = MediaQuery.of(context).size;
     return StatefulBuilder(
       builder: (context, setState) {
@@ -151,36 +152,95 @@ class _FriendsState extends State<Friends>
             ),
           );
         }
-        return Dialog(
+        return AlertDialog(
           alignment: Alignment.center,
-          child: SizedBox(
+          content: SizedBox(
             width: screenSize.width * 0.8,
             height: screenSize.height * 0.6,
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      "Quản lý thẻ phân loại",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                      ),
-                    ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    "Danh sách thẻ phân loại",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 22.5),
                   ),
-                  Expanded(child: ListView(children: [...widgets])),
-                  ElevatedButton.icon(
-                    onPressed: () {},
-                    label: Text("Thêm thẻ phân loại"),
-                    icon: Icon(Symbols.add),
+                ),
+                Expanded(child: ListView(children: [...widgets])),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    var data = await showAddCategoryDialog(context);
+                    if (data == null) return;
+                    if (await TagService().addTag(data.name, data.color) !=
+                        null) {
+                      await buildTags();
+                      setState(() {});
+                    }
+                  },
+                  label: Text("Thêm thẻ phân loại"),
+                  icon: Icon(Symbols.add),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Tag?> showAddCategoryDialog(BuildContext context) async {
+    final nameController = TextEditingController();
+    Color selectedColor = Colors.blue;
+    FocusNode focusNode = FocusNode();
+
+    return await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              contentPadding: EdgeInsets.all(16),
+              titlePadding: EdgeInsets.only(top: 16),
+              title: Text('Thêm thẻ phân loại', textAlign: TextAlign.center),
+              content: Wrap(
+                alignment: WrapAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    focusNode: focusNode,
+                    onTapOutside: (event) {
+                      focusNode.unfocus();
+                    },
+                    decoration: InputDecoration(labelText: 'Tên thẻ'),
+                  ),
+                  SizedBox(height: 16),
+                  SizedBox(
+                    width: 300,
+                    child: ColorSlider(
+                      onColorChanged: (color) {
+                        selectedColor = color;
+                      },
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) return;
+                    Navigator.pop(context, Tag("", name, selectedColor));
+                  },
+                  child: Text('Thêm'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

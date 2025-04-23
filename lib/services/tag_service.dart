@@ -18,16 +18,20 @@ class TagService {
     return output;
   }
 
-  Future<Tag> addTag(String name, Color color) async {
-    var data = await _supabase.rpc(
-      "add_tag",
-      params: {
-        "user_id": _supabase.auth.currentUser?.id,
-        "name": name,
-        "color": color.toARGB32(),
-      },
-    );
-    return Tag(data.toString(), name, color);
+  Future<Tag?> addTag(String name, Color color) async {
+    try {
+      var data = await _supabase.rpc(
+        "add_tag",
+        params: {
+          "user_id": _supabase.auth.currentUser?.id,
+          "name": name,
+          "color": color.toARGB32(),
+        },
+      );
+      return Tag(data.toString(), name, color);
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<bool> removeTag(String tagId) async {
