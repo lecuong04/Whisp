@@ -32,33 +32,9 @@ class WhispApp extends StatefulWidget {
 }
 
 class _WhispAppState extends State<WhispApp> {
-  final _appLinks = AppLinks();
-
   @override
   void initState() {
     super.initState();
-    _initDeepLinkListener();
-  }
-
-  Future<void> _initDeepLinkListener() async {
-    // Xử lý deep link khi app được mở bằng deep link
-    final appLink = await _appLinks.getInitialAppLink();
-    _handleDeepLink(appLink?.toString());
-
-    // Lắng nghe deep link khi app đang chạy
-    _appLinks.uriLinkStream.listen((Uri? uri) {
-      _handleDeepLink(uri?.toString());
-    });
-  }
-
-  void _handleDeepLink(String? link) {
-    if (link == null) return;
-
-    // Kiểm tra nếu link liên quan đến đặt lại mật khẩu
-    if (link.contains('reset-callback')) {
-      // Điều hướng đến màn hình đặt lại mật khẩu
-      Navigator.of(context).pushNamed('/reset_password');
-    }
   }
 
   @override
