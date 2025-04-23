@@ -112,8 +112,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       return;
     }
 
-    final userData = user!.userMetadata ?? {};
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -122,8 +120,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       ),
       builder: (context) {
         return EditProfileModal(
-          fullName: userData["full_name"]?.toString() ?? '',
-          username: userData["username"]?.toString() ?? '',
+          fullName: fullName ?? "",
+          username: username ?? '',
           onSave: (data) async {
             try {
               await Supabase.instance.client.auth.updateUser(
