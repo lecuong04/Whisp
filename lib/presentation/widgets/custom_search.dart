@@ -10,6 +10,14 @@ class CustomSearch extends StatefulWidget {
 }
 
 class _CustomSearchState extends State<CustomSearch> {
+  FocusNode focus = FocusNode();
+
+  @override
+  void dispose() {
+    focus.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -22,6 +30,7 @@ class _CustomSearchState extends State<CustomSearch> {
               padding: EdgeInsets.symmetric(horizontal: 10),
               child: Icon(Symbols.search, size: 24),
             ),
+            focusNode: focus,
             hintText: "Tìm kiếm...",
             hintStyle: WidgetStatePropertyAll(TextStyle(fontSize: 16)),
             textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 16)),
@@ -32,7 +41,8 @@ class _CustomSearchState extends State<CustomSearch> {
             onChanged: (value) {
               setState(() {});
             },
-            onTapOutside: (_) {
+            onTapOutside: (e) {
+              focus.unfocus();
               setState(() {});
             },
             onTap: () {},
@@ -41,6 +51,7 @@ class _CustomSearchState extends State<CustomSearch> {
                 IconButton(
                   onPressed: () {
                     controller.clear();
+                    focus.unfocus();
                     setState(() {});
                   },
                   icon: Icon(Symbols.close),

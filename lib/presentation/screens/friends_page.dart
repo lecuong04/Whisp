@@ -61,77 +61,7 @@ class _FriendsState extends State<Friends>
                     await showDialog(
                       context: context,
                       builder: (context) {
-                        var screenSize = MediaQuery.of(context).size;
-                        return StatefulBuilder(
-                          builder: (context, sfSetState) {
-                            List<Widget> widgets = List.empty(growable: true);
-                            for (ClassifyTabItem t in tags) {
-                              widgets.add(
-                                ListTile(
-                                  contentPadding: EdgeInsets.all(0),
-                                  title: Text(t.name),
-                                  leading: Icon(
-                                    Symbols.bookmark,
-                                    color: t.color,
-                                    fill: 1,
-                                  ),
-                                  trailing: Wrap(
-                                    children: [
-                                      IconButton(
-                                        onPressed: () {},
-                                        icon: Icon(Symbols.edit),
-                                      ),
-                                      IconButton(
-                                        onPressed: () async {
-                                          if (await TagService().removeTag(
-                                            t.id!,
-                                          )) {
-                                            await buildTags();
-                                            sfSetState(() {});
-                                          }
-                                        },
-                                        icon: Icon(Symbols.delete),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-                            return Dialog(
-                              alignment: Alignment.center,
-                              child: SizedBox(
-                                width: screenSize.width * 0.8,
-                                height: screenSize.height * 0.6,
-                                child: Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Column(
-                                    children: [
-                                      Padding(
-                                        padding: EdgeInsets.only(bottom: 8),
-                                        child: Text(
-                                          "Quản lý thẻ phân loại",
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 24,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: ListView(children: [...widgets]),
-                                      ),
-                                      ElevatedButton.icon(
-                                        onPressed: () {},
-                                        label: Text("Thêm thẻ phân loại"),
-                                        icon: Icon(Symbols.add),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
+                        return buildTagsManagement();
                       },
                     );
                   },
@@ -190,6 +120,69 @@ class _FriendsState extends State<Friends>
           ),
         ],
       ),
+    );
+  }
+
+  Widget buildTagsManagement() {
+    var screenSize = MediaQuery.of(context).size;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        List<Widget> widgets = List.empty(growable: true);
+        for (ClassifyTabItem t in tags) {
+          widgets.add(
+            ListTile(
+              contentPadding: EdgeInsets.all(0),
+              title: Text(t.name),
+              leading: Icon(Symbols.bookmark, color: t.color, fill: 1),
+              trailing: Wrap(
+                children: [
+                  IconButton(onPressed: () {}, icon: Icon(Symbols.edit)),
+                  IconButton(
+                    onPressed: () async {
+                      if (await TagService().removeTag(t.id!)) {
+                        await buildTags();
+                        setState(() {});
+                      }
+                    },
+                    icon: Icon(Symbols.delete),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return Dialog(
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: screenSize.width * 0.8,
+            height: screenSize.height * 0.6,
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      "Quản lý thẻ phân loại",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: ListView(children: [...widgets])),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    label: Text("Thêm thẻ phân loại"),
+                    icon: Icon(Symbols.add),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
