@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 class CustomSearch extends StatefulWidget {
-  const CustomSearch({super.key});
+  final int? page;
+  const CustomSearch({super.key, this.page});
 
   @override
   State<StatefulWidget> createState() => _CustomSearchState();
@@ -28,15 +29,13 @@ class _CustomSearchState extends State<CustomSearch> {
             shape: WidgetStatePropertyAll(
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
-            onChanged: (_) {
-              controller.openView();
+            onChanged: (value) {
+              setState(() {});
             },
             onTapOutside: (_) {
               setState(() {});
             },
-            onTap: () {
-              controller.openView();
-            },
+            onTap: () {},
             trailing: [
               if (controller.text.isNotEmpty) ...[
                 IconButton(

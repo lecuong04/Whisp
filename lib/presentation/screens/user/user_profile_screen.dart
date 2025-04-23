@@ -18,8 +18,10 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
   final user = Supabase.instance.client.auth.currentUser;
 
-  String? avatarUrl;
+  String? fullName;
+  String? username;
 
+  String? avatarUrl;
   Future<void> handleLogout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -129,13 +131,16 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               );
 
               if (mounted) {
-                setState(() {}); // cập nhật giao diện
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Cập nhật thông tin thành công'),
                   ),
                 );
+                setState(() {
+                  fullName = data["full_name"] ?? "";
+                  username = data["username"] ?? "";
+                }); // cập nhật giao diện
               }
             } catch (e) {
               if (mounted) {
@@ -159,6 +164,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   void initState() {
     super.initState();
     avatarUrl = user?.userMetadata?['avatar_url'];
+    fullName = user?.userMetadata!["full_name"];
+    username = user?.userMetadata?["username"];
   }
 
   @override
@@ -193,7 +200,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
             // Tên và Email
             Text(
-              user?.userMetadata!["full_name"],
+              fullName ?? "",
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
@@ -210,20 +217,20 @@ class _UserProfileScreenState extends State<UserProfileScreen>
             _buildInfoTile(
               Icons.person_outline_rounded,
               'Họ và tên',
-              user?.userMetadata?["full_name"] ?? 'Cập nhật ngay',
+              fullName ?? 'Cập nhật ngay',
             ),
             _buildInfoTile(
               Icons.person,
               'Username',
-              user?.userMetadata?["username"] ?? 'Cập nhật ngay',
+              username ?? 'Cập nhật ngay',
             ),
 
             const SizedBox(height: 30),
 
             // Nút chỉnh sửa
             ElevatedButton.icon(
-              onPressed: () {
-                handleUpdateInfo();
+              onPressed: () async {
+                await handleUpdateInfo();
               },
               icon: Icon(Icons.edit),
               label: Text('Chỉnh sửa thông tin'),

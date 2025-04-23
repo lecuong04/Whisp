@@ -25,10 +25,10 @@ Future<void> main() async {
 }
 
 class WhispApp extends StatefulWidget {
-  const WhispApp({Key? key}) : super(key: key);
+  const WhispApp({super.key});
 
   @override
-  _WhispAppState createState() => _WhispAppState();
+  State createState() => _WhispAppState();
 }
 
 class _WhispAppState extends State<WhispApp> {
@@ -155,7 +155,7 @@ class HomeScreenState extends State<HomeScreen> {
             _selectedIndex != 2
                 ? PreferredSize(
                   preferredSize: Size(double.infinity, 64),
-                  child: CustomSearch(),
+                  child: CustomSearch(page: _selectedIndex),
                 )
                 : null,
       ),
