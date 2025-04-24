@@ -256,15 +256,21 @@ class _FriendsState extends State<Friends>
                   children: [
                     Row(
                       crossAxisAlignment:
-                          isTap
+                          isTap || nameController.text.isNotEmpty
                               ? CrossAxisAlignment.end
                               : CrossAxisAlignment.center,
                       children: [
-                        Icon(
-                          Symbols.bookmark,
-                          size: 32,
-                          fill: 1,
-                          color: selectedColor,
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom:
+                                isTap || nameController.text.isNotEmpty ? 4 : 0,
+                          ),
+                          child: Icon(
+                            Symbols.bookmark,
+                            size: 32,
+                            fill: 1,
+                            color: selectedColor,
+                          ),
                         ),
                         SizedBox(width: 4),
                         Expanded(
@@ -356,15 +362,21 @@ class _FriendsState extends State<Friends>
                 children: [
                   Row(
                     crossAxisAlignment:
-                        isTap
+                        isTap || nameController.text.isNotEmpty
                             ? CrossAxisAlignment.end
                             : CrossAxisAlignment.center,
                     children: [
-                      Icon(
-                        Symbols.bookmark,
-                        size: 32,
-                        fill: 1,
-                        color: selectedColor,
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom:
+                              isTap || nameController.text.isNotEmpty ? 4 : 0,
+                        ),
+                        child: Icon(
+                          Symbols.bookmark,
+                          size: 32,
+                          fill: 1,
+                          color: selectedColor,
+                        ),
                       ),
                       SizedBox(width: 4),
                       Expanded(
