@@ -362,7 +362,7 @@ class ChatService {
           schema: 'public',
           table: 'users',
           callback: (payload) async {
-            print('Realtime payload for users: $payload');
+            // print('Realtime payload for users: $payload');
             final user = payload.newRecord;
             await _dbService.saveUser(user); // Cập nhật thông tin người dùng
 

@@ -41,7 +41,7 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
             context: context,
             builder:
                 (context) => AlertDialog(
-                  title: Text("Thông báo"),
+                  title: Text("Thông báo", textAlign: TextAlign.center),
                   content: Text(
                     "Người dùng này không muốn nhận tin nhắn từ người lạ!",
                   ),

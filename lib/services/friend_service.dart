@@ -34,6 +34,31 @@ class FriendService {
     return output;
   }
 
+  Future<List<Friend>> searchFriends(String search) async {
+    List<Friend> output = List.empty(growable: true);
+    try {
+      var data = await _supabase.rpc(
+        "search_friends",
+        params: {"_user_id": _supabase.auth.currentUser?.id, "search": search},
+      );
+      for (dynamic f in data) {
+        output.add(
+          Friend(
+            f["id"],
+            f["username"],
+            f["full_name"],
+            f["avatar_url"] ?? "",
+            f["status"],
+            [],
+          ),
+        );
+      }
+    } catch (e) {
+      print(e);
+    }
+    return output;
+  }
+
   Future<bool> addFriendTag(String friendId, String tagId) async {
     try {
       var data = await _supabase.rpc(

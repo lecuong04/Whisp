@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:whisp/models/friend.dart';
+import 'package:whisp/presentation/widgets/friend_title.dart';
+import 'package:whisp/services/friend_service.dart';
 
 class CustomSearch extends StatefulWidget {
   final int? page;
@@ -39,13 +42,15 @@ class _CustomSearchState extends State<CustomSearch> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
             onChanged: (value) {
-              setState(() {});
+              controller.openView();
             },
             onTapOutside: (e) {
               focus.unfocus();
               setState(() {});
             },
-            onTap: () {},
+            onTap: () {
+              controller.openView();
+            },
             trailing: [
               if (controller.text.isNotEmpty) ...[
                 IconButton(
@@ -65,9 +70,29 @@ class _CustomSearchState extends State<CustomSearch> {
           BuildContext context,
           SearchController controller,
         ) {
+          int? p = widget.page;
+          if (p != null) {
+            switch (p) {
+              case 0:
+                {
+                  break;
+                }
+              case 1:
+                return searchFriends(controller.text);
+            }
+          }
           return [];
         },
       ),
     );
+  }
+
+  Future<List<Widget>> searchFriends(String search) async {
+    if (search.length < 2) return [];
+    return [
+      for (Friend f in await FriendService().searchFriends(search)) ...[
+        FriendTitle(friend: f),
+      ],
+    ];
   }
 }

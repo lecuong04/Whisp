@@ -120,7 +120,6 @@ class _FriendsState extends State<Friends>
                         selectedIndex = tabController.index;
                         await buildTags();
                         tabController.index = selectedIndex;
-                        selectedIndex = 0;
                       },
                     ),
                   );
@@ -134,7 +133,6 @@ class _FriendsState extends State<Friends>
                           selectedIndex = tabController.index;
                           await buildTags();
                           tabController.index = selectedIndex;
-                          selectedIndex = 0;
                         },
                       ),
                     );

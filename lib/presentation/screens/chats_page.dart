@@ -188,7 +188,7 @@ class _ChatsState extends State<Chats>
                 _chats.isEmpty
                     ? Center(
                       child: Text(
-                        "Không có đoạn chat nào. Hãy bắt đầu một cuộc trò chuyện mới!\nMyId: $myId\nMyFullName: $myFullName",
+                        "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
                         style: const TextStyle(fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
