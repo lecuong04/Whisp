@@ -98,39 +98,36 @@ class _FriendListState extends State<FriendList> {
                         ],
                       ),
                       children: [
-                        if (widget.tagId == null || widget.tagId!.isEmpty) ...[
-                          ElevatedButton(
-                            onPressed: () async {
-                              await showEditTagsDialog(
-                                context,
-                                widget.tags ?? List.empty(),
-                                f.tags,
-                                (data) async {
-                                  data = Map.fromEntries(
-                                    data.entries.where(
-                                      (x) =>
-                                          !(f.tags.contains(x.key) && x.value),
-                                    ),
-                                  );
-                                  var fSer = FriendService();
-                                  for (var x in data.entries) {
-                                    if (x.value) {
-                                      await fSer.addFriendTag(f.id, x.key);
-                                      f.tags.add(x.key);
-                                    } else {
-                                      await fSer.removeFriendTag(f.id, x.key);
-                                      f.tags.remove(x.key);
-                                    }
+                        ElevatedButton(
+                          onPressed: () async {
+                            await showEditTagsDialog(
+                              context,
+                              widget.tags ?? List.empty(),
+                              f.tags,
+                              (data) async {
+                                data = Map.fromEntries(
+                                  data.entries.where(
+                                    (x) => !(f.tags.contains(x.key) && x.value),
+                                  ),
+                                );
+                                var fSer = FriendService();
+                                for (var x in data.entries) {
+                                  if (x.value) {
+                                    await fSer.addFriendTag(f.id, x.key);
+                                    f.tags.add(x.key);
+                                  } else {
+                                    await fSer.removeFriendTag(f.id, x.key);
+                                    f.tags.remove(x.key);
                                   }
-                                  if (widget.onFriendTagsChanged != null) {
-                                    widget.onFriendTagsChanged!();
-                                  }
-                                },
-                              );
-                            },
-                            child: Text("Danh sách phân loại"),
-                          ),
-                        ],
+                                }
+                                if (widget.onFriendTagsChanged != null) {
+                                  widget.onFriendTagsChanged!();
+                                }
+                              },
+                            );
+                          },
+                          child: Text("Danh sách phân loại"),
+                        ),
                         ElevatedButton(
                           onPressed: () async {
                             if (await f.remove()) {

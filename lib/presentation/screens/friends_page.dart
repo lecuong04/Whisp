@@ -23,6 +23,7 @@ class _FriendsState extends State<Friends>
   late TabController tabController;
   var friends = FriendService().listFriends();
   List<ClassifyTabItem> tags = List.empty(growable: true);
+  int selectedIndex = 0;
 
   @override
   void initState() {
@@ -116,12 +117,27 @@ class _FriendsState extends State<Friends>
                       snapshot.data!,
                       tags: tags.map((x) => x.tag).toList(),
                       onFriendTagsChanged: () async {
+                        selectedIndex = tabController.index;
                         await buildTags();
+                        tabController.index = selectedIndex;
+                        selectedIndex = 0;
                       },
                     ),
                   );
                   for (ClassifyTabItem w in tags) {
-                    views.add(FriendList(snapshot.data!, tagId: w.id));
+                    views.add(
+                      FriendList(
+                        snapshot.data!,
+                        tagId: w.id,
+                        tags: tags.map((x) => x.tag).toList(),
+                        onFriendTagsChanged: () async {
+                          selectedIndex = tabController.index;
+                          await buildTags();
+                          tabController.index = selectedIndex;
+                          selectedIndex = 0;
+                        },
+                      ),
+                    );
                   }
                   return TabBarView(
                     controller: tabController,
