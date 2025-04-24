@@ -32,16 +32,6 @@ class WhispApp extends StatefulWidget {
 
 class _WhispAppState extends State<WhispApp> {
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -75,15 +65,16 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.selectedIndex});
 
   @override
-  State<StatefulWidget> createState() => HomeScreenState();
+  State<StatefulWidget> createState() => _HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  late PageController _pageController;
+class _HomeScreenState extends State<HomeScreen> {
+  int selectedIndex = 0;
+  late PageController pageController;
+  late SearchController searchController;
 
   // Danh sách các màn hình tương ứng với từng tab
-  final List<Widget> _pages = [
+  final List<Widget> pages = [
     const Chats(),
     const Friends(),
     const UserProfileScreen(),
@@ -93,11 +84,19 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     if (widget.selectedIndex != null &&
         widget.selectedIndex! >= 0 &&
-        widget.selectedIndex! < _pages.length) {
-      _selectedIndex = widget.selectedIndex!;
+        widget.selectedIndex! < pages.length) {
+      selectedIndex = widget.selectedIndex!;
     }
-    _pageController = PageController(initialPage: _selectedIndex);
+    searchController = SearchController();
+    pageController = PageController(initialPage: selectedIndex);
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    pageController.dispose();
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -127,17 +126,20 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ],
         bottom:
-            _selectedIndex != 2
+            selectedIndex != 2
                 ? PreferredSize(
                   preferredSize: Size(double.infinity, 64),
-                  child: CustomSearch(page: _selectedIndex),
+                  child: CustomSearch(
+                    page: selectedIndex,
+                    controller: searchController,
+                  ),
                 )
                 : null,
       ),
       body: PageView(
-        controller: _pageController,
+        controller: pageController,
         physics: NeverScrollableScrollPhysics(),
-        children: _pages,
+        children: pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
@@ -151,13 +153,14 @@ class HomeScreenState extends State<HomeScreen> {
             label: 'Cá nhân',
           ),
         ],
-        currentIndex: _selectedIndex,
+        currentIndex: selectedIndex,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         onTap: (index) {
           setState(() {
-            _selectedIndex = index;
-            _pageController.jumpToPage(_selectedIndex);
+            searchController.clear();
+            selectedIndex = index;
+            pageController.jumpToPage(selectedIndex);
           });
         },
       ),
