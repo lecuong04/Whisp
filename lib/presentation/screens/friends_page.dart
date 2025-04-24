@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/classify_tab_item.dart';
 import 'package:whisp/presentation/widgets/color_slider.dart';
@@ -236,8 +238,9 @@ class _FriendsState extends State<Friends>
 
   Future<Tag?> showAddTagDialog(BuildContext context) async {
     final nameController = TextEditingController();
-    Color selectedColor = Colors.blue;
+    Color selectedColor = getRandomColor();
     FocusNode focusNode = FocusNode();
+    bool isTap = false;
 
     return await showDialog(
       context: context,
@@ -248,30 +251,62 @@ class _FriendsState extends State<Friends>
               contentPadding: EdgeInsets.all(16),
               titlePadding: EdgeInsets.only(top: 16),
               title: Text('Thêm thẻ phân loại', textAlign: TextAlign.center),
-              content: Wrap(
-                alignment: WrapAlignment.start,
-                children: [
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {});
-                    },
-                    controller: nameController,
-                    focusNode: focusNode,
-                    onTapOutside: (event) {
-                      focusNode.unfocus();
-                    },
-                    decoration: InputDecoration(labelText: 'Tên'),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    width: 300,
-                    child: ColorSlider(
-                      onColorChanged: (color) {
-                        selectedColor = color;
-                      },
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: [
+                    Row(
+                      crossAxisAlignment:
+                          isTap || nameController.text.isNotEmpty
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom:
+                                isTap || nameController.text.isNotEmpty ? 4 : 0,
+                          ),
+                          child: Icon(
+                            Symbols.bookmark,
+                            size: 32,
+                            fill: 1,
+                            color: selectedColor,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Expanded(
+                          child: TextField(
+                            onTap: () {
+                              isTap = true;
+                              setState(() {});
+                            },
+                            onChanged: (value) {
+                              setState(() {});
+                            },
+                            controller: nameController,
+                            focusNode: focusNode,
+                            onTapOutside: (event) {
+                              isTap = false;
+                              focusNode.unfocus();
+                              setState(() {});
+                            },
+                            decoration: InputDecoration(labelText: 'Tên'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    SizedBox(height: 16),
+                    SizedBox(
+                      width: 300,
+                      child: ColorSlider(
+                        color: selectedColor,
+                        onColorChanged: (color) {
+                          selectedColor = color;
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -300,9 +335,14 @@ class _FriendsState extends State<Friends>
     );
   }
 
+  Color getRandomColor() {
+    final Random random = Random();
+    return HSVColor.fromAHSV(1, random.nextInt(361).toDouble(), 1, 1).toColor();
+  }
+
   Future<Tag?> showModifyTagDialog(BuildContext context, Tag tag) async {
     final nameController = TextEditingController();
-    Color selectedColor = Colors.blue;
+    Color selectedColor = tag.color;
     FocusNode focusNode = FocusNode();
 
     nameController.text = tag.name;
@@ -310,6 +350,7 @@ class _FriendsState extends State<Friends>
     return await showDialog(
       context: context,
       builder: (context) {
+        bool isTap = false;
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -319,24 +360,54 @@ class _FriendsState extends State<Friends>
               content: Wrap(
                 alignment: WrapAlignment.start,
                 children: [
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {});
-                    },
-                    controller: nameController,
-                    focusNode: focusNode,
-                    onTapOutside: (event) {
-                      focusNode.unfocus();
-                    },
-                    decoration: InputDecoration(labelText: 'Tên'),
+                  Row(
+                    crossAxisAlignment:
+                        isTap || nameController.text.isNotEmpty
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom:
+                              isTap || nameController.text.isNotEmpty ? 4 : 0,
+                        ),
+                        child: Icon(
+                          Symbols.bookmark,
+                          size: 32,
+                          fill: 1,
+                          color: selectedColor,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          onTap: () {
+                            isTap = true;
+                            setState(() {});
+                          },
+                          onChanged: (value) {
+                            setState(() {});
+                          },
+                          controller: nameController,
+                          focusNode: focusNode,
+                          onTapOutside: (event) {
+                            isTap = false;
+                            focusNode.unfocus();
+                            setState(() {});
+                          },
+                          decoration: InputDecoration(labelText: 'Tên'),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 16),
                   SizedBox(
                     width: 300,
                     child: ColorSlider(
-                      color: tag.color,
+                      color: selectedColor,
                       onColorChanged: (color) {
                         selectedColor = color;
+                        setState(() {});
                       },
                     ),
                   ),

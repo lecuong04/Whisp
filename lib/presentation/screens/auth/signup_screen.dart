@@ -21,8 +21,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
   bool isLoading = false;
-  bool _isPasswordVisible1 = false;
-  bool _isPasswordVisible2 = false;
+  bool isPasswordVisible1 = false;
+  bool isPasswordVisible2 = false;
 
   Future<void> handleSubmit() async {
     final email = emailController.text.trim();
@@ -155,16 +155,16 @@ class _SignupScreenState extends State<SignupScreen> {
                   CustomTextField(
                     controller: passwordController,
                     hintText: "Mật khẩu",
-                    obscureText: !_isPasswordVisible1,
+                    obscureText: !isPasswordVisible1,
                     prefixIcon: Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _isPasswordVisible1 = !_isPasswordVisible1;
+                          isPasswordVisible1 = !isPasswordVisible1;
                         });
                       },
                       icon:
-                          !_isPasswordVisible1
+                          !isPasswordVisible1
                               ? Icon(Icons.visibility)
                               : Icon(Icons.visibility_off),
                     ),
@@ -173,16 +173,16 @@ class _SignupScreenState extends State<SignupScreen> {
                   CustomTextField(
                     controller: confirmPasswordController,
                     hintText: "Nhập lại mật khẩu",
-                    obscureText: !_isPasswordVisible2,
+                    obscureText: !isPasswordVisible2,
                     prefixIcon: Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _isPasswordVisible2 = !_isPasswordVisible2;
+                          isPasswordVisible2 = !isPasswordVisible2;
                         });
                       },
                       icon:
-                          !_isPasswordVisible2
+                          !isPasswordVisible2
                               ? Icon(Icons.visibility)
                               : Icon(Icons.visibility_off),
                     ),

@@ -41,7 +41,7 @@ class ChatService {
           .eq('conversations.is_group', false);
 
       final List<Map<String, dynamic>> userChats = response;
-      print('User chats from Supabase: $userChats');
+      // print('User chats from Supabase: $userChats');
 
       final processedChats = <Map<String, dynamic>>[];
       for (var chat in userChats) {
