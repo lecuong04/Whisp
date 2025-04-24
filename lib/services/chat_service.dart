@@ -184,6 +184,31 @@ class ChatService {
     }
   }
 
+  /// Xóa cuộc trò chuyện
+  Future<void> deleteConversation(String userId, String conversationId) async {
+    try {
+      // Kiểm tra kết nối mạng
+      if (!(await _isOnline())) {
+        throw Exception('Cần kết nối mạng để xóa cuộc trò chuyện');
+      }
+
+      // Xóa cuộc trò chuyện từ Supabase
+      await _supabase.from('conversations').delete().eq('id', conversationId);
+
+      // Xóa dữ liệu cục bộ từ SQLite
+      await _dbService.deleteMessages(conversationId); // Xóa tin nhắn
+      await _dbService.deleteChats(userId); // Xóa danh sách chats của user
+      // Tải lại danh sách chats để đồng bộ
+      final updatedChats = await loadChatsByUserId(userId);
+      await _dbService.saveChats(userId, updatedChats);
+
+      print('Deleted conversation $conversationId for user $userId');
+    } catch (e) {
+      print('Error deleting conversation: $e');
+      throw Exception('Lỗi khi xóa cuộc trò chuyện: $e');
+    }
+  }
+
   /// Lấy thông tin người dùng
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
     try {
@@ -352,8 +377,6 @@ class ChatService {
 
             // Lưu vào SQLite
             await _dbService.saveChats(userId, updatedChats);
-
-            // Gọi callback để cập nhật giao diện
             onUpdate(updatedChats);
           },
         )
@@ -362,7 +385,6 @@ class ChatService {
           schema: 'public',
           table: 'users',
           callback: (payload) async {
-            // print('Realtime payload for users: $payload');
             final user = payload.newRecord;
             await _dbService.saveUser(user); // Cập nhật thông tin người dùng
 
