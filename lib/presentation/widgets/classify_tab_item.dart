@@ -7,6 +7,8 @@ class ClassifyTabItem extends StatelessWidget {
   late final String name;
   late final Color? color;
 
+  Tag get tag => Tag(id ?? "", name, color ?? Colors.transparent);
+
   // ignore: prefer_const_constructors_in_immutables
   ClassifyTabItem({required this.name, this.id, this.color, super.key});
   ClassifyTabItem.tag({super.key, required Tag tag}) {

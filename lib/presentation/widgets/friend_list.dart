@@ -1,13 +1,23 @@
-import 'package:whisp/main.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/friend.dart';
+import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/friend_title.dart';
 import 'package:flutter/material.dart';
 import 'package:diacritic/diacritic.dart';
+import 'package:whisp/services/friend_service.dart';
 
 class FriendList extends StatefulWidget {
   final String? tagId;
+  final List<Tag>? tags;
   final List<Friend> friends;
-  const FriendList(this.friends, {super.key, this.tagId});
+  final VoidCallback? onFriendTagsChanged;
+  const FriendList(
+    this.friends, {
+    super.key,
+    this.tagId,
+    this.tags,
+    this.onFriendTagsChanged,
+  });
 
   @override
   State<StatefulWidget> createState() => _FriendListState();
@@ -88,17 +98,43 @@ class _FriendListState extends State<FriendList> {
                         ],
                       ),
                       children: [
+                        if (widget.tagId == null || widget.tagId!.isEmpty) ...[
+                          ElevatedButton(
+                            onPressed: () async {
+                              await showEditTagsDialog(
+                                context,
+                                widget.tags ?? List.empty(),
+                                f.tags,
+                                (data) async {
+                                  data = Map.fromEntries(
+                                    data.entries.where(
+                                      (x) =>
+                                          !(f.tags.contains(x.key) && x.value),
+                                    ),
+                                  );
+                                  var fSer = FriendService();
+                                  for (var x in data.entries) {
+                                    if (x.value) {
+                                      await fSer.addFriendTag(f.id, x.key);
+                                      f.tags.add(x.key);
+                                    } else {
+                                      await fSer.removeFriendTag(f.id, x.key);
+                                      f.tags.remove(x.key);
+                                    }
+                                  }
+                                  if (widget.onFriendTagsChanged != null) {
+                                    widget.onFriendTagsChanged!();
+                                  }
+                                },
+                              );
+                            },
+                            child: Text("Danh sách phân loại"),
+                          ),
+                        ],
                         ElevatedButton(
                           onPressed: () async {
                             if (await f.remove()) {
                               Navigator.pop(context);
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => HomeScreen(selectedIndex: 1),
-                                ),
-                              );
                             }
                           },
                           child: Text("Hủy kết bạn"),
@@ -119,6 +155,73 @@ class _FriendListState extends State<FriendList> {
           return children[index];
         },
       ),
+    );
+  }
+
+  Future<void> showEditTagsDialog(
+    BuildContext context,
+    List<Tag> allTags,
+    List<String> friendTagIds,
+    Function(Map<String, bool>) onTagsUpdated,
+  ) async {
+    Map<String, bool> result = {
+      for (var e in allTags.map((x) => x.id)) e: friendTagIds.contains(e),
+    };
+    var screenSize = MediaQuery.of(context).size;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Danh sách phân loại', textAlign: TextAlign.center),
+              content: SizedBox(
+                width: screenSize.width * 0.8,
+                height: screenSize.height * 0.2,
+                child: ListView(
+                  children: [
+                    for (Tag t in allTags) ...[
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.all(0),
+                        title: Text(t.name),
+                        secondary: Icon(
+                          Symbols.bookmark,
+                          fill: 1,
+                          color: t.color,
+                        ),
+                        value: result[t.id],
+                        onChanged: (value) {
+                          result[t.id] = value ?? false;
+                          setState(() {});
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    onTagsUpdated(
+                      Map.fromEntries(
+                        result.entries.where(
+                          (x) => friendTagIds.contains(x.key) || x.value,
+                        ),
+                      ),
+                    ); // callback để cập nhật
+                    Navigator.pop(context);
+                  },
+                  child: Text('Lưu'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

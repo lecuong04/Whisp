@@ -7,13 +7,17 @@ class TagService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<Tag>> listTags() async {
-    var data = await _supabase.rpc(
-      "list_tags",
-      params: {"_user_id": _supabase.auth.currentUser?.id},
-    );
     List<Tag> output = List.empty(growable: true);
-    for (dynamic f in data) {
-      output.add(Tag.json(f));
+    try {
+      var data = await _supabase.rpc(
+        "list_tags",
+        params: {"_user_id": _supabase.auth.currentUser?.id},
+      );
+      for (dynamic f in data) {
+        output.add(Tag.json(f));
+      }
+    } catch (e) {
+      print(e);
     }
     return output;
   }
@@ -30,13 +34,14 @@ class TagService {
       );
       return Tag(data.toString(), name, color);
     } catch (e) {
+      print(e);
       return null;
     }
   }
 
   Future<bool> modifyTag(String tagId, String newName, Color newColor) async {
     try {
-      await _supabase.rpc(
+      var data = await _supabase.rpc(
         "modify_tag",
         params: {
           "_user_id": _supabase.auth.currentUser?.id,
@@ -45,29 +50,23 @@ class TagService {
           "new_color": newColor.toARGB32(),
         },
       );
-      return true;
+      return data;
     } catch (e) {
+      print(e);
       return false;
     }
   }
 
   Future<bool> removeTag(String tagId) async {
-    var data = await _supabase.rpc(
-      "remove_tag",
-      params: {"_user_id": _supabase.auth.currentUser?.id, "tag_id": tagId},
-    );
-    return data;
-  }
-
-  Future<bool> addTagToFriend(String friendId, String tagId) async {
-    var data = await _supabase.rpc(
-      "add_tag_to_friend",
-      params: {
-        "_user_id": _supabase.auth.currentUser?.id,
-        "friend_id": friendId,
-        "tag_id": tagId,
-      },
-    );
-    return data;
+    try {
+      var data = await _supabase.rpc(
+        "remove_tag",
+        params: {"_user_id": _supabase.auth.currentUser?.id, "tag_id": tagId},
+      );
+      return data;
+    } catch (e) {
+      print(e);
+      return false;
+    }
   }
 }

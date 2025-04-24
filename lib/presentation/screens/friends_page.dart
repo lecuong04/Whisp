@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/services/friend_service.dart';
 import 'package:whisp/services/tag_service.dart';
+import 'package:whisp/services/user_service.dart';
 
 class Friends extends StatefulWidget {
   const Friends({super.key});
@@ -26,10 +27,14 @@ class _FriendsState extends State<Friends>
   @override
   void initState() {
     tabController = TabController(length: 1, vsync: this);
-    tabController.addListener(() {
-      setState(() {});
-    });
     super.initState();
+    FriendService().subscribeToFriends(
+      UserService().id!,
+      onFriendChanged: () {
+        friends = FriendService().listFriends();
+        setState(() {});
+      },
+    );
     buildTags();
   }
 
@@ -106,7 +111,15 @@ class _FriendsState extends State<Friends>
                 }
                 if (snapshot.hasData) {
                   List<Widget> views = List.empty(growable: true);
-                  views.add(FriendList(snapshot.data!));
+                  views.add(
+                    FriendList(
+                      snapshot.data!,
+                      tags: tags.map((x) => x.tag).toList(),
+                      onFriendTagsChanged: () async {
+                        await buildTags();
+                      },
+                    ),
+                  );
                   for (ClassifyTabItem w in tags) {
                     views.add(FriendList(snapshot.data!, tagId: w.id));
                   }
@@ -220,7 +233,7 @@ class _FriendsState extends State<Friends>
             return AlertDialog(
               contentPadding: EdgeInsets.all(16),
               titlePadding: EdgeInsets.only(top: 16),
-              title: Text('Thêm thẻ phân loại', textAlign: TextAlign.center),
+              title: Text('Thêm thẻ phân loại', textAlign: TextAlign.center),
               content: Wrap(
                 alignment: WrapAlignment.start,
                 children: [
@@ -233,7 +246,7 @@ class _FriendsState extends State<Friends>
                     onTapOutside: (event) {
                       focusNode.unfocus();
                     },
-                    decoration: InputDecoration(labelText: 'Tên thẻ'),
+                    decoration: InputDecoration(labelText: 'Tên'),
                   ),
                   SizedBox(height: 16),
                   SizedBox(
@@ -288,7 +301,7 @@ class _FriendsState extends State<Friends>
             return AlertDialog(
               contentPadding: EdgeInsets.all(16),
               titlePadding: EdgeInsets.only(top: 16),
-              title: Text('Sửa thẻ phân loại', textAlign: TextAlign.center),
+              title: Text('Sửa thẻ phân loại', textAlign: TextAlign.center),
               content: Wrap(
                 alignment: WrapAlignment.start,
                 children: [
@@ -301,7 +314,7 @@ class _FriendsState extends State<Friends>
                     onTapOutside: (event) {
                       focusNode.unfocus();
                     },
-                    decoration: InputDecoration(labelText: 'Tên thẻ'),
+                    decoration: InputDecoration(labelText: 'Tên'),
                   ),
                   SizedBox(height: 16),
                   SizedBox(
@@ -332,7 +345,7 @@ class _FriendsState extends State<Friends>
                               Tag("", name, selectedColor),
                             );
                           },
-                  child: Text('Thêm'),
+                  child: Text('Thay đổi'),
                 ),
               ],
             );

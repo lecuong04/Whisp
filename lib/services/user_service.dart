@@ -27,47 +27,65 @@ class UserService {
 
   Future<List<FriendRequest>> findUsers(String username) async {
     if (username.length < 2) return List.empty();
-    var data = await _supabase.rpc(
-      "find_users",
-      params: {"search": username, "user_id": _supabase.auth.currentUser?.id},
-    );
     List<FriendRequest> result = List.empty(growable: true);
-    for (var item in data) {
-      result.add(FriendRequest.json(item));
+    try {
+      var data = await _supabase.rpc(
+        "find_users",
+        params: {"search": username, "user_id": _supabase.auth.currentUser?.id},
+      );
+      for (var item in data) {
+        result.add(FriendRequest.json(item));
+      }
+    } catch (e) {
+      print(e);
     }
     return result;
   }
 
   Future<List<FriendRequest>> listFriendRequest() async {
-    var data = await _supabase.rpc(
-      "list_friend_request",
-      params: {"user_id": _supabase.auth.currentUser?.id},
-    );
     List<FriendRequest> result = List.empty(growable: true);
-    for (var item in data) {
-      result.add(FriendRequest.json(item));
+    try {
+      var data = await _supabase.rpc(
+        "list_friend_request",
+        params: {"user_id": _supabase.auth.currentUser?.id},
+      );
+      for (var item in data) {
+        result.add(FriendRequest.json(item));
+      }
+    } catch (e) {
+      print(e);
     }
+    ;
     return result;
   }
 
   Future<String> getIdFromUsername(String username) async {
-    var data = await _supabase.rpc(
-      "get_id_from_username",
-      params: {
-        "_username": username,
-        "user_query": _supabase.auth.currentUser?.id,
-      },
-    );
-    return data ??= "";
+    try {
+      var data = await _supabase.rpc(
+        "get_id_from_username",
+        params: {
+          "_username": username,
+          "user_query": _supabase.auth.currentUser?.id,
+        },
+      );
+      return data ??= "";
+    } catch (e) {
+      print(e);
+      return "";
+    }
   }
 
   Future blockUser(String username) async {
-    await _supabase.rpc(
-      "block_user",
-      params: {
-        "_username": username,
-        "user_query": _supabase.auth.currentUser?.id,
-      },
-    );
+    try {
+      await _supabase.rpc(
+        "block_user",
+        params: {
+          "_username": username,
+          "user_query": _supabase.auth.currentUser?.id,
+        },
+      );
+    } catch (e) {
+      print(e);
+    }
   }
 }
