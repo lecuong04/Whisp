@@ -53,7 +53,6 @@ class _ChatsState extends State<Chats>
         userInfo = await _dbService.loadUser(userId);
       }
 
-      // Nếu không có thông tin người dùng, dùng mặc định
       final fullName = userInfo?['full_name'] as String? ?? 'User';
 
       setState(() {
@@ -78,7 +77,6 @@ class _ChatsState extends State<Chats>
       });
       print('Chats loaded in Chats: $_chats');
 
-      // Nếu offline, hiển thị thông báo
       final isOnline =
           await Connectivity().checkConnectivity() != ConnectivityResult.none;
       if (!isOnline) {
@@ -89,9 +87,12 @@ class _ChatsState extends State<Chats>
         );
       }
 
-      // Theo dõi thay đổi Realtime
       _chatService.subscribeToChats(myId!, (updatedChats) {
+
+        print('Chats updated via Realtime in Chats: $updatedChats');
+
         // print('Chats updated via Realtime in Chats: $_chats');
+
         if (mounted) {
           setState(() {
             _chats = updatedChats;
@@ -100,7 +101,6 @@ class _ChatsState extends State<Chats>
       });
     } catch (e) {
       print('Error loading chats: $e');
-      // Tải dữ liệu cục bộ
       final localChats = await _dbService.loadChats(myId!);
       setState(() {
         _chats = localChats;
@@ -125,10 +125,31 @@ class _ChatsState extends State<Chats>
       print('Updated local is_read for $conversationId: $_chats');
     });
 
-    // Cập nhật SQLite
     _chatService.updateChatReadStatus(myId!, conversationId).catchError((e) {
       print('Error updating chat read status: $e');
     });
+  }
+
+  // Hàm xóa cuộc trò chuyện
+  Future<void> _deleteChat(String conversationId) async {
+    try {
+      // Gọi hàm xóa từ ChatService
+      await _chatService.deleteConversation(myId!, conversationId);
+
+      // Cập nhật danh sách chats
+      setState(() {
+        _chats.removeWhere((chat) => chat['conversation_id'] == conversationId);
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xóa cuộc trò chuyện')));
+    } catch (e) {
+      print('Error deleting conversation: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi xóa cuộc trò chuyện: $e')),
+      );
+    }
   }
 
   @override
@@ -186,10 +207,10 @@ class _ChatsState extends State<Chats>
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child:
                 _chats.isEmpty
-                    ? Center(
+                    ? const Center(
                       child: Text(
                         "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
-                        style: const TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -213,35 +234,77 @@ class _ChatsState extends State<Chats>
                           print(
                             'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
                           );
-                          return ChatTitle(
-                            avatarUrl,
-                            alias,
-                            lastMessageTime,
-                            isSeen,
-                            isOnline,
-                            lastMessage,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => Messages(
-                                        chatId: conversationId,
-                                        myId: myId!,
-                                        contactId: friendId,
-                                        contactName: alias,
-                                        contactImage: avatarUrl,
+                          return Dismissible(
+                            key: Key(conversationId),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              color: Colors.red,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                              ),
+                            ),
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder:
+                                    (context) => AlertDialog(
+                                      title: const Text('Xác nhận xóa'),
+                                      content: const Text(
+                                        'Bạn có chắc muốn xóa cuộc trò chuyện này? Hành động này không thể hoàn tác.',
                                       ),
-                                ),
-                              ).then((result) {
-                                if (result != null &&
-                                    result['conversation_id'] != null) {
-                                  _updateChatReadStatus(
-                                    result['conversation_id'],
-                                  );
-                                }
-                              });
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () =>
+                                                  Navigator.pop(context, false),
+                                          child: const Text('Hủy'),
+                                        ),
+                                        TextButton(
+                                          onPressed:
+                                              () =>
+                                                  Navigator.pop(context, true),
+                                          child: const Text('Xóa'),
+                                        ),
+                                      ],
+                                    ),
+                              );
                             },
+                            onDismissed: (direction) {
+                              _deleteChat(conversationId);
+                            },
+                            child: ChatTitle(
+                              avatarUrl,
+                              alias,
+                              lastMessageTime,
+                              isSeen,
+                              isOnline,
+                              lastMessage,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => Messages(
+                                          chatId: conversationId,
+                                          myId: myId!,
+                                          contactId: friendId,
+                                          contactName: alias,
+                                          contactImage: avatarUrl,
+                                        ),
+                                  ),
+                                ).then((result) {
+                                  if (result != null &&
+                                      result['conversation_id'] != null) {
+                                    _updateChatReadStatus(
+                                      result['conversation_id'],
+                                    );
+                                  }
+                                });
+                              },
+                            ),
                           );
                         },
                       ),
