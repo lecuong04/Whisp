@@ -2,19 +2,28 @@ import 'package:flutter/material.dart';
 
 class ColorSlider extends StatefulWidget {
   final ValueChanged<Color> onColorChanged;
+  final Color? color;
 
-  const ColorSlider({super.key, required this.onColorChanged});
+  const ColorSlider({super.key, required this.onColorChanged, this.color});
 
   @override
   State<ColorSlider> createState() => _ColorSliderState();
 }
 
 class _ColorSliderState extends State<ColorSlider> {
-  double sliderValue = 0.5;
+  double sliderValue = 0;
 
   /// Chuyển giá trị slider (0..360) thành màu RGB
   static Color getColorFromValue(double value) {
     return HSVColor.fromAHSV(1.0, value, 1.0, 1.0).toColor();
+  }
+
+  @override
+  void initState() {
+    if (widget.color != null) {
+      sliderValue = HSVColor.fromColor(widget.color!).hue;
+    }
+    super.initState();
   }
 
   @override
@@ -23,7 +32,7 @@ class _ColorSliderState extends State<ColorSlider> {
       shaderCallback: (Rect bounds) {
         return LinearGradient(
           colors: List.generate(
-            360,
+            361,
             (hue) => HSVColor.fromAHSV(1.0, hue.toDouble(), 1.0, 1.0).toColor(),
           ),
         ).createShader(bounds);

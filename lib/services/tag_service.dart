@@ -34,6 +34,23 @@ class TagService {
     }
   }
 
+  Future<bool> modifyTag(String tagId, String newName, Color newColor) async {
+    try {
+      await _supabase.rpc(
+        "modify_tag",
+        params: {
+          "_user_id": _supabase.auth.currentUser?.id,
+          "tag_id": tagId,
+          "new_name": newName,
+          "new_color": newColor.toARGB32(),
+        },
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> removeTag(String tagId) async {
     var data = await _supabase.rpc(
       "remove_tag",

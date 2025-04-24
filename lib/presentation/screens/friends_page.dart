@@ -137,7 +137,25 @@ class _FriendsState extends State<Friends>
               leading: Icon(Symbols.bookmark, color: t.color, fill: 1),
               trailing: Wrap(
                 children: [
-                  IconButton(onPressed: () {}, icon: Icon(Symbols.edit)),
+                  IconButton(
+                    onPressed: () async {
+                      var data = await showModifyTagDialog(
+                        context,
+                        Tag(t.id!, t.name, t.color!),
+                      );
+                      if (data == null) return;
+                      if (data.color == t.color && data.name == t.name) return;
+                      if (await TagService().modifyTag(
+                        t.id!,
+                        data.name,
+                        data.color,
+                      )) {
+                        await buildTags();
+                        setState(() {});
+                      }
+                    },
+                    icon: Icon(Symbols.edit),
+                  ),
                   IconButton(
                     onPressed: () async {
                       if (await TagService().removeTag(t.id!)) {
@@ -170,7 +188,7 @@ class _FriendsState extends State<Friends>
                 Expanded(child: ListView(children: [...widgets])),
                 ElevatedButton.icon(
                   onPressed: () async {
-                    var data = await showAddCategoryDialog(context);
+                    var data = await showAddTagDialog(context);
                     if (data == null) return;
                     if (await TagService().addTag(data.name, data.color) !=
                         null) {
@@ -189,7 +207,7 @@ class _FriendsState extends State<Friends>
     );
   }
 
-  Future<Tag?> showAddCategoryDialog(BuildContext context) async {
+  Future<Tag?> showAddTagDialog(BuildContext context) async {
     final nameController = TextEditingController();
     Color selectedColor = Colors.blue;
     FocusNode focusNode = FocusNode();
@@ -207,6 +225,9 @@ class _FriendsState extends State<Friends>
                 alignment: WrapAlignment.start,
                 children: [
                   TextField(
+                    onChanged: (value) {
+                      setState(() {});
+                    },
                     controller: nameController,
                     focusNode: focusNode,
                     onTapOutside: (event) {
@@ -231,11 +252,86 @@ class _FriendsState extends State<Friends>
                   child: Text('Hủy'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    final name = nameController.text.trim();
-                    if (name.isEmpty) return;
-                    Navigator.pop(context, Tag("", name, selectedColor));
-                  },
+                  onPressed:
+                      nameController.text.isEmpty
+                          ? null
+                          : () {
+                            final name = nameController.text.trim();
+                            if (name.isEmpty) return;
+                            Navigator.pop(
+                              context,
+                              Tag("", name, selectedColor),
+                            );
+                          },
+                  child: Text('Thêm'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<Tag?> showModifyTagDialog(BuildContext context, Tag tag) async {
+    final nameController = TextEditingController();
+    Color selectedColor = Colors.blue;
+    FocusNode focusNode = FocusNode();
+
+    nameController.text = tag.name;
+
+    return await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              contentPadding: EdgeInsets.all(16),
+              titlePadding: EdgeInsets.only(top: 16),
+              title: Text('Sửa thẻ phân loại', textAlign: TextAlign.center),
+              content: Wrap(
+                alignment: WrapAlignment.start,
+                children: [
+                  TextField(
+                    onChanged: (value) {
+                      setState(() {});
+                    },
+                    controller: nameController,
+                    focusNode: focusNode,
+                    onTapOutside: (event) {
+                      focusNode.unfocus();
+                    },
+                    decoration: InputDecoration(labelText: 'Tên thẻ'),
+                  ),
+                  SizedBox(height: 16),
+                  SizedBox(
+                    width: 300,
+                    child: ColorSlider(
+                      color: tag.color,
+                      onColorChanged: (color) {
+                        selectedColor = color;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed:
+                      nameController.text.isEmpty
+                          ? null
+                          : () {
+                            final name = nameController.text.trim();
+                            if (name.isEmpty) return;
+                            Navigator.pop(
+                              context,
+                              Tag("", name, selectedColor),
+                            );
+                          },
                   child: Text('Thêm'),
                 ),
               ],
