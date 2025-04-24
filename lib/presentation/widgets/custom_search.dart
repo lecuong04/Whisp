@@ -5,8 +5,9 @@ import 'package:whisp/presentation/widgets/friend_title.dart';
 import 'package:whisp/services/friend_service.dart';
 
 class CustomSearch extends StatefulWidget {
-  final int? page;
-  const CustomSearch({super.key, this.page});
+  final int page;
+  final SearchController controller;
+  const CustomSearch({super.key, required this.page, required this.controller});
 
   @override
   State<StatefulWidget> createState() => _CustomSearchState();
@@ -26,6 +27,7 @@ class _CustomSearchState extends State<CustomSearch> {
     return Padding(
       padding: EdgeInsets.only(left: 10, right: 10, bottom: 10),
       child: SearchAnchor(
+        searchController: widget.controller,
         builder: (BuildContext context, SearchController controller) {
           return SearchBar(
             controller: controller,
@@ -70,16 +72,14 @@ class _CustomSearchState extends State<CustomSearch> {
           BuildContext context,
           SearchController controller,
         ) {
-          int? p = widget.page;
-          if (p != null) {
-            switch (p) {
-              case 0:
-                {
-                  break;
-                }
-              case 1:
-                return searchFriends(controller.text);
-            }
+          int p = widget.page;
+          switch (p) {
+            case 0:
+              {
+                break;
+              }
+            case 1:
+              return searchFriends(controller.text);
           }
           return [];
         },
