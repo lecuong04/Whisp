@@ -90,7 +90,7 @@ class _ChatsState extends State<Chats>
       }
 
       _chatService.subscribeToChats(myId!, (updatedChats) {
-        print('Chats updated via Realtime in Chats: $updatedChats');
+        // print('Chats updated via Realtime in Chats: $updatedChats');
         if (mounted) {
           setState(() {
             _chats = updatedChats;

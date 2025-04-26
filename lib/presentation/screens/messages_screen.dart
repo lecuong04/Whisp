@@ -35,7 +35,7 @@ class _MessagesState extends State<Messages> {
   bool _hasNewMessage = false;
   bool _hasMoreMessages = true;
   String? _error;
-  Set<int> _selectedMessages = {};
+  final Set<int> _selectedMessages = {};
 
   @override
   void initState() {
@@ -105,38 +105,37 @@ class _MessagesState extends State<Messages> {
 
       // Theo dõi tin nhắn mới qua Realtime
       _chatService.subscribeToMessages(widget.chatId, (updatedMessages) {
-        setState(() {
-          final newMessages =
-              updatedMessages.where((newMsg) {
-                return !_allMessages.any(
-                  (oldMsg) => oldMsg['id'] == newMsg['id'],
-                );
-              }).toList();
+        final newMessages =
+            updatedMessages.where((newMsg) {
+              return !_allMessages.any(
+                (oldMsg) => oldMsg['id'] == newMsg['id'],
+              );
+            }).toList();
 
-          if (newMessages.isNotEmpty) {
-            _allMessages.addAll(newMessages);
-            _allMessages.sort((a, b) {
-              final aTime = DateTime.parse(a['sent_at']);
-              final bTime = DateTime.parse(b['sent_at']);
-              return aTime.compareTo(bTime);
+        if (newMessages.isNotEmpty) {
+          _allMessages.addAll(newMessages);
+          _allMessages.sort((a, b) {
+            final aTime = DateTime.parse(a['sent_at']);
+            final bTime = DateTime.parse(b['sent_at']);
+            return aTime.compareTo(bTime);
+          });
+
+          // Đánh dấu tin nhắn là đã đọc nếu đang xem cuộc trò chuyện
+          if (newMessages.any((msg) => msg['sender_id'] != widget.myId)) {
+            _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
+              print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
             });
-
-            // Đánh dấu tin nhắn là đã đọc nếu đang xem cuộc trò chuyện
-            if (newMessages.any((msg) => msg['sender_id'] != widget.myId)) {
-              _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
-                print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
-              });
-            }
-
-            if (_isAtBottom) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollToBottom();
-              });
-            } else {
-              _hasNewMessage = true;
-            }
           }
-        });
+
+          if (_isAtBottom) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+            });
+          } else {
+            _hasNewMessage = true;
+          }
+        }
+        setState(() {});
       });
     } catch (e) {
       _error = "Lỗi khi tải tin nhắn: $e";
