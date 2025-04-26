@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+	<uses-permission android:name="android.permission.WAKE_LOCK"/>
     
     <application
         android:label="Whisp"
@@ -18,6 +21,7 @@
         
         <activity
             android:name=".MainActivity"
+			android:foregroundServiceType="dataSync"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -51,6 +55,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+		<service
+			android:name="id.flutter.flutter_background_service.BackgroundService"
+			android:foregroundServiceType="dataSync"/>
     </application>
 
     <!-- Required to query activities that can process text -->
