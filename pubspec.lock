@@ -705,7 +705,7 @@ packages:
     source: hosted
     version: "0.28.0"
   shared_preferences:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shared_preferences
       sha256: "6e8bf70b7fef813df4e9a36f658ac46d107db4b4cfe1048b477d4e453a8159f5"
@@ -1094,7 +1094,7 @@ packages:
     source: hosted
     version: "6.5.0"
   yet_another_json_isolate:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: yet_another_json_isolate
       sha256: "56155e9e0002cc51ea7112857bbcdc714d4c35e176d43e4d3ee233009ff410c9"

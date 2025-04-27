@@ -258,7 +258,7 @@ class ChatService {
           schema: 'public',
           table: 'messages',
           callback: (payload) async {
-            print('Realtime payload for messages: $payload');
+            // print('Realtime payload for messages: $payload');
             final newMessage = payload.newRecord;
             final conversationId = newMessage['conversation_id'] as String;
 
@@ -603,7 +603,7 @@ class ChatService {
             value: conversationId,
           ),
           callback: (payload) async {
-            print('Realtime message payload: $payload');
+            // print('Realtime message payload: $payload');
             final newMessage = payload.newRecord;
 
             // Tải thông tin chi tiết của tin nhắn

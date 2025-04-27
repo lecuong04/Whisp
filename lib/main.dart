@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,10 +13,13 @@ import 'package:whisp/presentation/screens/friends_page.dart';
 import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 import 'package:whisp/presentation/widgets/custom_search.dart';
+import 'package:whisp/services/background_service.dart';
+
+GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
-  await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Supabase.initialize(
     url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
@@ -35,6 +39,7 @@ class _WhispAppState extends State<WhispApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       // theme: AppTheme.lightTheme,
       routes: {
         '/login': (context) => LoginScreen(),
@@ -82,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
+    startBackgroundService();
     if (widget.selectedIndex != null &&
         widget.selectedIndex! >= 0 &&
         widget.selectedIndex! < pages.length) {
@@ -89,11 +95,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     searchController = SearchController();
     pageController = PageController(initialPage: selectedIndex);
+    FlutterBackgroundService().invoke("startBackground", {
+      "userId": Supabase.instance.client.auth.currentUser!.id,
+    });
     super.initState();
   }
 
   @override
   void dispose() {
+    FlutterBackgroundService().invoke("stopService");
     pageController.dispose();
     searchController.dispose();
     super.dispose();

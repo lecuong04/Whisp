@@ -77,7 +77,7 @@ class _ChatsState extends State<Chats>
         _chats = chats;
         _isLoading = false;
       });
-      print('Chats loaded in Chats: $_chats');
+      // print('Chats loaded in Chats: $_chats');
 
       final isOnline =
           await Connectivity().checkConnectivity() != ConnectivityResult.none;
