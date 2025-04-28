@@ -62,13 +62,17 @@ class AuthWrapper extends StatelessWidget {
     if (user == null) {
       return const LoginScreen(); // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
     }
-    return const HomeScreen(); // Nếu đã đăng nhập, hiển thị màn hình chính
+    return HomeScreen(); // Nếu đã đăng nhập, hiển thị màn hình chính
   }
 }
 
 class HomeScreen extends StatefulWidget {
   final int? selectedIndex;
-  const HomeScreen({super.key, this.selectedIndex});
+  HomeScreen({super.key, this.selectedIndex}) {
+    FlutterBackgroundService().invoke("startBackground", {
+      "userId": Supabase.instance.client.auth.currentUser!.id,
+    });
+  }
 
   @override
   State<StatefulWidget> createState() => _HomeScreenState();
@@ -88,9 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
-    FlutterBackgroundService().invoke("startBackground", {
-      "userId": Supabase.instance.client.auth.currentUser!.id,
-    });
     if (widget.selectedIndex != null &&
         widget.selectedIndex! >= 0 &&
         widget.selectedIndex! < pages.length) {

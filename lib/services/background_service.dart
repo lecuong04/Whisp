@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 
-const notificationChannelId = 'WhispChannel';
+const notificationChannelId = 'Whisp';
 
 const notificationId = 1975;
 
@@ -30,12 +30,29 @@ Future<void> onStart(ServiceInstance service) async {
   await (service as AndroidServiceInstance).setAsBackgroundService();
 
   service.on('startBackground').listen((e) async {
+    await client.auth.signInAnonymously();
+    await service.setAsForegroundService();
+    notificationsPlugin.show(
+      notificationId + 1,
+      "Whisp",
+      "Listening for messages...",
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          "${notificationChannelId}Service",
+          "Whisp Service",
+          ongoing: true,
+          silent: true,
+          channelShowBadge: false,
+          playSound: false,
+          enableVibration: false,
+        ),
+      ),
+    );
     var dir = await getApplicationCacheDirectory();
     var avatarsDir = Directory(path.join(dir.path, "avatars"));
     if (!avatarsDir.existsSync()) {
       avatarsDir.createSync();
     }
-    await client.auth.signInAnonymously();
     var channel = client.channel('public:pending_messages');
     channel
         .onPostgresChanges(
@@ -66,8 +83,9 @@ Future<void> onStart(ServiceInstance service) async {
               NotificationDetails(
                 android: AndroidNotificationDetails(
                   notificationChannelId,
-                  'Whisp',
+                  'Messages',
                   icon: 'ic_bg_service_small',
+                  groupKey: "Messages",
                   largeIcon: ByteArrayAndroidBitmap(imgFile.readAsBytesSync()),
                   styleInformation: DefaultStyleInformation(true, true),
                   ongoing: false,
@@ -103,10 +121,10 @@ Future<void> startBackgroundService() async {
       autoStartOnBoot: true,
       autoStart: true,
       isForegroundMode: false,
-      notificationChannelId: notificationChannelId,
-      initialNotificationTitle: 'Listening for messages',
+      notificationChannelId: "${notificationChannelId}Service",
+      initialNotificationTitle: 'Whisp',
       initialNotificationContent: 'Service is running...',
-      foregroundServiceNotificationId: notificationId,
+      foregroundServiceNotificationId: notificationId + 1,
       foregroundServiceTypes: [AndroidForegroundType.dataSync],
     ),
     iosConfiguration: IosConfiguration(),
@@ -120,13 +138,6 @@ void backgroundHandler(NotificationResponse response) {
 }
 
 Future<void> initNotification() async {
-  const AndroidNotificationChannel notificationChannel =
-      AndroidNotificationChannel(
-        notificationChannelId,
-        'Whisp',
-        importance: Importance.defaultImportance,
-      );
-
   final FlutterLocalNotificationsPlugin notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
@@ -142,5 +153,22 @@ Future<void> initNotification() async {
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
       >()
-      ?.createNotificationChannel(notificationChannel);
+      ?.createNotificationChannel(
+        AndroidNotificationChannel(
+          notificationChannelId,
+          'Messages',
+          importance: Importance.defaultImportance,
+        ),
+      );
+  await notificationsPlugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(
+        AndroidNotificationChannel(
+          "${notificationChannelId}Service",
+          'Whisp Service',
+          importance: Importance.defaultImportance,
+        ),
+      );
 }
