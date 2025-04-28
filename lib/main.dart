@@ -24,6 +24,7 @@ Future<void> main() async {
     url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+  await startBackgroundService();
   runApp(const WhispApp());
 }
 
@@ -87,7 +88,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
-    startBackgroundService();
+    FlutterBackgroundService().invoke("startBackground", {
+      "userId": Supabase.instance.client.auth.currentUser!.id,
+    });
     if (widget.selectedIndex != null &&
         widget.selectedIndex! >= 0 &&
         widget.selectedIndex! < pages.length) {
@@ -95,15 +98,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     searchController = SearchController();
     pageController = PageController(initialPage: selectedIndex);
-    FlutterBackgroundService().invoke("startBackground", {
-      "userId": Supabase.instance.client.auth.currentUser!.id,
-    });
     super.initState();
   }
 
   @override
   void dispose() {
-    FlutterBackgroundService().invoke("stopService");
     pageController.dispose();
     searchController.dispose();
     super.dispose();

@@ -10,39 +10,31 @@ const notificationChannelId = 'WhispChannel';
 const notificationId = 1975;
 
 @pragma('vm:entry-point')
-void backgroundHandler(NotificationResponse response) {
-  print("Payload: ${response.payload}");
-}
-
-@pragma('vm:entry-point')
-void onStart(ServiceInstance service) async {
+Future<void> onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
   await dotenv.load(fileName: ".env");
 
-  service.on('stopService').listen((e) {
-    service.stopSelf();
-  });
+  final FlutterLocalNotificationsPlugin notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  var client = SupabaseClient(
+    'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
+    dotenv.env['SUPABASE_ANON_KEY']!,
+  );
 
   await (service as AndroidServiceInstance).setAsBackgroundService();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
   service.on('startBackground').listen((e) async {
-    var client = SupabaseClient(
-      'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
-      dotenv.env['SUPABASE_ANON_KEY']!,
-    );
     await client.auth.signInAnonymously();
-    final channel = client.channel('public:pending_messages');
+    var channel = client.channel('public:pending_messages');
     channel
         .onPostgresChanges(
           schema: "public",
           table: "pending_messages",
           event: PostgresChangeEvent.insert,
           callback: (payload) {
-            flutterLocalNotificationsPlugin.show(
+            notificationsPlugin.show(
               notificationId,
               '${payload.newRecord['title']}',
               payload.newRecord['content'],
@@ -67,35 +59,16 @@ void onStart(ServiceInstance service) async {
           print("$status | $error");
         });
   });
+
+  service.on('stopBackground').listen((e) async {
+    await client.realtime.disconnect();
+    await client.auth.signOut();
+  });
 }
 
 Future<void> startBackgroundService() async {
+  await initNotification();
   final service = FlutterBackgroundService();
-
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    notificationChannelId,
-    'Whisp',
-    description: 'This channel is used for important notifications.',
-    importance: Importance.defaultImportance,
-  );
-
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  flutterLocalNotificationsPlugin.initialize(
-    InitializationSettings(
-      android: AndroidInitializationSettings("ic_bg_service_small"),
-    ),
-    onDidReceiveNotificationResponse: (response) async => backgroundHandler,
-    onDidReceiveBackgroundNotificationResponse: backgroundHandler,
-  );
-
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >()
-      ?.createNotificationChannel(channel);
-
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
@@ -110,5 +83,37 @@ Future<void> startBackgroundService() async {
     ),
     iosConfiguration: IosConfiguration(),
   );
-  service.startService();
+  await service.startService();
+}
+
+@pragma('vm:entry-point')
+void backgroundHandler(NotificationResponse response) {
+  print("Payload: ${response.payload}");
+}
+
+Future<void> initNotification() async {
+  const AndroidNotificationChannel notificationChannel =
+      AndroidNotificationChannel(
+        notificationChannelId,
+        'Whisp',
+        description: 'This channel is used for important notifications.',
+        importance: Importance.defaultImportance,
+      );
+
+  final FlutterLocalNotificationsPlugin notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  await notificationsPlugin.initialize(
+    InitializationSettings(
+      android: AndroidInitializationSettings("ic_bg_service_small"),
+    ),
+    onDidReceiveNotificationResponse: (response) async => backgroundHandler,
+    onDidReceiveBackgroundNotificationResponse: backgroundHandler,
+  );
+
+  await notificationsPlugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(notificationChannel);
 }

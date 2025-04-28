@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -43,6 +44,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     );
 
     if (shouldLogout == true) {
+      FlutterBackgroundService().invoke("stopBackground");
       await Supabase.instance.client.auth.signOut();
 
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
