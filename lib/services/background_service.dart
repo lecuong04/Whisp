@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 const notificationChannelId = 'WhispChannel';
 
@@ -26,6 +30,11 @@ Future<void> onStart(ServiceInstance service) async {
   await (service as AndroidServiceInstance).setAsBackgroundService();
 
   service.on('startBackground').listen((e) async {
+    var dir = await getApplicationCacheDirectory();
+    var avatarsDir = Directory(path.join(dir.path, "avatars"));
+    if (!avatarsDir.existsSync()) {
+      avatarsDir.createSync();
+    }
     await client.auth.signInAnonymously();
     var channel = client.channel('public:pending_messages');
     channel
@@ -33,17 +42,36 @@ Future<void> onStart(ServiceInstance service) async {
           schema: "public",
           table: "pending_messages",
           event: PostgresChangeEvent.insert,
-          callback: (payload) {
+          callback: (payload) async {
+            File imgFile = File(
+              path.join(
+                avatarsDir.path,
+                payload.newRecord["avatar_url"].toString().split("/").last,
+              ),
+            );
+            if (!imgFile.existsSync()) {
+              var r = await http.get(
+                Uri.parse(payload.newRecord["avatar_url"].toString()),
+              );
+              imgFile.writeAsBytesSync(
+                r.bodyBytes,
+                mode: FileMode.writeOnly,
+                flush: true,
+              );
+            }
             notificationsPlugin.show(
               notificationId,
-              '${payload.newRecord['title']}',
+              '<b>${payload.newRecord['title']}</b>',
               payload.newRecord['content'],
-              const NotificationDetails(
+              NotificationDetails(
                 android: AndroidNotificationDetails(
                   notificationChannelId,
                   'Whisp',
                   icon: 'ic_bg_service_small',
+                  largeIcon: ByteArrayAndroidBitmap(imgFile.readAsBytesSync()),
+                  styleInformation: DefaultStyleInformation(true, true),
                   ongoing: false,
+                  category: AndroidNotificationCategory.social,
                 ),
               ),
               payload: payload.newRecord.toString(),
@@ -72,8 +100,8 @@ Future<void> startBackgroundService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      autoStartOnBoot: false,
-      autoStart: false,
+      autoStartOnBoot: true,
+      autoStart: true,
       isForegroundMode: false,
       notificationChannelId: notificationChannelId,
       initialNotificationTitle: 'Listening for messages',
@@ -96,7 +124,6 @@ Future<void> initNotification() async {
       AndroidNotificationChannel(
         notificationChannelId,
         'Whisp',
-        description: 'This channel is used for important notifications.',
         importance: Importance.defaultImportance,
       );
 
