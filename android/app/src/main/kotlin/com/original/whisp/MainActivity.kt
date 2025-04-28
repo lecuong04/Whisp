@@ -1,4 +1,4 @@
-package com.original.whisp.whisp
+package com.original.whisp
 
 import io.flutter.embedding.android.FlutterActivity
 

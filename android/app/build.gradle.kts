@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.original.whisp.whisp"
+    namespace = "com.original.whisp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.0.13004108"
 
@@ -31,7 +31,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.original.whisp.whisp"
+        applicationId = "com.original.whisp"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -41,8 +41,18 @@ android {
 		multiDexEnabled = true
     }
 
+	signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+
     buildTypes {
         release {
+			signingConfig = signingConfigs.getByName("release")
         }
     }
 }
