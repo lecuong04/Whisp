@@ -4,14 +4,14 @@ import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 
-class Messages extends StatefulWidget {
+class MessagesScreen extends StatefulWidget {
   final String chatId;
   final String myId;
   final String contactId;
   final String contactName;
   final String contactImage;
 
-  const Messages({
+  const MessagesScreen({
     super.key,
     required this.chatId,
     required this.myId,
@@ -21,10 +21,10 @@ class Messages extends StatefulWidget {
   });
 
   @override
-  State createState() => _MessagesState();
+  State createState() => _MessagesScreenState();
 }
 
-class _MessagesState extends State<Messages> {
+class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();

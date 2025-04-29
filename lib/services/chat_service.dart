@@ -279,14 +279,13 @@ class ChatService {
 
             // Lấy thông tin bạn bè
             final friendResponse =
-                await _supabase
+                (await _supabase
                     .from('conversation_participants')
                     .select(
                       'user_id, users!inner(id, full_name, avatar_url, status)',
                     )
                     .eq('conversation_id', conversationId)
-                    .neq('user_id', userId)
-                    .maybeSingle();
+                    .neq('user_id', userId)).firstOrNull;
 
             if (friendResponse == null) {
               print('No friend found for conversation $conversationId');

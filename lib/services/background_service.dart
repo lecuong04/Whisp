@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -92,7 +93,7 @@ Future<void> onStart(ServiceInstance service) async {
                   category: AndroidNotificationCategory.social,
                 ),
               ),
-              payload: payload.newRecord.toString(),
+              payload: jsonEncode(payload.newRecord),
             );
           },
           filter: PostgresChangeFilter(
@@ -134,18 +135,24 @@ Future<void> startBackgroundService() async {
 
 @pragma('vm:entry-point')
 void backgroundHandler(NotificationResponse response) {
-  print("Payload: ${response.payload}");
+  if (response.payload == null) return;
+  Map<String, dynamic> data = jsonDecode(response.payload!);
+  // TODO
 }
 
 Future<void> initNotification() async {
   final FlutterLocalNotificationsPlugin notificationsPlugin =
       FlutterLocalNotificationsPlugin();
-
+  var appLaunchDetails =
+      await notificationsPlugin.getNotificationAppLaunchDetails();
+  if (appLaunchDetails != null && appLaunchDetails.didNotificationLaunchApp) {
+    backgroundHandler(appLaunchDetails.notificationResponse!);
+  }
   await notificationsPlugin.initialize(
     InitializationSettings(
       android: AndroidInitializationSettings("ic_bg_service_small"),
     ),
-    onDidReceiveNotificationResponse: (response) async => backgroundHandler,
+    onDidReceiveNotificationResponse: backgroundHandler,
     onDidReceiveBackgroundNotificationResponse: backgroundHandler,
   );
 

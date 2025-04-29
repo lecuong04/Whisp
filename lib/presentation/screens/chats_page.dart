@@ -303,7 +303,7 @@ class _ChatsState extends State<Chats>
                                       context,
                                       MaterialPageRoute(
                                         builder:
-                                            (context) => Messages(
+                                            (context) => MessagesScreen(
                                               chatId: conversationId,
                                               myId: myId!,
                                               contactId: friendId,

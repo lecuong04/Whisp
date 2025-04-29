@@ -21,7 +21,7 @@ class FriendTitle extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) {
-                  return Messages(
+                  return MessagesScreen(
                     chatId: chatId,
                     myId: UserService().id!,
                     contactId: friend.id,
