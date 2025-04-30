@@ -197,7 +197,7 @@ Future<void> initNotification() async {
         AndroidNotificationChannel(
           notificationChannelId,
           'Messages',
-          importance: Importance.defaultImportance,
+          importance: Importance.high,
         ),
       );
   await notificationsPlugin
@@ -208,7 +208,7 @@ Future<void> initNotification() async {
         AndroidNotificationChannel(
           "${notificationChannelId}Service",
           'Whisp Service',
-          importance: Importance.defaultImportance,
+          importance: Importance.low,
         ),
       );
 }
