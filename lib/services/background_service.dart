@@ -43,6 +43,7 @@ Future<void> onStart(ServiceInstance service) async {
     var res = await client.auth.setSession(e['refreshToken']);
     if (res.session == null) return;
     isStarted = true;
+    await service.setAsForegroundService();
     var dir = await getApplicationCacheDirectory();
     var avatarsDir = Directory(path.join(dir.path, "avatars"));
     if (!avatarsDir.existsSync()) {
@@ -93,6 +94,13 @@ Future<void> onStart(ServiceInstance service) async {
               ),
               payload: jsonEncode(payload.newRecord),
             );
+            await client.rpc(
+              "update_is_delivered",
+              params: {
+                "_message_id": payload.newRecord["message_id"],
+                "_user_id": payload.newRecord["receiver_id"],
+              },
+            );
           },
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
@@ -101,25 +109,7 @@ Future<void> onStart(ServiceInstance service) async {
           ),
         )
         .subscribe((status, error) async {
-          if (status == RealtimeSubscribeStatus.subscribed) {
-            await service.setAsForegroundService();
-            notificationsPlugin.show(
-              notificationId + 1,
-              "Whisp",
-              "Listening for messages...",
-              NotificationDetails(
-                android: AndroidNotificationDetails(
-                  "${notificationChannelId}Service",
-                  "Whisp Service",
-                  ongoing: true,
-                  silent: true,
-                  channelShowBadge: false,
-                  playSound: false,
-                  enableVibration: false,
-                ),
-              ),
-            );
-          } else {
+          if (status != RealtimeSubscribeStatus.subscribed) {
             print("$status | $error");
           }
         });
@@ -143,7 +133,7 @@ Future<void> startBackgroundService() async {
       autoStart: true,
       isForegroundMode: false,
       notificationChannelId: "${notificationChannelId}Service",
-      initialNotificationTitle: 'Whisp',
+      initialNotificationTitle: 'Whisp Service',
       initialNotificationContent: 'Service is running...',
       foregroundServiceNotificationId: notificationId + 1,
       foregroundServiceTypes: [AndroidForegroundType.dataSync],
