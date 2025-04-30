@@ -55,21 +55,22 @@ Future<void> onStart(ServiceInstance service) async {
           table: "pending_messages",
           event: PostgresChangeEvent.insert,
           callback: (payload) async {
+            bool isAvatarError = false;
+            var avatarUrl = payload.newRecord["avatar_url"].toString();
             File imgFile = File(
-              path.join(
-                avatarsDir.path,
-                payload.newRecord["avatar_url"].toString().split("/").last,
-              ),
+              path.join(avatarsDir.path, avatarUrl.split("/").last),
             );
             if (!imgFile.existsSync()) {
-              var r = await http.get(
-                Uri.parse(payload.newRecord["avatar_url"].toString()),
-              );
-              imgFile.writeAsBytesSync(
-                r.bodyBytes,
-                mode: FileMode.writeOnly,
-                flush: true,
-              );
+              try {
+                var r = await http.get(Uri.parse(avatarUrl));
+                imgFile.writeAsBytesSync(
+                  r.bodyBytes,
+                  mode: FileMode.writeOnly,
+                  flush: true,
+                );
+              } catch (_) {
+                isAvatarError = true;
+              }
             }
             notificationsPlugin.show(
               notificationId,
@@ -81,7 +82,10 @@ Future<void> onStart(ServiceInstance service) async {
                   'Messages',
                   icon: 'ic_bg_service_small',
                   groupKey: "Messages",
-                  largeIcon: ByteArrayAndroidBitmap(imgFile.readAsBytesSync()),
+                  largeIcon:
+                      !isAvatarError
+                          ? ByteArrayAndroidBitmap(imgFile.readAsBytesSync())
+                          : null,
                   styleInformation: DefaultStyleInformation(true, true),
                   ongoing: false,
                   category: AndroidNotificationCategory.social,
