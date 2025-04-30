@@ -29,8 +29,6 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
               builder:
                   (context) => MessagesScreen(
                     chatId: chatId,
-                    myId: UserService().id!,
-                    contactId: userId,
                     contactName: req.fullName,
                     contactImage: req.avatarURL,
                   ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,8 +9,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/reset_password_screen.dart';
+import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/screens/chats_page.dart';
 import 'package:whisp/presentation/screens/friends_page.dart';
+import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 import 'package:whisp/presentation/widgets/custom_search.dart';
@@ -43,6 +46,7 @@ class _WhispAppState extends State<WhispApp> {
       navigatorKey: navigatorKey,
       // theme: AppTheme.lightTheme,
       routes: {
+        '/sign_up': (context) => SignupScreen(),
         '/login': (context) => LoginScreen(),
         '/home': (context) => HomeScreen(),
         '/reset_password': (context) => ResetPasswordScreen(),
@@ -68,11 +72,7 @@ class AuthWrapper extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final int? selectedIndex;
-  HomeScreen({super.key, this.selectedIndex}) {
-    FlutterBackgroundService().invoke("startBackground", {
-      "userId": Supabase.instance.client.auth.currentUser!.id,
-    });
-  }
+  const HomeScreen({super.key, this.selectedIndex});
 
   @override
   State<StatefulWidget> createState() => _HomeScreenState();
@@ -92,6 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
+    FlutterBackgroundService().invoke("startBackground", {
+      "refreshToken":
+          Supabase.instance.client.auth.currentSession!.refreshToken,
+    });
     if (widget.selectedIndex != null &&
         widget.selectedIndex! >= 0 &&
         widget.selectedIndex! < pages.length) {
@@ -100,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
     searchController = SearchController();
     pageController = PageController(initialPage: selectedIndex);
     super.initState();
+    initRoute();
   }
 
   @override
@@ -175,5 +180,29 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+  }
+
+  Future<void> initRoute() async {
+    var uri = await AppLinks().getInitialLink();
+    if (uri == null) return;
+    switch (uri.host) {
+      case "messages":
+        {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => MessagesScreen(
+                      chatId: uri.queryParameters["conversation_id"]!,
+                      contactName: uri.queryParameters["title"]!,
+                      contactImage: uri.queryParameters["avatar_url"]!,
+                    ),
+              ),
+            );
+          }
+          break;
+        }
+    }
   }
 }

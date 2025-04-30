@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,6 +10,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:whisp/main.dart';
+import 'package:whisp/presentation/screens/auth/login_screen.dart';
+import 'package:whisp/presentation/screens/auth/signup_screen.dart';
+import 'package:whisp/presentation/screens/messages_screen.dart';
 
 const notificationChannelId = 'Whisp';
 
@@ -30,25 +36,13 @@ Future<void> onStart(ServiceInstance service) async {
 
   await (service as AndroidServiceInstance).setAsBackgroundService();
 
+  bool isStarted = false;
+
   service.on('startBackground').listen((e) async {
-    await client.auth.signInAnonymously();
-    await service.setAsForegroundService();
-    notificationsPlugin.show(
-      notificationId + 1,
-      "Whisp",
-      "Listening for messages...",
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          "${notificationChannelId}Service",
-          "Whisp Service",
-          ongoing: true,
-          silent: true,
-          channelShowBadge: false,
-          playSound: false,
-          enableVibration: false,
-        ),
-      ),
-    );
+    if (e == null || !e.containsKey("refreshToken") || isStarted) return;
+    var res = await client.auth.setSession(e['refreshToken']);
+    if (res.session == null) return;
+    isStarted = true;
     var dir = await getApplicationCacheDirectory();
     var avatarsDir = Directory(path.join(dir.path, "avatars"));
     if (!avatarsDir.existsSync()) {
@@ -99,17 +93,39 @@ Future<void> onStart(ServiceInstance service) async {
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: "receiver_id",
-            value: e!["userId"],
+            value: client.auth.currentUser!.id,
           ),
         )
-        .subscribe((status, error) {
-          print("$status | $error");
+        .subscribe((status, error) async {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            await service.setAsForegroundService();
+            notificationsPlugin.show(
+              notificationId + 1,
+              "Whisp",
+              "Listening for messages...",
+              NotificationDetails(
+                android: AndroidNotificationDetails(
+                  "${notificationChannelId}Service",
+                  "Whisp Service",
+                  ongoing: true,
+                  silent: true,
+                  channelShowBadge: false,
+                  playSound: false,
+                  enableVibration: false,
+                ),
+              ),
+            );
+          } else {
+            print("$status | $error");
+          }
         });
   });
 
   service.on('stopBackground').listen((e) async {
+    isStarted = false;
     await client.realtime.disconnect();
     await client.auth.signOut();
+    await service.setAsBackgroundService();
   });
 }
 
@@ -135,9 +151,32 @@ Future<void> startBackgroundService() async {
 
 @pragma('vm:entry-point')
 void backgroundHandler(NotificationResponse response) {
-  if (response.payload == null) return;
+  if (response.payload == null || response.payload!.isEmpty) return;
   Map<String, dynamic> data = jsonDecode(response.payload!);
-  // TODO
+  if (navigatorKey.currentContext != null) {
+    if (navigatorKey.currentWidget is LoginScreen ||
+        navigatorKey.currentWidget is SignupScreen) {
+      return;
+    }
+    Navigator.pushAndRemoveUntil(
+      navigatorKey.currentContext!,
+      MaterialPageRoute(builder: (context) => HomeScreen()),
+      (route) => false,
+    );
+    Navigator.push(
+      navigatorKey.currentContext!,
+      MaterialPageRoute(
+        builder:
+            (context) => MessagesScreen(
+              chatId: data["conversation_id"],
+              contactName: data["title"],
+              contactImage: data["avatar_url"],
+            ),
+      ),
+    );
+  } else {
+    launchUrl(Uri(scheme: "whisp", host: "messages", queryParameters: data));
+  }
 }
 
 Future<void> initNotification() async {

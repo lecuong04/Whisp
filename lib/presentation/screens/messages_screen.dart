@@ -3,19 +3,16 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
+import 'package:whisp/services/user_service.dart';
 
 class MessagesScreen extends StatefulWidget {
   final String chatId;
-  final String myId;
-  final String contactId;
   final String contactName;
   final String contactImage;
 
   const MessagesScreen({
     super.key,
     required this.chatId,
-    required this.myId,
-    required this.contactId,
     required this.contactName,
     required this.contactImage,
   });
@@ -25,6 +22,8 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
+  String myId = UserService().id!;
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
@@ -121,7 +120,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           });
 
           // Đánh dấu tin nhắn là đã đọc nếu đang xem cuộc trò chuyện
-          if (newMessages.any((msg) => msg['sender_id'] != widget.myId)) {
+          if (newMessages.any((msg) => msg['sender_id'] != myId)) {
             _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
               print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
             });
@@ -184,7 +183,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       final newMessage = await _chatService.sendMessage(
         conversationId: widget.chatId,
-        senderId: widget.myId,
+        senderId: myId,
         content: _messageController.text,
       );
 
@@ -270,7 +269,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ? const Center(child: Text("Chưa có tin nhắn nào"))
                         : MessageList(
                           messages: _allMessages,
-                          myId: widget.myId,
+                          myId: myId,
                           friendImage: widget.contactImage,
                           scrollController: _scrollController,
                           isLoadingMore: _isLoadingMore,

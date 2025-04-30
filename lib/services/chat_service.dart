@@ -350,7 +350,7 @@ class ChatService {
           schema: 'public',
           table: 'message_statuses',
           callback: (payload) async {
-            print('Realtime payload for message_statuses: $payload');
+            // print('Realtime payload for message_statuses: $payload');
             final messageId = payload.newRecord['message_id'] as String;
             final isRead = payload.newRecord['is_read'] as bool;
 

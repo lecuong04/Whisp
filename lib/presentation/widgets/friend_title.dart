@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/services/chat_service.dart';
-import 'package:whisp/services/user_service.dart';
 
 class FriendTitle extends StatelessWidget {
   final Friend friend;
@@ -23,8 +22,6 @@ class FriendTitle extends StatelessWidget {
                 builder: (context) {
                   return MessagesScreen(
                     chatId: chatId,
-                    myId: UserService().id!,
-                    contactId: friend.id,
                     contactName: friend.fullName,
                     contactImage: friend.avatarUrl,
                   );

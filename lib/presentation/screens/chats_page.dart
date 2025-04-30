@@ -305,8 +305,6 @@ class _ChatsState extends State<Chats>
                                         builder:
                                             (context) => MessagesScreen(
                                               chatId: conversationId,
-                                              myId: myId!,
-                                              contactId: friendId,
                                               contactName: alias,
                                               contactImage: avatarUrl,
                                             ),
