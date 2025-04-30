@@ -36,13 +36,14 @@ Future<void> onStart(ServiceInstance service) async {
 
   await (service as AndroidServiceInstance).setAsBackgroundService();
 
-  bool isStarted = false;
-
   service.on('startBackground').listen((e) async {
-    if (e == null || !e.containsKey("refreshToken") || isStarted) return;
+    if (e == null ||
+        !e.containsKey("refreshToken") ||
+        client.auth.currentSession != null) {
+      return;
+    }
     var res = await client.auth.setSession(e['refreshToken']);
     if (res.session == null) return;
-    isStarted = true;
     await service.setAsForegroundService();
     var dir = await getApplicationCacheDirectory();
     var avatarsDir = Directory(path.join(dir.path, "avatars"));
@@ -105,7 +106,7 @@ Future<void> onStart(ServiceInstance service) async {
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: "receiver_id",
-            value: client.auth.currentUser!.id,
+            value: client.auth.currentUser?.id,
           ),
         )
         .subscribe((status, error) async {
@@ -113,10 +114,16 @@ Future<void> onStart(ServiceInstance service) async {
             print("$status | $error");
           }
         });
+    do {
+      await client.rpc(
+        "online_user",
+        params: {"user_id": client.auth.currentUser?.id},
+      );
+      await Future.delayed(Duration(minutes: 2));
+    } while (client.auth.currentUser != null);
   });
 
   service.on('stopBackground').listen((e) async {
-    isStarted = false;
     await client.realtime.disconnect();
     await client.auth.signOut();
     await service.setAsBackgroundService();
