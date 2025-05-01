@@ -129,12 +129,22 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> loadMessages(
     String conversationId, {
     int limit = 20,
+    String? beforeSentAt, // Thêm tham số beforeSentAt
   }) async {
     final db = await database;
+    String whereClause = 'conversation_id = ?';
+    List<dynamic> whereArgs = [conversationId];
+
+    // Thêm điều kiện beforeSentAt nếu có
+    if (beforeSentAt != null) {
+      whereClause += ' AND sent_at < ?';
+      whereArgs.add(beforeSentAt);
+    }
+
     final result = await db.query(
       'messages',
-      where: 'conversation_id = ?',
-      whereArgs: [conversationId],
+      where: whereClause,
+      whereArgs: whereArgs,
       orderBy: 'sent_at DESC',
       limit: limit,
     );
@@ -154,7 +164,7 @@ class DatabaseService {
         }).toList();
 
     print(
-      'Loaded ${messages.length} messages from SQLite for conversation $conversationId',
+      'Loaded ${messages.length} messages from SQLite for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
     );
     return messages;
   }
