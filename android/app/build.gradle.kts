@@ -41,7 +41,7 @@ android {
 		multiDexEnabled = true
     }
 
-	signingConfigs {
+    signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
@@ -52,7 +52,7 @@ android {
 
     buildTypes {
         release {
-			signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
