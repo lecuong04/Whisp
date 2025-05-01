@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -57,7 +58,7 @@ Future<void> onStart(ServiceInstance service) async {
           table: "pending_messages",
           event: PostgresChangeEvent.insert,
           callback: (payload) async {
-            await _notificationShow(
+            await _showNotification(
               client,
               avatarsDir,
               notificationsPlugin,
@@ -79,8 +80,9 @@ Future<void> onStart(ServiceInstance service) async {
       "get_pending_messages",
       params: {"_user_id": client.auth.currentUser?.id},
     );
+    (messages as List<dynamic>);
     for (var msg in messages) {
-      await _notificationShow(client, avatarsDir, notificationsPlugin, msg);
+      await _showNotification(client, avatarsDir, notificationsPlugin, msg);
     }
     do {
       await client.rpc(
@@ -98,14 +100,8 @@ Future<void> onStart(ServiceInstance service) async {
   });
 }
 
-Future<void> _notificationShow(
-  SupabaseClient client,
-  Directory avatarsDir,
-  FlutterLocalNotificationsPlugin notificationsPlugin,
-  Map<String, dynamic> payload,
-) async {
+Future<Uint8List?> _getAvatar(Directory avatarsDir, String avatarUrl) async {
   bool isAvatarError = false;
-  var avatarUrl = payload["avatar_url"].toString();
   File imgFile = File(path.join(avatarsDir.path, avatarUrl.split("/").last));
   if (!imgFile.existsSync()) {
     try {
@@ -119,29 +115,96 @@ Future<void> _notificationShow(
       isAvatarError = true;
     }
   }
-  notificationsPlugin.show(
-    notificationId,
-    '<b>${payload['title']}</b>',
-    payload['content'],
-    NotificationDetails(
-      android: AndroidNotificationDetails(
-        indeterminate: true,
-        autoCancel: false,
-        notificationChannelId,
-        'Messages',
-        icon: 'ic_bg_service_small',
-        groupKey: payload["conversation_id"],
-        largeIcon:
-            !isAvatarError
-                ? ByteArrayAndroidBitmap(imgFile.readAsBytesSync())
-                : null,
-        styleInformation: DefaultStyleInformation(true, true),
-        ongoing: false,
-        category: AndroidNotificationCategory.social,
+  return isAvatarError ? null : imgFile.readAsBytesSync();
+}
+
+Future<void> _showNotification(
+  SupabaseClient client,
+  Directory avatarsDir,
+  FlutterLocalNotificationsPlugin notificationsPlugin,
+  Map<String, dynamic> payload,
+) async {
+  var conversation =
+      ((await client.rpc(
+                "get_conversation_info",
+                params: {
+                  "_conversation_id": payload["conversation_id"],
+                  "_user_id": payload["receiver_id"],
+                },
+              ))
+              as List<dynamic>)
+          .first;
+  var sender =
+      ((await client.rpc("get_user", params: {"user_id": payload["sender_id"]}))
+              as List<dynamic>)
+          .first;
+  var senderAvatar = await _getAvatar(avatarsDir, sender["avatar_url"]);
+  if (conversation['is_group']) {
+    var groupAvatar = await _getAvatar(avatarsDir, conversation["avatar_url"]);
+    notificationsPlugin.show(
+      notificationId,
+      '',
+      '',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          notificationChannelId,
+          'Messages',
+          groupKey: payload["conversation_id"],
+          tag: payload["conversation_id"],
+          icon: 'ic_bg_service_small',
+          largeIcon:
+              groupAvatar != null ? ByteArrayAndroidBitmap(groupAvatar) : null,
+          styleInformation: MessagingStyleInformation(
+            Person(name: conversation['title']),
+            groupConversation: true,
+            messages: [
+              Message(
+                payload['content'],
+                DateTime.parse(payload['sent_at']),
+                Person(
+                  name: sender['full_name'],
+                  icon:
+                      senderAvatar != null
+                          ? ByteArrayAndroidIcon(senderAvatar)
+                          : null,
+                ),
+              ),
+            ],
+            conversationTitle: conversation['title'],
+            htmlFormatContent: true,
+            htmlFormatTitle: true,
+          ),
+          ongoing: false,
+          category: AndroidNotificationCategory.social,
+        ),
       ),
-    ),
-    payload: jsonEncode(payload),
-  );
+      payload: jsonEncode(payload),
+    );
+  } else {
+    notificationsPlugin.show(
+      notificationId,
+      '<b>${conversation['title']}</b>',
+      payload['content'],
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          notificationChannelId,
+          'Messages',
+          largeIcon:
+              senderAvatar != null
+                  ? ByteArrayAndroidBitmap(senderAvatar)
+                  : null,
+          groupKey: payload["conversation_id"],
+          tag: payload["conversation_id"],
+          icon: 'ic_bg_service_small',
+          styleInformation: DefaultStyleInformation(true, true),
+          ongoing: false,
+          category: AndroidNotificationCategory.social,
+        ),
+      ),
+      payload: jsonEncode(payload),
+    );
+  }
+
   await client.rpc(
     "update_is_delivered",
     params: {
