@@ -57,50 +57,11 @@ Future<void> onStart(ServiceInstance service) async {
           table: "pending_messages",
           event: PostgresChangeEvent.insert,
           callback: (payload) async {
-            bool isAvatarError = false;
-            var avatarUrl = payload.newRecord["avatar_url"].toString();
-            File imgFile = File(
-              path.join(avatarsDir.path, avatarUrl.split("/").last),
-            );
-            if (!imgFile.existsSync()) {
-              try {
-                var r = await http.get(Uri.parse(avatarUrl));
-                imgFile.writeAsBytesSync(
-                  r.bodyBytes,
-                  mode: FileMode.writeOnly,
-                  flush: true,
-                );
-              } catch (_) {
-                isAvatarError = true;
-              }
-            }
-            notificationsPlugin.show(
-              notificationId,
-              '<b>${payload.newRecord['title']}</b>',
-              payload.newRecord['content'],
-              NotificationDetails(
-                android: AndroidNotificationDetails(
-                  notificationChannelId,
-                  'Messages',
-                  icon: 'ic_bg_service_small',
-                  groupKey: "Messages",
-                  largeIcon:
-                      !isAvatarError
-                          ? ByteArrayAndroidBitmap(imgFile.readAsBytesSync())
-                          : null,
-                  styleInformation: DefaultStyleInformation(true, true),
-                  ongoing: false,
-                  category: AndroidNotificationCategory.social,
-                ),
-              ),
-              payload: jsonEncode(payload.newRecord),
-            );
-            await client.rpc(
-              "update_is_delivered",
-              params: {
-                "_message_id": payload.newRecord["message_id"],
-                "_user_id": payload.newRecord["receiver_id"],
-              },
+            await _notificationShow(
+              client,
+              avatarsDir,
+              notificationsPlugin,
+              payload.newRecord,
             );
           },
           filter: PostgresChangeFilter(
@@ -114,6 +75,13 @@ Future<void> onStart(ServiceInstance service) async {
             print("$status | $error");
           }
         });
+    var messages = await client.rpc(
+      "get_pending_messages",
+      params: {"_user_id": client.auth.currentUser?.id},
+    );
+    for (var msg in messages) {
+      await _notificationShow(client, avatarsDir, notificationsPlugin, msg);
+    }
     do {
       await client.rpc(
         "online_user",
@@ -128,6 +96,59 @@ Future<void> onStart(ServiceInstance service) async {
     await client.auth.signOut();
     await service.setAsBackgroundService();
   });
+}
+
+Future<void> _notificationShow(
+  SupabaseClient client,
+  Directory avatarsDir,
+  FlutterLocalNotificationsPlugin notificationsPlugin,
+  Map<String, dynamic> payload,
+) async {
+  bool isAvatarError = false;
+  var avatarUrl = payload["avatar_url"].toString();
+  File imgFile = File(path.join(avatarsDir.path, avatarUrl.split("/").last));
+  if (!imgFile.existsSync()) {
+    try {
+      var r = await http.get(Uri.parse(avatarUrl));
+      imgFile.writeAsBytesSync(
+        r.bodyBytes,
+        mode: FileMode.writeOnly,
+        flush: true,
+      );
+    } catch (_) {
+      isAvatarError = true;
+    }
+  }
+  notificationsPlugin.show(
+    notificationId,
+    '<b>${payload['title']}</b>',
+    payload['content'],
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        indeterminate: true,
+        autoCancel: false,
+        notificationChannelId,
+        'Messages',
+        icon: 'ic_bg_service_small',
+        groupKey: payload["conversation_id"],
+        largeIcon:
+            !isAvatarError
+                ? ByteArrayAndroidBitmap(imgFile.readAsBytesSync())
+                : null,
+        styleInformation: DefaultStyleInformation(true, true),
+        ongoing: false,
+        category: AndroidNotificationCategory.social,
+      ),
+    ),
+    payload: jsonEncode(payload),
+  );
+  await client.rpc(
+    "update_is_delivered",
+    params: {
+      "_message_id": payload["message_id"],
+      "_user_id": payload["receiver_id"],
+    },
+  );
 }
 
 Future<void> startBackgroundService() async {
