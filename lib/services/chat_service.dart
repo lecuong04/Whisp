@@ -1,21 +1,19 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/services/db_service.dart';
+import 'package:whisp/utils/constants.dart'; // Import constants.dart
 
 class ChatService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final DatabaseService _dbService = DatabaseService.instance;
 
-  /// Kiểm tra trạng thái kết nối mạng
   Future<bool> _isOnline() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     return connectivityResult != ConnectivityResult.none;
   }
 
-  /// Tải danh sách cuộc trò chuyện 1-1 của người dùng
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
     try {
-      // Ưu tiên tải từ SQLite
       final localChats = await _dbService.loadChats(userId);
       if (!(await _isOnline())) {
         print(
@@ -24,7 +22,6 @@ class ChatService {
         return localChats;
       }
 
-      // Nếu online, truy vấn Supabase
       final response = await _supabase
           .from('conversation_participants')
           .select('''
@@ -41,7 +38,6 @@ class ChatService {
           .eq('conversations.is_group', false);
 
       final List<Map<String, dynamic>> userChats = response;
-      // print('User chats from Supabase: $userChats');
 
       final processedChats = <Map<String, dynamic>>[];
       for (var chat in userChats) {
@@ -64,7 +60,7 @@ class ChatService {
         }
 
         final friend = friendResponse['users'] as Map<String, dynamic>;
-        await _dbService.saveUser(friend); // Lưu thông tin bạn bè
+        await _dbService.saveUser(friend);
 
         final lastMessage =
             await _supabase
@@ -114,7 +110,6 @@ class ChatService {
       );
       print('Processed chats: $processedChats');
 
-      // Lưu vào SQLite
       if (processedChats.isNotEmpty) {
         await _dbService.saveChats(userId, processedChats);
       }
@@ -122,7 +117,6 @@ class ChatService {
       return processedChats;
     } catch (e) {
       print('Error loading chats: $e');
-      // Nếu offline, trả về dữ liệu cục bộ
       final localChats = await _dbService.loadChats(userId);
       print(
         'Offline: Returning ${localChats.length} local chats for user $userId',
@@ -131,7 +125,6 @@ class ChatService {
     }
   }
 
-  /// Tạo một cuộc trò chuyện trực tiếp
   Future<Map<String, dynamic>> createDirectConversation({
     required String userId1,
     required String userId2,
@@ -173,7 +166,6 @@ class ChatService {
         {'conversation_id': conversationId, 'user_id': userId2},
       ]);
 
-      // Cập nhật SQLite
       final chats = await loadChatsByUserId(userId1);
       await _dbService.saveChats(userId1, chats);
 
@@ -184,21 +176,16 @@ class ChatService {
     }
   }
 
-  /// Xóa cuộc trò chuyện
   Future<void> deleteConversation(String userId, String conversationId) async {
     try {
-      // Kiểm tra kết nối mạng
       if (!(await _isOnline())) {
         throw Exception('Cần kết nối mạng để xóa cuộc trò chuyện');
       }
 
-      // Xóa cuộc trò chuyện từ Supabase
       await _supabase.from('conversations').delete().eq('id', conversationId);
 
-      // Xóa dữ liệu cục bộ từ SQLite
-      await _dbService.deleteMessages(conversationId); // Xóa tin nhắn
-      await _dbService.deleteChats(userId); // Xóa danh sách chats của user
-      // Tải lại danh sách chats để đồng bộ
+      await _dbService.deleteMessages(conversationId);
+      await _dbService.deleteChats(userId);
       final updatedChats = await loadChatsByUserId(userId);
       await _dbService.saveChats(userId, updatedChats);
 
@@ -209,22 +196,18 @@ class ChatService {
     }
   }
 
-  /// Lấy thông tin người dùng
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
     try {
-      // Ưu tiên tải từ SQLite
       final localUser = await _dbService.loadUser(userId);
       if (localUser != null) {
         return localUser;
       }
 
-      // Nếu không có trong SQLite và offline, trả về null
       if (!(await _isOnline())) {
         print('Offline: No local user data for userId $userId');
         return null;
       }
 
-      // Nếu không có trong SQLite, truy vấn Supabase
       final response =
           await _supabase
               .from('users')
@@ -233,19 +216,17 @@ class ChatService {
               .maybeSingle();
 
       if (response != null) {
-        await _dbService.saveUser(response); // Lưu vào SQLite
+        await _dbService.saveUser(response);
       }
 
       return response;
     } catch (e) {
       print('Error fetching user info: $e');
-      // Nếu có lỗi, thử tải lại từ SQLite
       final localUser = await _dbService.loadUser(userId);
       return localUser;
     }
   }
 
-  /// Theo dõi các thay đổi trong danh sách cuộc trò chuyện
   void subscribeToChats(
     String userId,
     Function(List<Map<String, dynamic>>) onUpdate,
@@ -258,11 +239,9 @@ class ChatService {
           schema: 'public',
           table: 'messages',
           callback: (payload) async {
-            // print('Realtime payload for messages: $payload');
             final newMessage = payload.newRecord;
             final conversationId = newMessage['conversation_id'] as String;
 
-            // Lấy thông tin tin nhắn mới nhất
             final lastMessage =
                 await _supabase
                     .from('messages')
@@ -277,7 +256,6 @@ class ChatService {
               return;
             }
 
-            // Lấy thông tin bạn bè
             final friendResponse =
                 (await _supabase
                     .from('conversation_participants')
@@ -295,7 +273,6 @@ class ChatService {
             final friend = friendResponse['users'] as Map<String, dynamic>;
             await _dbService.saveUser(friend);
 
-            // Kiểm tra trạng thái đọc
             final lastMessageStatus =
                 await _supabase
                     .from('message_statuses')
@@ -305,7 +282,6 @@ class ChatService {
                     .maybeSingle();
             final isRead = lastMessageStatus?['is_read'] ?? true;
 
-            // Tạo hoặc cập nhật chat
             final updatedChat = {
               'conversation_id': conversationId,
               'friend_id': friend['id'],
@@ -319,7 +295,6 @@ class ChatService {
               'is_group': false,
             };
 
-            // Lấy danh sách chat hiện tại từ SQLite
             final currentChats = await _dbService.loadChats(userId);
             final updatedChats = [...currentChats];
             final chatIndex = updatedChats.indexWhere(
@@ -332,16 +307,12 @@ class ChatService {
               updatedChats.add(updatedChat);
             }
 
-            // Sắp xếp lại theo thời gian
             updatedChats.sort(
               (a, b) =>
                   b['last_message_time'].compareTo(a['last_message_time']),
             );
 
-            // Lưu vào SQLite
             await _dbService.saveChats(userId, updatedChats);
-
-            // Gọi callback để cập nhật giao diện
             onUpdate(updatedChats);
           },
         )
@@ -350,11 +321,9 @@ class ChatService {
           schema: 'public',
           table: 'message_statuses',
           callback: (payload) async {
-            // print('Realtime payload for message_statuses: $payload');
             final messageId = payload.newRecord['message_id'] as String;
             final isRead = payload.newRecord['is_read'] as bool;
 
-            // Tìm conversation_id từ message_id
             final message =
                 await _supabase
                     .from('messages')
@@ -364,7 +333,6 @@ class ChatService {
 
             final conversationId = message['conversation_id'] as String;
 
-            // Cập nhật trạng thái đọc trong danh sách chat
             final currentChats = await _dbService.loadChats(userId);
             final updatedChats =
                 currentChats.map((chat) {
@@ -374,7 +342,6 @@ class ChatService {
                   return chat;
                 }).toList();
 
-            // Lưu vào SQLite
             await _dbService.saveChats(userId, updatedChats);
             onUpdate(updatedChats);
           },
@@ -385,9 +352,8 @@ class ChatService {
           table: 'users',
           callback: (payload) async {
             final user = payload.newRecord;
-            await _dbService.saveUser(user); // Cập nhật thông tin người dùng
+            await _dbService.saveUser(user);
 
-            // Cập nhật thông tin người dùng trong danh sách chat
             final currentChats = await _dbService.loadChats(userId);
             final updatedChats =
                 currentChats.map((chat) {
@@ -404,24 +370,19 @@ class ChatService {
                   return chat;
                 }).toList();
 
-            // Lưu vào SQLite
             await _dbService.saveChats(userId, updatedChats);
-
-            // Gọi callback để cập nhật giao diện
             onUpdate(updatedChats);
           },
         )
         .subscribe();
   }
 
-  /// Tải danh sách tin nhắn của một cuộc trò chuyện với phân trang
   Future<List<Map<String, dynamic>>> loadMessages(
     String conversationId, {
-    int limit = 20,
+    int limit = MESSAGE_PAGE_SIZE, // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
     String? beforeSentAt,
   }) async {
     try {
-      // Ưu tiên tải từ SQLite nếu offline
       if (!(await _isOnline())) {
         final localMessages = await _dbService.loadMessages(
           conversationId,
@@ -434,17 +395,15 @@ class ChatService {
         return localMessages;
       }
 
-      // Nếu online, truy vấn Supabase
       var query = _supabase
           .from('messages')
           .select('''
-          id, conversation_id, sender_id, content, sent_at, message_type,
-          users!sender_id(id, full_name, avatar_url, status),
-          message_statuses(user_id, is_read, read_at)
-        ''')
+            id, conversation_id, sender_id, content, sent_at, message_type,
+            users!sender_id(id, full_name, avatar_url, status),
+            message_statuses(user_id, is_read, read_at)
+          ''')
           .eq('conversation_id', conversationId);
 
-      // Thêm điều kiện beforeSentAt nếu có
       if (beforeSentAt != null) {
         query = query.lt('sent_at', beforeSentAt);
       }
@@ -457,10 +416,8 @@ class ChatService {
         'Loaded ${messages.length} messages from Supabase for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
       );
 
-      // Lưu vào SQLite
       if (messages.isNotEmpty) {
         await _dbService.saveMessages(conversationId, messages);
-        // Lưu thông tin người dùng từ messages
         for (var message in messages) {
           if (message['users'] != null) {
             await _dbService.saveUser(message['users']);
@@ -471,7 +428,6 @@ class ChatService {
       return messages;
     } catch (e) {
       print('Error loading messages: $e');
-      // Nếu offline hoặc có lỗi, trả về dữ liệu cục bộ
       final localMessages = await _dbService.loadMessages(
         conversationId,
         limit: limit,
@@ -484,7 +440,6 @@ class ChatService {
     }
   }
 
-  /// Gửi một tin nhắn
   Future<Map<String, dynamic>> sendMessage({
     required String conversationId,
     required String senderId,
@@ -492,12 +447,10 @@ class ChatService {
     String messageType = 'text',
   }) async {
     try {
-      // Kiểm tra mạng trước khi gửi
       if (!(await _isOnline())) {
         throw Exception('Không có kết nối mạng');
       }
 
-      // Chèn tin nhắn mới
       final messageResponse =
           await _supabase
               .from('messages')
@@ -517,7 +470,6 @@ class ChatService {
       final messageId = messageResponse['id'];
       print('Sent message: $messageId');
 
-      // Lưu vào SQLite
       await _dbService.saveMessages(conversationId, [messageResponse]);
       if (messageResponse['users'] != null) {
         await _dbService.saveUser(messageResponse['users']);
@@ -530,10 +482,8 @@ class ChatService {
     }
   }
 
-  /// Đánh dấu tin nhắn là đã đọc
   Future<void> markMessagesAsRead(String conversationId) async {
     try {
-      // Kiểm tra mạng
       if (!(await _isOnline())) {
         print(
           'Offline: Cannot mark messages as read for conversation $conversationId',
@@ -571,7 +521,6 @@ class ChatService {
           'Marked ${unreadMessageIds.length} messages as read for conversation $conversationId',
         );
 
-        // Cập nhật SQLite
         final messages = await loadMessages(conversationId);
         await _dbService.saveMessages(conversationId, messages);
       }
@@ -581,19 +530,16 @@ class ChatService {
     }
   }
 
-  /// Theo dõi các tin nhắn mới trong một cuộc trò chuyện
   RealtimeChannel? _messageChannel;
 
   void subscribeToMessages(
     String conversationId,
     Function(List<Map<String, dynamic>>) onUpdate,
   ) {
-    // Nếu đã có channel, unsubscribe trước
     if (_messageChannel != null) {
       _supabase.removeChannel(_messageChannel!);
     }
 
-    // Tạo channel mới với tên duy nhất cho mỗi conversation
     _messageChannel = _supabase.channel('messages:$conversationId');
 
     _messageChannel!
@@ -607,10 +553,8 @@ class ChatService {
             value: conversationId,
           ),
           callback: (payload) async {
-            // print('Realtime message payload: $payload');
             final newMessage = payload.newRecord;
 
-            // Tải thông tin chi tiết của tin nhắn
             final message =
                 await _supabase
                     .from('messages')
@@ -622,13 +566,11 @@ class ChatService {
                     .eq('id', newMessage['id'])
                     .single();
 
-            // Lưu vào SQLite
             await _dbService.saveMessages(conversationId, [message]);
             if (message['users'] != null) {
               await _dbService.saveUser(message['users']);
             }
 
-            // Gọi callback để cập nhật giao diện
             onUpdate([message]);
           },
         )
@@ -645,7 +587,6 @@ class ChatService {
         });
   }
 
-  /// Hủy subscription cho messages
   void unsubscribeMessages() {
     if (_messageChannel != null) {
       _supabase.removeChannel(_messageChannel!);
@@ -654,7 +595,6 @@ class ChatService {
     }
   }
 
-  /// Cập nhật trạng thái đã đọc cho một đoạn chat
   Future<void> updateChatReadStatus(
     String userId,
     String conversationId,
