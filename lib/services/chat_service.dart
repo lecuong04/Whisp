@@ -198,7 +198,7 @@ class ChatService {
 
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
     try {
-      final localUser = _dbService.loadUser(userId);
+      final localUser = await _dbService.loadUser(userId);
       if (localUser != null) {
         return localUser;
       }
