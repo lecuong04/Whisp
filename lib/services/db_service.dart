@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:whisp/utils/constants.dart'; // Import constants.dart
 
 class DatabaseService {
   static Database? _database;
   static const _databaseName = 'whisp.db';
   static const _databaseVersion = 1;
 
-  // Singleton
   DatabaseService._privateConstructor();
   static final DatabaseService instance = DatabaseService._privateConstructor();
 
@@ -37,8 +37,8 @@ class DatabaseService {
         content TEXT,
         sent_at TEXT,
         message_type TEXT,
-        sender_info TEXT, -- JSON cho users
-        statuses TEXT, -- JSON cho message_statuses
+        sender_info TEXT,
+        statuses TEXT,
         UNIQUE(conversation_id, id)
       )
     ''');
@@ -69,7 +69,6 @@ class DatabaseService {
     print('Created tables: messages, chats, users');
   }
 
-  // Lưu tin nhắn vào SQLite
   Future<void> saveMessages(
     String conversationId,
     List<Map<String, dynamic>> messages,
@@ -93,14 +92,12 @@ class DatabaseService {
     await batch.commit();
     print('Saved ${messages.length} messages for conversation $conversationId');
 
-    // Giữ tối đa 20 tin nhắn mới nhất
     await _trimMessages(conversationId);
   }
 
-  // Xóa tin nhắn cũ, chỉ giữ 20 tin nhắn mới nhất
   Future<void> _trimMessages(String conversationId) async {
     final db = await database;
-    const limit = 20;
+    const limit = MESSAGE_PAGE_SIZE; // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
 
     final countResult = await db.rawQuery(
       'SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?',
@@ -125,16 +122,24 @@ class DatabaseService {
     }
   }
 
-  // Tải tin nhắn từ SQLite
   Future<List<Map<String, dynamic>>> loadMessages(
     String conversationId, {
-    int limit = 20,
+    int limit = MESSAGE_PAGE_SIZE, // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
+    String? beforeSentAt,
   }) async {
     final db = await database;
+    String whereClause = 'conversation_id = ?';
+    List<dynamic> whereArgs = [conversationId];
+
+    if (beforeSentAt != null) {
+      whereClause += ' AND sent_at < ?';
+      whereArgs.add(beforeSentAt);
+    }
+
     final result = await db.query(
       'messages',
-      where: 'conversation_id = ?',
-      whereArgs: [conversationId],
+      where: whereClause,
+      whereArgs: whereArgs,
       orderBy: 'sent_at DESC',
       limit: limit,
     );
@@ -154,12 +159,11 @@ class DatabaseService {
         }).toList();
 
     print(
-      'Loaded ${messages.length} messages from SQLite for conversation $conversationId',
+      'Loaded ${messages.length} messages from SQLite for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
     );
     return messages;
   }
 
-  // Xóa tin nhắn của một cuộc trò chuyện
   Future<void> deleteMessages(String conversationId) async {
     final db = await database;
     await db.delete(
@@ -170,7 +174,6 @@ class DatabaseService {
     print('Deleted messages for conversation $conversationId');
   }
 
-  // Lưu danh sách chat vào SQLite
   Future<void> saveChats(
     String userId,
     List<Map<String, dynamic>> chats,
@@ -197,7 +200,6 @@ class DatabaseService {
     print('Saved ${chats.length} chats for user $userId');
   }
 
-  // Tải danh sách chat từ SQLite
   Future<List<Map<String, dynamic>>> loadChats(String userId) async {
     final db = await database;
     final result = await db.query(
@@ -228,14 +230,12 @@ class DatabaseService {
     return chats;
   }
 
-  // Xóa danh sách chat của một người dùng
   Future<void> deleteChats(String userId) async {
     final db = await database;
     await db.delete('chats', where: 'user_id = ?', whereArgs: [userId]);
     print('Deleted chats for user $userId');
   }
 
-  // Lưu thông tin người dùng vào SQLite
   Future<void> saveUser(Map<String, dynamic> user) async {
     final db = await database;
     await db.insert('users', {
@@ -247,7 +247,6 @@ class DatabaseService {
     print('Saved user ${user['id']} to SQLite');
   }
 
-  // Tải thông tin người dùng từ SQLite
   Future<Map<String, dynamic>?> loadUser(String userId) async {
     final db = await database;
     final result = await db.query(
@@ -273,7 +272,6 @@ class DatabaseService {
     return user;
   }
 
-  // Xóa thông tin người dùng
   Future<void> deleteUser(String userId) async {
     final db = await database;
     await db.delete('users', where: 'id = ?', whereArgs: [userId]);

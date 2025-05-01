@@ -4,6 +4,7 @@ import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 import 'package:whisp/services/user_service.dart';
+import 'package:whisp/utils/constants.dart'; // Import constants.dart
 
 class MessagesScreen extends StatefulWidget {
   final String chatId;
@@ -55,7 +56,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
     });
 
-    // Tải thêm tin nhắn khi cuộn đến đầu
     if (currentScroll <= 100 && _hasMoreMessages && !_isLoadingMore) {
       _loadMoreMessages();
     }
@@ -81,28 +81,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Future<void> _initializeMessages() async {
     try {
-      // Đánh dấu tin nhắn là đã đọc bất đồng bộ
       _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       });
 
-      // Tải từ SQLite hoặc Supabase
       final messages = await _chatService.loadMessages(
         widget.chatId,
-        limit: 20,
+        limit: MESSAGE_PAGE_SIZE, // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
       );
       setState(() {
         _allMessages = messages.reversed.toList();
         _isLoading = false;
-        _hasMoreMessages = messages.length == 20;
+        _hasMoreMessages =
+            messages.length == MESSAGE_PAGE_SIZE; // Sử dụng MESSAGE_PAGE_SIZE
       });
 
-      // Cuộn xuống dưới
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
 
-      // Theo dõi tin nhắn mới qua Realtime
       _chatService.subscribeToMessages(widget.chatId, (updatedMessages) {
         final newMessages =
             updatedMessages.where((newMsg) {
@@ -119,7 +116,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
             return aTime.compareTo(bTime);
           });
 
-          // Đánh dấu tin nhắn là đã đọc nếu đang xem cuộc trò chuyện
           if (newMessages.any((msg) => msg['sender_id'] != myId)) {
             _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
               print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
@@ -157,15 +153,30 @@ class _MessagesScreenState extends State<MessagesScreen> {
       final beforeSentAt = oldestMessage['sent_at'];
       final olderMessages = await _chatService.loadMessages(
         widget.chatId,
-        limit: 20,
+        limit: MESSAGE_PAGE_SIZE, // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
         beforeSentAt: beforeSentAt,
       );
 
-      setState(() {
-        _allMessages.insertAll(0, olderMessages.reversed);
-        _isLoadingMore = false;
-        _hasMoreMessages = olderMessages.length == 20;
-      });
+      if (olderMessages.isNotEmpty) {
+        setState(() {
+          final newMessages =
+              olderMessages.where((newMsg) {
+                return !_allMessages.any(
+                  (oldMsg) => oldMsg['id'] == newMsg['id'],
+                );
+              }).toList();
+          _allMessages.insertAll(0, newMessages.reversed);
+          _isLoadingMore = false;
+          _hasMoreMessages =
+              olderMessages.length ==
+              MESSAGE_PAGE_SIZE; // Sử dụng MESSAGE_PAGE_SIZE
+        });
+      } else {
+        setState(() {
+          _isLoadingMore = false;
+          _hasMoreMessages = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _error = "Lỗi khi tải thêm tin nhắn: $e";
@@ -303,7 +314,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void dispose() {
     _scrollController.dispose();
     _messageController.dispose();
-    _chatService.unsubscribeMessages(); // Hủy subscription khi rời màn hình
+    _chatService.unsubscribeMessages();
     super.dispose();
   }
 }
