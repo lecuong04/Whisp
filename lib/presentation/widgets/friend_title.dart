@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
+import 'package:whisp/presentation/screens/video_call_screen.dart';
 import 'package:whisp/services/chat_service.dart';
 
 class FriendTitle extends StatelessWidget {
@@ -61,6 +63,24 @@ class FriendTitle extends StatelessWidget {
           ),
           title: Text(friend.fullName, style: TextStyle(fontSize: 18)),
           subtitle: Text("@${friend.username}"),
+          trailing: IconButton(
+            onPressed: () async {
+              var data = await ChatService().makeCallRequest(
+                friend.id,
+                30,
+                false,
+              );
+              if (data.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoCallScreen(roomId: data),
+                  ),
+                );
+              }
+            },
+            icon: Icon(Symbols.call),
+          ),
         ),
         Padding(padding: EdgeInsets.only(bottom: 8)),
       ],

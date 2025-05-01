@@ -15,6 +15,7 @@ import 'package:whisp/presentation/screens/friends_page.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/user/add_friend_screen.dart';
 import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
+import 'package:whisp/presentation/screens/video_call_screen.dart';
 import 'package:whisp/presentation/widgets/custom_search.dart';
 import 'package:whisp/services/background_service.dart';
 
@@ -189,17 +190,29 @@ class _HomeScreenState extends State<HomeScreen> {
       case "messages":
         {
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => MessagesScreen(
-                      chatId: uri.queryParameters["conversation_id"]!,
-                      contactName: uri.queryParameters["title"]!,
-                      contactImage: uri.queryParameters["avatar_url"]!,
-                    ),
-              ),
-            );
+            if (uri.queryParameters["type"] == "call") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => VideoCallScreen(
+                        roomId: uri.queryParameters["content"]!,
+                      ),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => MessagesScreen(
+                        chatId: uri.queryParameters["conversation_id"]!,
+                        contactName: uri.queryParameters["title"]!,
+                        contactImage: uri.queryParameters["avatar_url"]!,
+                      ),
+                ),
+              );
+            }
           }
           break;
         }

@@ -16,6 +16,7 @@ import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
+import 'package:whisp/presentation/screens/video_call_screen.dart';
 
 const notificationChannelId = 'Whisp';
 
@@ -139,7 +140,11 @@ Future<void> _showNotification(
               as List<dynamic>)
           .first;
   var senderAvatar = await _getAvatar(avatarsDir, sender["avatar_url"]);
+  var data = payload;
+  data.removeWhere((k, v) => k == "is_group");
+  data["title"] = conversation['title'];
   if (conversation['is_group']) {
+    data["avatar_url"] = conversation["avatar_url"];
     var groupAvatar = await _getAvatar(avatarsDir, conversation["avatar_url"]);
     notificationsPlugin.show(
       notificationId,
@@ -178,9 +183,10 @@ Future<void> _showNotification(
           category: AndroidNotificationCategory.social,
         ),
       ),
-      payload: jsonEncode(payload),
+      payload: jsonEncode(data),
     );
   } else {
+    data["avatar_url"] = sender["avatar_url"];
     notificationsPlugin.show(
       notificationId,
       '<b>${conversation['title']}</b>',
@@ -201,7 +207,7 @@ Future<void> _showNotification(
           category: AndroidNotificationCategory.social,
         ),
       ),
-      payload: jsonEncode(payload),
+      payload: jsonEncode(data),
     );
   }
 
@@ -257,6 +263,12 @@ void backgroundHandler(NotificationResponse response) {
               contactName: data["title"],
               contactImage: data["avatar_url"],
             ),
+      ),
+    );
+    Navigator.push(
+      navigatorKey.currentContext!,
+      MaterialPageRoute(
+        builder: (context) => VideoCallScreen(roomId: data["content"]),
       ),
     );
   } else {

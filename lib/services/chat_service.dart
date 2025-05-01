@@ -626,4 +626,26 @@ class ChatService {
     );
     return data.toString();
   }
+
+  Future<String> makeCallRequest(
+    String otherId,
+    int timeout,
+    bool video_enabled,
+  ) async {
+    try {
+      var data = await _supabase.rpc(
+        "make_call_request",
+        params: {
+          "self_id": _supabase.auth.currentUser!.id,
+          "other_id": otherId,
+          "timeout": timeout,
+          "video_enabled": video_enabled,
+        },
+      );
+      return data;
+    } catch (e) {
+      print(e);
+      return "";
+    }
+  }
 }
