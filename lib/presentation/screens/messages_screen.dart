@@ -161,11 +161,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
         beforeSentAt: beforeSentAt,
       );
 
-      setState(() {
-        _allMessages.insertAll(0, olderMessages.reversed);
-        _isLoadingMore = false;
-        _hasMoreMessages = olderMessages.length == 20;
-      });
+      if (olderMessages.isNotEmpty) {
+        setState(() {
+          // Loại bỏ các tin nhắn trùng lặp dựa trên ID
+          final newMessages =
+              olderMessages.where((newMsg) {
+                return !_allMessages.any(
+                  (oldMsg) => oldMsg['id'] == newMsg['id'],
+                );
+              }).toList();
+          _allMessages.insertAll(0, newMessages.reversed);
+          _isLoadingMore = false;
+          _hasMoreMessages = olderMessages.length == 20;
+        });
+      } else {
+        setState(() {
+          _isLoadingMore = false;
+          _hasMoreMessages = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _error = "Lỗi khi tải thêm tin nhắn: $e";

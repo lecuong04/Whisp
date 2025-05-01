@@ -421,36 +421,40 @@ class ChatService {
     String? beforeSentAt,
   }) async {
     try {
-      // Ưu tiên tải từ SQLite
-      final localMessages = await _dbService.loadMessages(
-        conversationId,
-        limit: limit,
-      );
-
-      // Chỉ trả về dữ liệu cục bộ nếu offline hoặc đang tải tin nhắn cũ hơn
-      if (!(await _isOnline()) || beforeSentAt != null) {
+      // Ưu tiên tải từ SQLite nếu offline
+      if (!(await _isOnline())) {
+        final localMessages = await _dbService.loadMessages(
+          conversationId,
+          limit: limit,
+          beforeSentAt: beforeSentAt,
+        );
         print(
-          'Offline or loading older messages: Returning ${localMessages.length} local messages for conversation $conversationId',
+          'Offline: Returning ${localMessages.length} local messages for conversation $conversationId',
         );
         return localMessages;
       }
 
-      // Nếu online và không phải tải tin nhắn cũ, truy vấn Supabase để lấy tin nhắn mới nhất
+      // Nếu online, truy vấn Supabase
       var query = _supabase
           .from('messages')
           .select('''
-            id, conversation_id, sender_id, content, sent_at, message_type,
-            users!sender_id(id, full_name, avatar_url, status),
-            message_statuses(user_id, is_read, read_at)
-          ''')
+          id, conversation_id, sender_id, content, sent_at, message_type,
+          users!sender_id(id, full_name, avatar_url, status),
+          message_statuses(user_id, is_read, read_at)
+        ''')
           .eq('conversation_id', conversationId);
+
+      // Thêm điều kiện beforeSentAt nếu có
+      if (beforeSentAt != null) {
+        query = query.lt('sent_at', beforeSentAt);
+      }
 
       final messages = await query
           .order('sent_at', ascending: false)
           .limit(limit);
 
       print(
-        'Loaded ${messages.length} messages from Supabase for conversation $conversationId',
+        'Loaded ${messages.length} messages from Supabase for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
       );
 
       // Lưu vào SQLite
@@ -467,13 +471,14 @@ class ChatService {
       return messages;
     } catch (e) {
       print('Error loading messages: $e');
-      // Nếu offline, trả về dữ liệu cục bộ
+      // Nếu offline hoặc có lỗi, trả về dữ liệu cục bộ
       final localMessages = await _dbService.loadMessages(
         conversationId,
         limit: limit,
+        beforeSentAt: beforeSentAt,
       );
       print(
-        'Offline: Returning ${localMessages.length} local messages for conversation $conversationId',
+        'Error/Offline: Returning ${localMessages.length} local messages for conversation $conversationId',
       );
       return localMessages;
     }
