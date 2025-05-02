@@ -175,13 +175,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
         });
       }
     } catch (e) {
-      setState(() {
-        _error = "Lỗi khi tải thêm tin nhắn: $e";
-        _isLoadingMore = false;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thêm tin nhắn')));
-      });
+      _error = "Lỗi khi tải thêm tin nhắn: $e";
+      _isLoadingMore = false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thêm tin nhắn')));
+      setState(() {});
     }
   }
 

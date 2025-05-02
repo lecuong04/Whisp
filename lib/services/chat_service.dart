@@ -8,7 +8,7 @@ class ChatService {
 
   Future<bool> _isOnline() async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    return !connectivityResult.contains(ConnectivityResult.none);
   }
 
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
@@ -331,17 +331,17 @@ class ChatService {
           schema: 'public',
           table: 'message_statuses',
           callback: (payload) async {
-            final messageId = payload.newRecord['message_id'] as String;
-            final isRead = payload.newRecord['is_read'] as bool;
+            // final messageId = payload.newRecord['message_id'] as String;
+            // final isRead = payload.newRecord['is_read'] as bool;
 
-            final message =
-                await _supabase
-                    .from('messages')
-                    .select('conversation_id')
-                    .eq('id', messageId)
-                    .single();
+            // final message =
+            //     await _supabase
+            //         .from('messages')
+            //         .select('conversation_id')
+            //         .eq('id', messageId)
+            //         .single();
 
-            final conversationId = message['conversation_id'] as String;
+            // final conversationId = message['conversation_id'] as String;
 
             // final currentChats = await _dbService.loadChats(userId); // Comment giữ lại từ SQLite
             // final updatedChats = currentChats.map((chat) { // Comment giữ lại từ SQLite
@@ -361,7 +361,7 @@ class ChatService {
           schema: 'public',
           table: 'users',
           callback: (payload) async {
-            final user = payload.newRecord;
+            // final user = payload.newRecord;
             // await _dbService.saveUser(user); // Comment giữ lại từ SQLite
 
             // final currentChats = await _dbService.loadChats(userId); // Comment giữ lại từ SQLite
@@ -669,6 +669,25 @@ class ChatService {
     } catch (e) {
       print(e);
       return "";
+    }
+  }
+
+  Future<Map<String, dynamic>> getConversationInfo(
+    String conversation_id,
+  ) async {
+    try {
+      return ((await _supabase.rpc(
+                "get_conversation_info",
+                params: {
+                  "_conversation_id": conversation_id,
+                  "_user_id": _supabase.auth.currentUser!.id,
+                },
+              ))
+              as List<dynamic>)
+          .first;
+    } catch (e) {
+      print(e);
+      return <String, dynamic>{};
     }
   }
 }
