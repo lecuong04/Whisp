@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:whisp/models/call_info.dart';
@@ -17,6 +19,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   late WebRTCService webRTCService;
   bool isServiceInitialized = false;
   bool isClosed = false;
+  Map<String, dynamic>? otherUser;
 
   @override
   void initState() {
@@ -25,51 +28,59 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   Future<void> initWebRTC() async {
+    if (widget.callInfo.callerId != UserService().id) {
+      otherUser = await UserService().getUser(widget.callInfo.callerId);
+    } else {
+      otherUser = await UserService().getUser(widget.callInfo.calleeId);
+    }
     webRTCService = WebRTCService(
       roomId: widget.callInfo.id,
       selfId: UserService().id!,
       onlyAudio: !widget.callInfo.videoEnabled,
     );
-    webRTCService
-        .initialize()
-        .then((e) {
-          if (mounted) {
-            setState(() {
-              webRTCService.addListener(_onServiceUpdate);
-              isServiceInitialized = true;
-            });
-          }
-        })
-        .catchError((e) {
-          //print("Error initializing WebRTC Service: $e");
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối: $e')));
-            // Navigator.pop(context);
-          }
-        });
+    try {
+      await webRTCService.initialize();
+      setState(() {
+        webRTCService.addListener(onServiceUpdate);
+        isServiceInitialized = true;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối: $e')));
+      dispose();
+    }
+    var now = DateTime.now().toUtc();
+    if (now.compareTo(widget.callInfo.expiresAt) > 0) {
+      Navigator.pop(context);
+      return;
+    }
+    Timer(widget.callInfo.expiresAt.difference(now), () async {
+      if (!webRTCService.isConnectionEstablished) {
+        Navigator.pop(context);
+      }
+    });
   }
 
-  void _onServiceUpdate() {
+  void onServiceUpdate() {
     if (mounted) {
+      setState(() {});
       if (webRTCService.isHangup && !isClosed) {
         isClosed = true;
         Navigator.pop(context);
       }
-      setState(() {});
     }
   }
 
   @override
   void dispose() {
-    webRTCService.removeListener(_onServiceUpdate);
+    webRTCService.removeListener(onServiceUpdate);
     webRTCService.dispose();
     super.dispose();
   }
 
   // Hàm xử lý gác máy từ UI
-  Future<void> _performHangup() async {
+  Future<void> performHangup() async {
     try {
       await webRTCService.hangUp();
     } catch (e) {
@@ -82,7 +93,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
-  Future<void> _performStartCall() async {
+  Future<void> performStartCall() async {
     if (!isServiceInitialized || !webRTCService.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dịch vụ chưa sẵn sàng, vui lòng đợi...')),
@@ -109,7 +120,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        title: isServiceInitialized ? Text(otherUser!["full_name"]) : null,
+        automaticallyImplyLeading: false,
+        leading: IconButton(onPressed: () {}, icon: Icon(Icons.arrow_back)),
+      ),
       body: SafeArea(
         child:
             !isServiceInitialized
@@ -192,7 +207,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.call),
                                 label: const Text('Bắt đầu gọi'),
-                                onPressed: _performStartCall,
+                                onPressed: performStartCall,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
                                 ),
@@ -202,7 +217,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.call_end),
                                 label: const Text('Gác máy'),
-                                onPressed: _performHangup,
+                                onPressed: performHangup,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red,
                                 ),
