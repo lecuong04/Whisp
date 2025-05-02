@@ -53,7 +53,7 @@ class ChatService {
                 .neq('user_id', userId)
                 .eq('is_deleted', false)
                 .limit(1) // Đảm bảo chỉ lấy 1 bản ghi
-                .single();
+                .maybeSingle();
 
         if (friendResponse == null) {
           print('No friend found for conversation: $conversationId');
@@ -291,7 +291,7 @@ class ChatService {
                       .neq('user_id', userId)
                       .eq('is_deleted', false)
                       .limit(1) // Đảm bảo chỉ lấy 1 bản ghi
-                      .single();
+                      .maybeSingle();
 
               if (friendResponse == null) {
                 print('No friend found for conversation $conversationId');
