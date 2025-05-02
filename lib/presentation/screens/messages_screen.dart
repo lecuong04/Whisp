@@ -87,13 +87,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       final messages = await _chatService.loadMessages(
         widget.chatId,
-        limit: MESSAGE_PAGE_SIZE, // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
+        limit: MESSAGE_PAGE_SIZE,
       );
       setState(() {
         _allMessages = messages.reversed.toList();
         _isLoading = false;
-        _hasMoreMessages =
-            messages.length == MESSAGE_PAGE_SIZE; // Sử dụng MESSAGE_PAGE_SIZE
+        _hasMoreMessages = messages.length == MESSAGE_PAGE_SIZE;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -153,7 +152,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       final beforeSentAt = oldestMessage['sent_at'];
       final olderMessages = await _chatService.loadMessages(
         widget.chatId,
-        limit: MESSAGE_PAGE_SIZE, // Sử dụng MESSAGE_PAGE_SIZE thay vì 20
+        limit: MESSAGE_PAGE_SIZE,
         beforeSentAt: beforeSentAt,
       );
 
@@ -167,9 +166,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               }).toList();
           _allMessages.insertAll(0, newMessages.reversed);
           _isLoadingMore = false;
-          _hasMoreMessages =
-              olderMessages.length ==
-              MESSAGE_PAGE_SIZE; // Sử dụng MESSAGE_PAGE_SIZE
+          _hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
         });
       } else {
         setState(() {
@@ -252,7 +249,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {}, // Có thể thêm chức năng gọi video sau
+            onPressed: () {},
             icon: const Icon(FontAwesomeIcons.video),
           ),
         ],
