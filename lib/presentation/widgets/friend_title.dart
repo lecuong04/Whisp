@@ -74,7 +74,9 @@ class FriendTitle extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => VideoCallScreen(roomId: data),
+                    builder:
+                        (context) =>
+                            VideoCallScreen(roomId: data, isOffer: true),
                   ),
                 );
               }

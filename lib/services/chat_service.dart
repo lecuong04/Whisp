@@ -8,7 +8,7 @@ class ChatService {
 
   Future<bool> _isOnline() async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    return !connectivityResult.contains(ConnectivityResult.none);
   }
 
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
@@ -739,6 +739,25 @@ class ChatService {
     } catch (e) {
       print(e);
       return "";
+    }
+  }
+
+  Future<Map<String, dynamic>> getConversationInfo(
+    String conversation_id,
+  ) async {
+    try {
+      return await _supabase
+          .rpc(
+            "get_conversation_info",
+            params: {
+              "_conversation_id": conversation_id,
+              "_user_id": _supabase.auth.currentUser!.id,
+            },
+          )
+          .single();
+    } catch (e) {
+      print(e);
+      return <String, dynamic>{};
     }
   }
 }

@@ -8,19 +8,13 @@ class UserService {
     return _supabase.auth.currentUser?.id;
   }
 
-  Future<Map<String, dynamic>?> getUserInfo(String userId) async {
+  Future<Map<String, dynamic>?> getUser(String userId) async {
     try {
-      final response =
-          await _supabase
-              .rpc('get_user_info', params: {'p_user_id': userId})
-              .single();
-
-      return {
-        'username': response['username'] as String? ?? userId,
-        'avatar_url': response['avatar_url'] ?? '',
-      };
+      return await _supabase
+          .rpc('get_user', params: {'user_id': userId})
+          .single();
     } catch (e) {
-      print('Error fetching user info via RPC: $e');
+      print(e);
       return null;
     }
   }
