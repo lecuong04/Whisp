@@ -51,7 +51,9 @@ class ChatService {
                 )
                 .eq('conversation_id', conversationId)
                 .neq('user_id', userId)
-                .maybeSingle();
+                .eq('is_deleted', false)
+                .limit(1) // Đảm bảo chỉ lấy 1 bản ghi
+                .single();
 
         if (friendResponse == null) {
           print('No friend found for conversation: $conversationId');
@@ -248,12 +250,23 @@ class ChatService {
           schema: 'public',
           table: 'messages',
           callback: (payload) async {
-            print('Received new message event: $payload');
-            final newMessage = payload.newRecord;
-            final conversationId = newMessage['conversation_id'] as String;
-
             try {
-              // Lấy tin nhắn mới nhất
+              final newMessage = payload.newRecord;
+              final conversationId = newMessage['conversation_id'] as String;
+
+              // Kiểm tra xem cuộc trò chuyện có phải là 1-1 không
+              final conversation =
+                  await _supabase
+                      .from('conversations')
+                      .select('is_group')
+                      .eq('id', conversationId)
+                      .single();
+
+              if (conversation['is_group'] == true) {
+                print('Skipping group conversation: $conversationId');
+                return;
+              }
+
               final lastMessage =
                   await _supabase
                       .from('messages')
@@ -277,7 +290,8 @@ class ChatService {
                       .eq('conversation_id', conversationId)
                       .neq('user_id', userId)
                       .eq('is_deleted', false)
-                      .maybeSingle();
+                      .limit(1) // Đảm bảo chỉ lấy 1 bản ghi
+                      .single();
 
               if (friendResponse == null) {
                 print('No friend found for conversation $conversationId');
@@ -294,8 +308,7 @@ class ChatService {
                       .eq('message_id', lastMessage['id'])
                       .eq('user_id', userId)
                       .maybeSingle();
-              final isRead =
-                  lastMessageStatus?['is_read'] ?? false; // Mặc định chưa đọc
+              final isRead = lastMessageStatus?['is_read'] ?? true;
 
               final updatedChat = {
                 'conversation_id': conversationId,
@@ -310,7 +323,7 @@ class ChatService {
                 'is_group': false,
               };
 
-              // Tải lại danh sách chat để đảm bảo nhất quán
+              // Tải lại toàn bộ danh sách chat để đảm bảo nhất quán
               final currentChats = await loadChatsByUserId(userId);
               final updatedChats = [...currentChats];
               final chatIndex = updatedChats.indexWhere(
@@ -330,13 +343,10 @@ class ChatService {
 
               // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
               if (updatedChats.isNotEmpty) {
-                print('Updating chats with new message: $updatedChats');
                 onUpdate(updatedChats);
-              } else {
-                print('No valid chats to update');
               }
             } catch (e) {
-              print('Error processing message event: $e');
+              print('Error processing message insert event: $e');
             }
           },
         )
@@ -344,13 +354,7 @@ class ChatService {
           event: PostgresChangeEvent.update,
           schema: 'public',
           table: 'message_statuses',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: userId,
-          ),
           callback: (payload) async {
-            print('Received message status update: $payload');
             try {
               final messageId = payload.newRecord['message_id'] as String;
               final isRead = payload.newRecord['is_read'] as bool;
@@ -376,11 +380,10 @@ class ChatService {
 
               // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
               if (updatedChats.isNotEmpty) {
-                print('Updating chats with message status: $updatedChats');
                 onUpdate(updatedChats);
               }
             } catch (e) {
-              print('Error processing message status update: $e');
+              print('Error processing message_statuses update event: $e');
             }
           },
         )
@@ -389,7 +392,6 @@ class ChatService {
           schema: 'public',
           table: 'users',
           callback: (payload) async {
-            print('Received user update: $payload');
             try {
               final user = payload.newRecord;
               // await _dbService.saveUser(user); // Comment giữ lại từ SQLite
@@ -414,11 +416,10 @@ class ChatService {
 
               // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
               if (updatedChats.isNotEmpty) {
-                print('Updating chats with user info: $updatedChats');
                 onUpdate(updatedChats);
               }
             } catch (e) {
-              print('Error processing user update: $e');
+              print('Error processing users update event: $e');
             }
           },
         )
@@ -432,16 +433,16 @@ class ChatService {
             value: userId,
           ),
           callback: (payload) async {
-            print('Received conversation participants update: $payload');
             try {
               // Tải lại danh sách chat khi is_deleted thay đổi
               final updatedChats = await loadChatsByUserId(userId);
               if (updatedChats.isNotEmpty) {
-                print('Updating chats with participants: $updatedChats');
                 onUpdate(updatedChats);
               }
             } catch (e) {
-              print('Error processing conversation participants update: $e');
+              print(
+                'Error processing conversation_participants update event: $e',
+              );
             }
           },
         )
@@ -646,9 +647,6 @@ class ChatService {
             value: conversationId,
           ),
           callback: (payload) async {
-            print(
-              'Received new message in conversation $conversationId: $payload',
-            );
             final newMessage = payload.newRecord;
 
             final message =

@@ -33,15 +33,6 @@ class _ChatsState extends State<Chats>
     _initializeUser();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Đăng ký lại subscription khi màn hình được hiển thị
-    if (myId != null && _chatChannel == null) {
-      _subscribeToChats();
-    }
-  }
-
   Future<void> _initializeUser() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
@@ -84,7 +75,6 @@ class _ChatsState extends State<Chats>
       setState(() {
         _chats = chats;
         _isLoading = false;
-        print('Loaded chats: $_chats');
       });
 
       final isOnline =
@@ -96,7 +86,20 @@ class _ChatsState extends State<Chats>
         return;
       }
 
-      _subscribeToChats();
+      // Hủy subscription cũ trước khi tạo mới
+      if (_chatChannel != null) {
+        await Supabase.instance.client.removeChannel(_chatChannel!);
+        _chatChannel = null;
+      }
+
+      _chatChannel = Supabase.instance.client.channel('public:chats:$myId');
+      _chatService.subscribeToChats(myId!, (updatedChats) {
+        if (mounted && updatedChats.isNotEmpty) {
+          setState(() {
+            _chats = updatedChats;
+          });
+        }
+      });
     } catch (e) {
       print('Error loading chats: $e');
       setState(() {
@@ -107,27 +110,6 @@ class _ChatsState extends State<Chats>
         context,
       ).showSnackBar(const SnackBar(content: Text('Không có kết nối mạng')));
     }
-  }
-
-  void _subscribeToChats() {
-    // Hủy subscription cũ trước khi tạo mới
-    if (_chatChannel != null) {
-      Supabase.instance.client.removeChannel(_chatChannel!);
-      _chatChannel = null;
-      print('Unsubscribed from previous chat channel');
-    }
-
-    _chatChannel = Supabase.instance.client.channel('public:chats:$myId');
-    _chatService.subscribeToChats(myId!, (updatedChats) {
-      if (mounted) {
-        setState(() {
-          print('Received updated chats from subscription: $updatedChats');
-          _chats = updatedChats;
-        });
-      } else {
-        print('Widget not mounted, skipping update');
-      }
-    });
   }
 
   void _updateChatReadStatus(String conversationId) {
@@ -152,7 +134,6 @@ class _ChatsState extends State<Chats>
       await _chatService.markChatAsDeleted(myId!, conversationId);
       setState(() {
         _chats.removeWhere((chat) => chat['conversation_id'] == conversationId);
-        print('Deleted chat $conversationId: $_chats');
       });
       ScaffoldMessenger.of(
         context,
@@ -170,7 +151,6 @@ class _ChatsState extends State<Chats>
     if (_chatChannel != null) {
       Supabase.instance.client.removeChannel(_chatChannel!);
       _chatChannel = null;
-      print('Unsubscribed from chat channel on dispose');
     }
     super.dispose();
   }
@@ -255,7 +235,7 @@ class _ChatsState extends State<Chats>
                         final isOnline = chat['friend_status'] == 'online';
                         final isSeen = chat['is_read'] as bool;
                         print(
-                          'Rendering chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
+                          'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
                         );
                         return Column(
                           children: [
@@ -342,8 +322,6 @@ class _ChatsState extends State<Chats>
                                             ),
                                       ),
                                     ).then((result) {
-                                      // Tải lại danh sách chat khi quay về từ MessagesScreen
-                                      _loadChats();
                                       if (result != null &&
                                           result['conversation_id'] != null) {
                                         _updateChatReadStatus(
