@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:whisp/models/friend_request.dart';
 import 'package:whisp/presentation/widgets/friend_request_title.dart';
 import 'package:whisp/services/user_service.dart';
@@ -113,7 +112,7 @@ class _AddFriendScreenState extends State<AddFriendScreen>
                             controller.clear();
                           });
                         },
-                        icon: Icon(Symbols.close),
+                        icon: Icon(Icons.close),
                       )
                       : null,
               filled: true,

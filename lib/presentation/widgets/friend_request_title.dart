@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/friend_request.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/services/chat_service.dart';
@@ -78,7 +77,7 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.grey),
                 ),
-                child: Icon(Symbols.close),
+                child: Icon(Icons.close),
               ),
             ),
           ],
@@ -104,17 +103,17 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
   IconData? _getStatus() {
     String s = widget.request.status;
     if (s == "" || s == "rejected") {
-      return Symbols.add;
+      return Icons.add;
     } else if (s == "pending") {
       if (widget.request.isYourRequest) {
-        return Symbols.send;
+        return Icons.send;
       } else {
-        return Symbols.done;
+        return Icons.done;
       }
     } else if (s == 'accepted') {
-      return Symbols.person;
+      return Icons.person;
     } else {
-      return Symbols.send;
+      return Icons.send;
     }
   }
 }

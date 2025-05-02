@@ -40,7 +40,7 @@ class FriendRequest {
     }
   }
 
-  FriendRequest.json(dynamic data) {
+  FriendRequest.map(Map<String, dynamic> data) {
     _fullName = data["full_name"];
     _username = data["username"];
     _avatarURL = data["avatar_url"] ?? "";

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
+import 'package:whisp/services/call_service.dart';
 import 'package:whisp/services/chat_service.dart';
 
 class FriendTitle extends StatelessWidget {
@@ -63,25 +63,45 @@ class FriendTitle extends StatelessWidget {
           ),
           title: Text(friend.fullName, style: TextStyle(fontSize: 18)),
           subtitle: Text("@${friend.username}"),
-          trailing: IconButton(
-            onPressed: () async {
-              var data = await ChatService().makeCallRequest(
-                friend.id,
-                30,
-                false,
-              );
-              if (data.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            VideoCallScreen(roomId: data, isOffer: true),
-                  ),
-                );
-              }
-            },
-            icon: Icon(Symbols.call),
+          trailing: Wrap(
+            children: [
+              IconButton(
+                onPressed: () async {
+                  var data = await CallService().makeCallRequest(
+                    friend.id,
+                    30,
+                    true,
+                  );
+                  if (data != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => VideoCallScreen(callInfo: data),
+                      ),
+                    );
+                  }
+                },
+                icon: Icon(Icons.videocam),
+              ),
+              IconButton(
+                onPressed: () async {
+                  var data = await CallService().makeCallRequest(
+                    friend.id,
+                    30,
+                    false,
+                  );
+                  if (data != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => VideoCallScreen(callInfo: data),
+                      ),
+                    );
+                  }
+                },
+                icon: Icon(Icons.call),
+              ),
+            ],
           ),
         ),
         Padding(padding: EdgeInsets.only(bottom: 8)),

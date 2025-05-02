@@ -7,7 +7,7 @@ class Tag {
 
   Tag(this.id, this.name, this.color);
 
-  Tag.json(dynamic data) {
+  Tag.map(Map<String, dynamic> data) {
     id = data["id"];
     name = data["name"];
     color = Color(int.parse(data["color"].toString()));

@@ -5,7 +5,6 @@ import 'package:whisp/presentation/widgets/classify_tab_item.dart';
 import 'package:whisp/presentation/widgets/color_slider.dart';
 import 'package:whisp/presentation/widgets/friend_list.dart';
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/services/friend_service.dart';
 import 'package:whisp/services/tag_service.dart';
 import 'package:whisp/services/user_service.dart';
@@ -74,7 +73,7 @@ class _FriendsState extends State<Friends>
                       },
                     );
                   },
-                  icon: Icon(Symbols.tune, fill: 1),
+                  icon: Icon(Icons.tune, fill: 1),
                 ),
                 VerticalDivider(width: 0),
                 Expanded(
@@ -95,7 +94,7 @@ class _FriendsState extends State<Friends>
                   onPressed: () {
                     buildTags();
                   },
-                  icon: Icon(Symbols.refresh),
+                  icon: Icon(Icons.refresh),
                 ),
               ],
             ),
@@ -163,7 +162,7 @@ class _FriendsState extends State<Friends>
             ListTile(
               contentPadding: EdgeInsets.all(0),
               title: Text(t.name),
-              leading: Icon(Symbols.bookmark, color: t.color, fill: 1),
+              leading: Icon(Icons.bookmark, color: t.color, fill: 1),
               trailing: Wrap(
                 children: [
                   IconButton(
@@ -183,7 +182,7 @@ class _FriendsState extends State<Friends>
                         setState(() {});
                       }
                     },
-                    icon: Icon(Symbols.edit),
+                    icon: Icon(Icons.edit),
                   ),
                   IconButton(
                     onPressed: () async {
@@ -192,7 +191,7 @@ class _FriendsState extends State<Friends>
                         setState(() {});
                       }
                     },
-                    icon: Icon(Symbols.delete),
+                    icon: Icon(Icons.delete),
                   ),
                 ],
               ),
@@ -226,7 +225,7 @@ class _FriendsState extends State<Friends>
                     }
                   },
                   label: Text("Thêm thẻ phân loại"),
-                  icon: Icon(Symbols.add),
+                  icon: Icon(Icons.add),
                 ),
               ],
             ),
@@ -266,7 +265,7 @@ class _FriendsState extends State<Friends>
                                 isTap || nameController.text.isNotEmpty ? 4 : 0,
                           ),
                           child: Icon(
-                            Symbols.bookmark,
+                            Icons.bookmark,
                             size: 32,
                             fill: 1,
                             color: selectedColor,
@@ -372,7 +371,7 @@ class _FriendsState extends State<Friends>
                               isTap || nameController.text.isNotEmpty ? 4 : 0,
                         ),
                         child: Icon(
-                          Symbols.bookmark,
+                          Icons.bookmark,
                           size: 32,
                           fill: 1,
                           color: selectedColor,

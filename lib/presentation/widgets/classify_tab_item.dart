@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/tag.dart';
 
 class ClassifyTabItem extends StatelessWidget {
@@ -26,7 +25,7 @@ class ClassifyTabItem extends StatelessWidget {
           spacing: 0,
           children: [
             if (color != null) ...[
-              Icon(Symbols.bookmark, fill: 1, color: color),
+              Icon(Icons.bookmark, fill: 1, color: color),
             ] else
               ...[],
             Text(name, style: TextStyle(fontWeight: FontWeight.bold)),

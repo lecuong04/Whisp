@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/friend_title.dart';
@@ -182,7 +181,7 @@ class _FriendListState extends State<FriendList> {
                         contentPadding: EdgeInsets.all(0),
                         title: Text(t.name),
                         secondary: Icon(
-                          Symbols.bookmark,
+                          Icons.bookmark,
                           fill: 1,
                           color: t.color,
                         ),

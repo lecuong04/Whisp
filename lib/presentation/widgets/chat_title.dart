@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:whisp/utilities.dart';
-import 'package:material_symbols_icons/symbols.dart';
 
 class ChatTitle extends StatefulWidget {
   final String avatarUrl;
@@ -63,7 +62,7 @@ class _ChatTitleState extends State<ChatTitle> {
                 ),
               ),
               const Padding(padding: EdgeInsets.only(right: 2)),
-              const Icon(Symbols.arrow_forward_ios, size: 18),
+              const Icon(Icons.arrow_forward_ios, size: 18),
             ],
           ),
         ],

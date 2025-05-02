@@ -28,7 +28,7 @@ class UserService {
         params: {"search": username, "user_id": _supabase.auth.currentUser?.id},
       );
       for (var item in data) {
-        result.add(FriendRequest.json(item));
+        result.add(FriendRequest.map(item));
       }
     } catch (e) {
       print(e);
@@ -44,7 +44,7 @@ class UserService {
         params: {"user_id": _supabase.auth.currentUser?.id},
       );
       for (var item in data) {
-        result.add(FriendRequest.json(item));
+        result.add(FriendRequest.map(item));
       }
     } catch (e) {
       print(e);

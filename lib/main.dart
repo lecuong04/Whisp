@@ -4,7 +4,6 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
@@ -18,6 +17,7 @@ import 'package:whisp/presentation/screens/user/user_profile_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
 import 'package:whisp/presentation/widgets/custom_search.dart';
 import 'package:whisp/services/background_service.dart';
+import 'package:whisp/services/call_service.dart';
 
 GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () {
             // Xử lý sự kiện khi nhấn vào menu
           },
-          icon: const Icon(Symbols.menu, size: 32),
+          icon: const Icon(Icons.menu, size: 32),
         ),
         actions: [
           IconButton(
@@ -138,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(builder: (context) => AddFriendScreen()),
               );
             },
-            icon: const Icon(Symbols.add_2_rounded, size: 32, fill: 1),
+            icon: const Icon(Icons.add, size: 32, fill: 1),
           ),
         ],
         bottom:
@@ -159,15 +159,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
-          BottomNavigationBarItem(icon: Icon(Symbols.chat), label: 'Tin nhắn'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Tin nhắn'),
           BottomNavigationBarItem(
-            icon: Icon(Symbols.contacts),
+            icon: Icon(Icons.contacts),
             label: 'Danh bạ',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Symbols.person),
-            label: 'Cá nhân',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Cá nhân'),
         ],
         currentIndex: selectedIndex,
         selectedItemColor: Colors.blue,
@@ -191,16 +188,17 @@ class _HomeScreenState extends State<HomeScreen> {
         {
           if (mounted) {
             if (uri.queryParameters["type"] == "call") {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => VideoCallScreen(
-                        roomId: uri.queryParameters["content"]!,
-                        isOffer: false,
-                      ),
-                ),
+              var callInfo = await CallService().getCallInfo(
+                uri.queryParameters["content"]!,
               );
+              if (callInfo != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoCallScreen(callInfo: callInfo),
+                  ),
+                );
+              }
             } else {
               Navigator.push(
                 context,

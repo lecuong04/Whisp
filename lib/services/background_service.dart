@@ -17,6 +17,7 @@ import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
+import 'package:whisp/services/call_service.dart';
 
 const notificationChannelId = 'Whisp';
 
@@ -242,7 +243,7 @@ Future<void> startBackgroundService() async {
 }
 
 @pragma('vm:entry-point')
-void backgroundHandler(NotificationResponse response) {
+void backgroundHandler(NotificationResponse response) async {
   if (response.payload == null || response.payload!.isEmpty) return;
   Map<String, dynamic> data = jsonDecode(response.payload!);
   if (navigatorKey.currentContext != null) {
@@ -266,14 +267,15 @@ void backgroundHandler(NotificationResponse response) {
             ),
       ),
     );
-    Navigator.push(
-      navigatorKey.currentContext!,
-      MaterialPageRoute(
-        builder:
-            (context) =>
-                VideoCallScreen(roomId: data["content"], isOffer: false),
-      ),
-    );
+    var callInfo = await CallService().getCallInfo(data["content"]);
+    if (callInfo != null) {
+      Navigator.push(
+        navigatorKey.currentContext!,
+        MaterialPageRoute(
+          builder: (context) => VideoCallScreen(callInfo: callInfo),
+        ),
+      );
+    }
   } else {
     launchUrl(Uri(scheme: "whisp", host: "messages", queryParameters: data));
   }

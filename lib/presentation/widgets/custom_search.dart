@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/presentation/widgets/friend_title.dart';
 import 'package:whisp/services/friend_service.dart';
@@ -33,7 +32,7 @@ class _CustomSearchState extends State<CustomSearch> {
             controller: controller,
             leading: Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Icon(Symbols.search, size: 24),
+              child: Icon(Icons.search, size: 24),
             ),
             focusNode: focus,
             hintText: "Tìm kiếm...",
@@ -61,7 +60,7 @@ class _CustomSearchState extends State<CustomSearch> {
                     focus.unfocus();
                     setState(() {});
                   },
-                  icon: Icon(Symbols.close),
+                  icon: Icon(Icons.close),
                 ),
               ] else
                 ...[],

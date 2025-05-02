@@ -650,37 +650,15 @@ class ChatService {
     return data.toString();
   }
 
-  Future<String> makeCallRequest(
-    String otherId,
-    int timeout,
-    bool video_enabled,
-  ) async {
-    try {
-      var data = await _supabase.rpc(
-        "make_call_request",
-        params: {
-          "self_id": _supabase.auth.currentUser!.id,
-          "other_id": otherId,
-          "timeout": timeout,
-          "video_enabled": video_enabled,
-        },
-      );
-      return data;
-    } catch (e) {
-      print(e);
-      return "";
-    }
-  }
-
   Future<Map<String, dynamic>> getConversationInfo(
-    String conversation_id,
+    String conversationId,
   ) async {
     try {
       return await _supabase
           .rpc(
             "get_conversation_info",
             params: {
-              "_conversation_id": conversation_id,
+              "_conversation_id": conversationId,
               "_user_id": _supabase.auth.currentUser!.id,
             },
           )

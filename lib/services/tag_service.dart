@@ -14,7 +14,7 @@ class TagService {
         params: {"_user_id": _supabase.auth.currentUser?.id},
       );
       for (dynamic f in data) {
-        output.add(Tag.json(f));
+        output.add(Tag.map(f));
       }
     } catch (e) {
       print(e);
