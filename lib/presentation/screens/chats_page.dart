@@ -123,7 +123,7 @@ class _ChatsState extends State<Chats>
 
   Future<void> _deleteChat(String conversationId) async {
     try {
-      await _chatService.deleteConversation(myId!, conversationId);
+      await _chatService.markChatAsDeleted(myId!, conversationId);
       setState(() {
         _chats.removeWhere((chat) => chat['conversation_id'] == conversationId);
       });

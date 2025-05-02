@@ -13,10 +13,8 @@ class ChatService {
 
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
     try {
-      // final localChats = await _dbService.loadChats(userId); // Comment dòng này
       if (!(await _isOnline())) {
         print('Offline: Returning local chats for user $userId');
-        // return localChats; // Comment dòng này
         throw Exception('Không có kết nối mạng');
       }
 
@@ -33,7 +31,8 @@ class ChatService {
             )
           ''')
           .eq('user_id', userId)
-          .eq('conversations.is_group', false);
+          .eq('conversations.is_group', false)
+          .eq('is_deleted', false); // Chỉ lấy các cuộc trò chuyện chưa bị xóa
 
       final List<Map<String, dynamic>> userChats = response;
 
@@ -58,7 +57,6 @@ class ChatService {
         }
 
         final friend = friendResponse['users'] as Map<String, dynamic>;
-        // await _dbService.saveUser(friend); // Comment dòng này
 
         final lastMessage =
             await _supabase
@@ -108,70 +106,83 @@ class ChatService {
       );
       print('Processed chats: $processedChats');
 
-      // if (processedChats.isNotEmpty) {
-      //   await _dbService.saveChats(userId, processedChats); // Comment dòng này
-      // }
-
       return processedChats;
     } catch (e) {
       print('Error loading chats: $e');
-      // final localChats = await _dbService.loadChats(userId); // Comment dòng này
-      // print(
-      //   'Offline: Returning ${localChats.length} local chats for user $userId',
-      // ); // Comment dòng này
-      // return localChats; // Comment dòng này
       throw Exception('Lỗi khi tải danh sách chat: $e');
     }
   }
 
-  Future<Map<String, dynamic>> createDirectConversation({
-    required String userId1,
-    required String userId2,
-  }) async {
-    try {
-      final existingConversation =
-          await _supabase
-              .from('conversation_participants')
-              .select('conversation_id')
-              .eq('user_id', userId1)
-              .inFilter(
-                'conversation_id',
-                await _supabase
-                    .from('conversation_participants')
-                    .select('conversation_id')
-                    .eq('user_id', userId2)
-                    .eq('conversations.is_group', false),
-              )
-              .maybeSingle();
+  // Future<Map<String, dynamic>> createDirectConversation({
+  //   required String userId1,
+  //   required String userId2,
+  // }) async {
+  //   try {
+  //     final existingConversation =
+  //         await _supabase
+  //             .from('conversation_participants')
+  //             .select('conversation_id')
+  //             .eq('user_id', userId1)
+  //             .inFilter(
+  //               'conversation_id',
+  //               await _supabase
+  //                   .from('conversation_participants')
+  //                   .select('conversation_id')
+  //                   .eq('user_id', userId2)
+  //                   .eq('conversations.is_group', false),
+  //             )
+  //             .maybeSingle();
 
-      if (existingConversation != null) {
-        final conversationId = existingConversation['conversation_id'];
-        print('Existing conversation found: $conversationId');
-        return {'conversation_id': conversationId};
+  //     if (existingConversation != null) {
+  //       final conversationId = existingConversation['conversation_id'];
+  //       print('Existing conversation found: $conversationId');
+  //       return {'conversation_id': conversationId};
+  //     }
+
+  //     final conversationResponse =
+  //         await _supabase
+  //             .from('conversations')
+  //             .insert({'name': null, 'is_group': false, 'created_by': userId1})
+  //             .select('id')
+  //             .single();
+
+  //     final conversationId = conversationResponse['id'];
+  //     print('New conversation created: $conversationId');
+
+  //     await _supabase.from('conversation_participants').insert([
+  //       {'conversation_id': conversationId, 'user_id': userId1},
+  //       {'conversation_id': conversationId, 'user_id': userId2},
+  //     ]);
+
+  //     // final chats = await loadChatsByUserId(userId1); // Comment dòng này
+  //     // await _dbService.saveChats(userId1, chats); // Comment dòng này
+
+  //     return {'conversation_id': conversationId};
+  //   } catch (e) {
+  //     print('Error creating conversation: $e');
+  //     throw Exception('Lỗi khi tạo cuộc trò chuyện: $e');
+  //   }
+  // }
+
+  Future<void> markChatAsDeleted(String userId, String conversationId) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Cần kết nối mạng để xóa cuộc trò chuyện');
       }
 
-      final conversationResponse =
-          await _supabase
-              .from('conversations')
-              .insert({'name': null, 'is_group': false, 'created_by': userId1})
-              .select('id')
-              .single();
+      await _supabase
+          .from('conversation_participants')
+          .update({
+            'is_deleted': true,
+            'deleted_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('conversation_id', conversationId)
+          .eq('user_id', userId);
 
-      final conversationId = conversationResponse['id'];
-      print('New conversation created: $conversationId');
-
-      await _supabase.from('conversation_participants').insert([
-        {'conversation_id': conversationId, 'user_id': userId1},
-        {'conversation_id': conversationId, 'user_id': userId2},
-      ]);
-
-      // final chats = await loadChatsByUserId(userId1); // Comment dòng này
-      // await _dbService.saveChats(userId1, chats); // Comment dòng này
-
-      return {'conversation_id': conversationId};
+      print('Marked conversation $conversationId as deleted for user $userId');
     } catch (e) {
-      print('Error creating conversation: $e');
-      throw Exception('Lỗi khi tạo cuộc trò chuyện: $e');
+      print('Error marking conversation as deleted: $e');
+      throw Exception('Lỗi khi xóa cuộc trò chuyện: $e');
     }
   }
 
@@ -388,17 +399,17 @@ class ChatService {
   }) async {
     try {
       if (!(await _isOnline())) {
-        // final localMessages = await _dbService.loadMessages( // Comment dòng này
-        //   conversationId, // Comment dòng này
-        //   limit: limit, // Comment dòng này
-        //   beforeSentAt: beforeSentAt, // Comment dòng này
-        // ); // Comment dòng này
-        // print( // Comment dòng này
-        //   'Offline: Returning ${localMessages.length} local messages for conversation $conversationId', // Comment dòng này
-        // ); // Comment dòng này
-        // return localMessages; // Comment dòng này
         throw Exception('Không có kết nối mạng');
       }
+
+      // Kiểm tra deleted_at của người dùng hiện tại
+      final participant =
+          await _supabase
+              .from('conversation_participants')
+              .select('deleted_at')
+              .eq('conversation_id', conversationId)
+              .eq('user_id', _supabase.auth.currentUser!.id)
+              .maybeSingle();
 
       var query = _supabase
           .from('messages')
@@ -413,6 +424,10 @@ class ChatService {
         query = query.lt('sent_at', beforeSentAt);
       }
 
+      if (participant != null && participant['deleted_at'] != null) {
+        query = query.gt('sent_at', participant['deleted_at']);
+      }
+
       final messages = await query
           .order('sent_at', ascending: false)
           .limit(limit);
@@ -421,27 +436,9 @@ class ChatService {
         'Loaded ${messages.length} messages from Supabase for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
       );
 
-      // if (messages.isNotEmpty) { // Comment dòng này
-      //   await _dbService.saveMessages(conversationId, messages); // Comment dòng này
-      //   for (var message in messages) { // Comment dòng này
-      //     if (message['users'] != null) { // Comment dòng này
-      //       await _dbService.saveUser(message['users']); // Comment dòng này
-      //     } // Comment dòng này
-      //   } // Comment dòng này
-      // } // Comment dòng này
-
       return messages;
     } catch (e) {
       print('Error loading messages: $e');
-      // final localMessages = await _dbService.loadMessages( // Comment dòng này
-      //   conversationId, // Comment dòng này
-      //   limit: limit, // Comment dòng này
-      //   beforeSentAt: beforeSentAt, // Comment dòng này
-      // ); // Comment dòng này
-      // print( // Comment dòng này
-      //   'Error/Offline: Returning ${localMessages.length} local messages for conversation $conversationId', // Comment dòng này
-      // ); // Comment dòng này
-      // return localMessages; // Comment dòng này
       throw Exception('Lỗi khi tải tin nhắn: $e');
     }
   }
@@ -475,11 +472,6 @@ class ChatService {
 
       final messageId = messageResponse['id'];
       print('Sent message: $messageId');
-
-      // await _dbService.saveMessages(conversationId, [messageResponse]); // Comment dòng này
-      // if (messageResponse['users'] != null) { // Comment dòng này
-      //   await _dbService.saveUser(messageResponse['users']); // Comment dòng này
-      // } // Comment dòng này
 
       return messageResponse;
     } catch (e) {
@@ -526,9 +518,6 @@ class ChatService {
         print(
           'Marked ${unreadMessageIds.length} messages as read for conversation $conversationId',
         );
-
-        // final messages = await loadMessages(conversationId); // Comment dòng này
-        // await _dbService.saveMessages(conversationId, messages); // Comment dòng này
       }
     } catch (e) {
       print('Error marking messages as read: $e');
@@ -571,11 +560,6 @@ class ChatService {
                 ''')
                     .eq('id', newMessage['id'])
                     .single();
-
-            // await _dbService.saveMessages(conversationId, [message]); // Comment dòng này
-            // if (message['users'] != null) { // Comment dòng này
-            //   await _dbService.saveUser(message['users']); // Comment dòng này
-            // } // Comment dòng này
 
             onUpdate([message]);
           },
