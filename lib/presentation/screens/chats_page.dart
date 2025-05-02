@@ -83,10 +83,18 @@ class _ChatsState extends State<Chats>
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Không có kết nối mạng')));
+        return;
       }
 
+      // Hủy subscription cũ trước khi tạo mới
+      if (_chatChannel != null) {
+        await Supabase.instance.client.removeChannel(_chatChannel!);
+        _chatChannel = null;
+      }
+
+      _chatChannel = Supabase.instance.client.channel('public:chats:$myId');
       _chatService.subscribeToChats(myId!, (updatedChats) {
-        if (mounted) {
+        if (mounted && updatedChats.isNotEmpty) {
           setState(() {
             _chats = updatedChats;
           });
