@@ -676,15 +676,15 @@ class ChatService {
     String conversation_id,
   ) async {
     try {
-      return ((await _supabase.rpc(
-                "get_conversation_info",
-                params: {
-                  "_conversation_id": conversation_id,
-                  "_user_id": _supabase.auth.currentUser!.id,
-                },
-              ))
-              as List<dynamic>)
-          .first;
+      return await _supabase
+          .rpc(
+            "get_conversation_info",
+            params: {
+              "_conversation_id": conversation_id,
+              "_user_id": _supabase.auth.currentUser!.id,
+            },
+          )
+          .single();
     } catch (e) {
       print(e);
       return <String, dynamic>{};

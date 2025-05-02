@@ -17,8 +17,6 @@ import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
-import 'package:whisp/services/chat_service.dart';
-import 'package:whisp/services/user_service.dart';
 
 const notificationChannelId = 'Whisp';
 
@@ -127,12 +125,22 @@ Future<void> _showNotification(
   FlutterLocalNotificationsPlugin notificationsPlugin,
   Map<String, dynamic> payload,
 ) async {
-  var conversation = await ChatService().getConversationInfo(
-    payload["conversation_id"],
-  );
+  var conversation =
+      await client
+          .rpc(
+            "get_conversation_info",
+            params: {
+              "_conversation_id": payload["conversation_id"],
+              "_user_id": payload["receiver_id"],
+            },
+          )
+          .single();
   if (conversation.isEmpty) return;
-  var sender = await UserService().getUser(payload["sender_id"]);
-  var senderAvatar = await _getAvatar(avatarsDir, sender!["avatar_url"]);
+  var sender =
+      await client
+          .rpc('get_user', params: {'user_id': payload["sender_id"]})
+          .single();
+  var senderAvatar = await _getAvatar(avatarsDir, sender["avatar_url"]);
   var data = payload;
   data.removeWhere((k, v) => k == "is_group");
   data["title"] = conversation['title'];
@@ -261,7 +269,9 @@ void backgroundHandler(NotificationResponse response) {
     Navigator.push(
       navigatorKey.currentContext!,
       MaterialPageRoute(
-        builder: (context) => VideoCallScreen(roomId: data["content"]),
+        builder:
+            (context) =>
+                VideoCallScreen(roomId: data["content"], isOffer: false),
       ),
     );
   } else {

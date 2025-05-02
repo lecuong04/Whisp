@@ -197,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder:
                       (context) => VideoCallScreen(
                         roomId: uri.queryParameters["content"]!,
+                        isOffer: false,
                       ),
                 ),
               );

@@ -1,53 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:uuid/uuid.dart';
+import 'package:whisp/services/user_service.dart';
 import 'package:whisp/services/webrtc_service.dart';
 
 class VideoCallScreen extends StatefulWidget {
   final String roomId;
+  final bool isOffer;
 
-  const VideoCallScreen({super.key, required this.roomId});
+  const VideoCallScreen({
+    super.key,
+    required this.roomId,
+    required this.isOffer,
+  });
 
   @override
   State<VideoCallScreen> createState() => _VideoCallScreenState();
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
-  // Tạo instance của WebRTCService
-  late WebRTCService _webRTCService;
-  bool _isServiceInitialized = false;
-  bool _isClosed = false;
+  late WebRTCService webRTCService;
+  bool isServiceInitialized = false;
+  bool isClosed = false;
 
   @override
   void initState() {
     super.initState();
-    _webRTCService = WebRTCService(
+    webRTCService = WebRTCService(
       roomId: widget.roomId,
-      selfId: Uuid().v4(),
+      selfId: UserService().id!,
       onlyAudio: false,
     );
-    // Khởi tạo service và gọi hàm initialize của nó
-    _webRTCService
+    webRTCService
         .initialize()
         .then((_) {
-          // Sau khi service khởi tạo xong, thêm listener
           if (mounted) {
-            // Kiểm tra widget còn tồn tại
             setState(() {
-              _webRTCService.addListener(_onServiceUpdate);
-              _isServiceInitialized = true; // Đánh dấu service đã sẵn sàng
+              webRTCService.addListener(_onServiceUpdate);
+              isServiceInitialized = true;
             });
           }
         })
         .catchError((e) {
           //print("Error initializing WebRTC Service: $e");
-          // Hiển thị lỗi cho người dùng nếu cần
           if (mounted) {
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối: $e')));
-            // Có thể pop màn hình nếu khởi tạo thất bại nghiêm trọng
             // Navigator.pop(context);
           }
         });
@@ -69,11 +68,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   // Hàm được gọi mỗi khi WebRTCService gọi notifyListeners()
   void _onServiceUpdate() {
-    // Chỉ cần gọi setState để rebuild UI với dữ liệu mới từ service
     if (mounted) {
-      // Luôn kiểm tra mounted trước khi gọi setState
-      if (_webRTCService.isHangup && !_isClosed) {
-        _isClosed = true;
+      if (webRTCService.isHangup && !isClosed) {
+        isClosed = true;
         Navigator.pop(context);
       }
       setState(() {});
@@ -82,17 +79,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    // Gỡ listener và dispose service khi widget bị hủy
-    _webRTCService.removeListener(_onServiceUpdate);
-    _webRTCService.dispose();
+    webRTCService.removeListener(_onServiceUpdate);
+    webRTCService.dispose();
     super.dispose();
   }
 
   // Hàm xử lý gác máy từ UI
   Future<void> _performHangup() async {
     try {
-      await _webRTCService.hangUp();
-      // Sau khi hangUp thành công, quay lại màn hình trước
+      await webRTCService.hangUp();
     } catch (e) {
       //print("Error during hangup: $e");
       if (mounted) {
@@ -103,16 +98,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
-  // Hàm xử lý bắt đầu gọi từ UI
   Future<void> _performStartCall() async {
-    if (!_isServiceInitialized || !_webRTCService.isInitialized) {
+    if (!isServiceInitialized || !webRTCService.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dịch vụ chưa sẵn sàng, vui lòng đợi...')),
       );
       return;
     }
     try {
-      await _webRTCService.startCall();
+      await webRTCService.startCall();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đang gửi lời mời cuộc gọi...')),
@@ -131,144 +125,130 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Phòng: ${widget.roomId}')),
-      body:
-          !_isServiceInitialized // Hiển thị loading nếu service chưa khởi tạo xong
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                children: [
-                  // --- Vùng hiển thị video ---
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        // Video từ xa
-                        Positioned.fill(
-                          child: Container(
-                            key: const Key('remote_video'),
-                            margin: const EdgeInsets.all(4.0),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                            ),
-                            // Lấy renderer từ service
-                            child: RTCVideoView(
-                              _webRTCService.remoteRenderer,
-                              mirror: false,
-                              objectFit:
-                                  RTCVideoViewObjectFit
-                                      .RTCVideoViewObjectFitContain,
-                            ),
-                          ),
-                        ),
-                        // Video cục bộ (chỉ hiển thị khi có stream local)
-                        if (_webRTCService.localStream != null)
-                          Positioned(
-                            bottom: 16.0,
-                            right: 16.0,
-                            child: SizedBox(
-                              width: 120,
-                              height: 160,
-                              // Lấy renderer từ service
+      body: SafeArea(
+        child:
+            !isServiceInitialized
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          // Video từ xa
+                          Positioned.fill(
+                            child: Container(
+                              margin: const EdgeInsets.all(4.0),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                              ),
                               child: RTCVideoView(
-                                _webRTCService.localRenderer,
-                                mirror: true,
+                                webRTCService.remoteRenderer,
+                                mirror: false,
                                 objectFit:
                                     RTCVideoViewObjectFit
-                                        .RTCVideoViewObjectFitCover,
-                              ),
-                            ),
-                          )
-                        else // Hiển thị placeholder nếu chưa có stream local
-                          Positioned(
-                            bottom: 16.0,
-                            right: 16.0,
-                            child: Container(
-                              width: 120,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withAlpha(25),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.videocam_off,
-                                  color: Colors.white,
-                                  size: 40,
-                                ),
+                                        .RTCVideoViewObjectFitContain,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                  // --- Vùng điều khiển ---
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12.0),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        spacing: 10,
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Nút bắt đầu gọi (chỉ hiển thị nếu chưa kết nối và có stream local)
-                          if (!_webRTCService.isConnectionEstablished &&
-                              _webRTCService.localStream != null)
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.call),
-                              label: const Text('Bắt đầu gọi'),
-                              onPressed:
-                                  _performStartCall, // Gọi hàm xử lý bắt đầu gọi
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
+                          if (webRTCService.localStream != null)
+                            Positioned(
+                              bottom: 16.0,
+                              right: 16.0,
+                              child: SizedBox(
+                                width: 120,
+                                height: 160,
+                                child: RTCVideoView(
+                                  webRTCService.localRenderer,
+                                  mirror: true,
+                                  objectFit:
+                                      RTCVideoViewObjectFit
+                                          .RTCVideoViewObjectFitCover,
+                                ),
+                              ),
+                            )
+                          else
+                            Positioned(
+                              bottom: 16.0,
+                              right: 16.0,
+                              child: Container(
+                                width: 120,
+                                height: 160,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(25),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.videocam_off,
+                                    color: Colors.white,
+                                    size: 40,
+                                  ),
+                                ),
                               ),
                             ),
-
-                          // Nút gác máy (luôn hiển thị khi đã khởi tạo)
-                          if (_isServiceInitialized)
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.call_end),
-                              label: const Text('Gác máy'),
-                              onPressed: _performHangup,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-                            ),
-
-                          if (_webRTCService.isConnectionEstablished) ...[
-                            IconButton(
-                              onPressed: () {
-                                _webRTCService.toggleMic();
-                              },
-                              icon:
-                                  _webRTCService.isAudioOn
-                                      ? Icon(Symbols.mic)
-                                      : Icon(Symbols.mic_off),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                _webRTCService.toggleVideo();
-                              },
-                              icon:
-                                  _webRTCService.isVideoOn
-                                      ? Icon(Symbols.videocam)
-                                      : Icon(Symbols.videocam_off),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                _webRTCService.switchCamera();
-                              },
-                              icon: Icon(Symbols.switch_camera),
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          spacing: 10,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            if (!webRTCService.isConnectionEstablished &&
+                                webRTCService.localStream != null)
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.call),
+                                label: const Text('Bắt đầu gọi'),
+                                onPressed: _performStartCall,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                ),
+                              ),
+
+                            if (isServiceInitialized)
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.call_end),
+                                label: const Text('Gác máy'),
+                                onPressed: _performHangup,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                ),
+                              ),
+
+                            if (webRTCService.isConnectionEstablished) ...[
+                              IconButton(
+                                onPressed: webRTCService.toggleMic,
+                                icon:
+                                    webRTCService.isAudioOn
+                                        ? Icon(Symbols.mic)
+                                        : Icon(Symbols.mic_off),
+                              ),
+                              IconButton(
+                                onPressed: webRTCService.toggleVideo,
+                                icon:
+                                    webRTCService.isVideoOn
+                                        ? Icon(Symbols.videocam)
+                                        : Icon(Symbols.videocam_off),
+                              ),
+                              IconButton(
+                                onPressed: webRTCService.switchCamera,
+                                icon: Icon(Symbols.switch_camera),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+      ),
     );
   }
 }
