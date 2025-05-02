@@ -38,7 +38,12 @@ class WebRTCService extends ChangeNotifier {
   };
   late final Map<String, dynamic> _configuration;
 
-  WebRTCService({required this.roomId, required this.selfId, this.onlyAudio = false, Map<String, dynamic>? iceServers}) {
+  WebRTCService({
+    required this.roomId,
+    required this.selfId,
+    this.onlyAudio = false,
+    Map<String, dynamic>? iceServers,
+  }) {
     if (onlyAudio) _isVideoOn = !onlyAudio;
     Map<String, dynamic> configuration = {"sdpSemantics": "unified-plan"};
     if (iceServers == null || iceServers.isEmpty) {
@@ -97,7 +102,10 @@ class WebRTCService extends ChangeNotifier {
   void _connectSupabaseRealtime() {
     final channelName = 'WebRTC-$roomId';
     print('Connecting to Supabase channel: $channelName');
-    _channel = supabase.channel(channelName, opts: const RealtimeChannelConfig(ack: true, self: false));
+    _channel = supabase.channel(
+      channelName,
+      opts: const RealtimeChannelConfig(ack: true, self: false),
+    );
 
     _channel!
         .onBroadcast(
@@ -121,7 +129,8 @@ class WebRTCService extends ChangeNotifier {
         .subscribe((status, error) {
           if (status == RealtimeSubscribeStatus.subscribed) {
             print('Successfully subscribed to Supabase channel: $channelName');
-          } else if (status == RealtimeSubscribeStatus.channelError || status == RealtimeSubscribeStatus.timedOut) {
+          } else if (status == RealtimeSubscribeStatus.channelError ||
+              status == RealtimeSubscribeStatus.timedOut) {
             print('Error subscribing to channel: $error');
           }
         });
@@ -138,13 +147,17 @@ class WebRTCService extends ChangeNotifier {
 
     _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
       print('ICE Connection State changed: $state');
-      bool connected = state == RTCIceConnectionState.RTCIceConnectionStateConnected || state == RTCIceConnectionState.RTCIceConnectionStateCompleted;
+      bool connected =
+          state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted;
       if (_isConnectionEstablished != connected) {
         _isConnectionEstablished = connected;
         notifyListeners();
       }
 
-      if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected || state == RTCIceConnectionState.RTCIceConnectionStateFailed || state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
         _handleHangup(notifyPeer: false);
       }
     };
@@ -174,7 +187,9 @@ class WebRTCService extends ChangeNotifier {
     }
     try {
       print('Getting user media...');
-      _localStream = await navigator.mediaDevices.getUserMedia(_mediaConstraints);
+      _localStream = await navigator.mediaDevices.getUserMedia(
+        _mediaConstraints,
+      );
       print('Local stream obtained: ${_localStream?.id}');
       _localRenderer.srcObject = _localStream;
 
@@ -194,9 +209,12 @@ class WebRTCService extends ChangeNotifier {
       print('Supabase channel is not initialized.');
       return;
     }
-    print('Sending signal: ${signal}');
+    print('Sending signal: $signal');
     try {
-      await _channel!.sendBroadcastMessage(event: 'signal', payload: {'senderId': selfId, 'data': signal});
+      await _channel!.sendBroadcastMessage(
+        event: 'signal',
+        payload: {'senderId': selfId, 'data': signal},
+      );
     } catch (e) {
       print('Error sending signal via Supabase: $e');
     }
@@ -205,7 +223,10 @@ class WebRTCService extends ChangeNotifier {
   Future<void> _handleOffer(Map<String, dynamic> offerData) async {
     if (_peerConnection == null) return;
     print('Received Offer');
-    RTCSessionDescription offer = RTCSessionDescription(offerData['sdp'], offerData['type']);
+    RTCSessionDescription offer = RTCSessionDescription(
+      offerData['sdp'],
+      offerData['type'],
+    );
     try {
       await _peerConnection!.setRemoteDescription(offer);
       print('Remote Description (Offer) set successfully.');
@@ -213,7 +234,11 @@ class WebRTCService extends ChangeNotifier {
       print('Answer created successfully.');
       await _peerConnection!.setLocalDescription(answer);
       print('Local Description (Answer) set successfully.');
-      _sendSignal({'type': 'answer', 'sdp': answer.sdp, 'type_desc': answer.type});
+      _sendSignal({
+        'type': 'answer',
+        'sdp': answer.sdp,
+        'type_desc': answer.type,
+      });
     } catch (e) {
       print('Error handling offer: $e');
     }
@@ -222,7 +247,10 @@ class WebRTCService extends ChangeNotifier {
   Future<void> _handleAnswer(Map<String, dynamic> answerData) async {
     if (_peerConnection == null) return;
     print('Received Answer');
-    RTCSessionDescription answer = RTCSessionDescription(answerData['sdp'], answerData['type_desc'] ?? answerData['type'] ?? 'answer');
+    RTCSessionDescription answer = RTCSessionDescription(
+      answerData['sdp'],
+      answerData['type_desc'] ?? answerData['type'] ?? 'answer',
+    );
     try {
       await _peerConnection!.setRemoteDescription(answer);
       print('Remote Description (Answer) set successfully.');
@@ -235,7 +263,11 @@ class WebRTCService extends ChangeNotifier {
     if (_peerConnection == null) return;
     print('Received ICE Candidate');
     try {
-      RTCIceCandidate candidate = RTCIceCandidate(candidateData['candidate']['candidate'], candidateData['candidate']['sdpMid'], candidateData['candidate']['sdpMLineIndex']);
+      RTCIceCandidate candidate = RTCIceCandidate(
+        candidateData['candidate']['candidate'],
+        candidateData['candidate']['sdpMid'],
+        candidateData['candidate']['sdpMLineIndex'],
+      );
       await _peerConnection!.addCandidate(candidate);
       print('ICE Candidate added successfully.');
     } catch (e) {
@@ -293,7 +325,10 @@ class WebRTCService extends ChangeNotifier {
     print('Starting call by creating Offer...');
     _offer = true;
     try {
-      RTCSessionDescription offer = await _peerConnection!.createOffer({'offerToReceiveVideo': !onlyAudio, 'offerToReceiveAudio': true});
+      RTCSessionDescription offer = await _peerConnection!.createOffer({
+        'offerToReceiveVideo': !onlyAudio,
+        'offerToReceiveAudio': true,
+      });
       print('Offer created successfully.');
       await _peerConnection!.setLocalDescription(offer);
       print('Local Description (Offer) set successfully.');

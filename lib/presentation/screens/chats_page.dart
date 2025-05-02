@@ -78,7 +78,9 @@ class _ChatsState extends State<Chats>
       });
 
       final isOnline =
-          await Connectivity().checkConnectivity() != ConnectivityResult.none;
+          !(await Connectivity().checkConnectivity()).contains(
+            ConnectivityResult.none,
+          );
       if (!isOnline) {
         ScaffoldMessenger.of(
           context,

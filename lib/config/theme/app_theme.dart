@@ -34,7 +34,7 @@ class AppTheme {
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: primaryColor.withOpacity(0.1),
+      fillColor: primaryColor.withValues(alpha: .1),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -49,7 +49,7 @@ class AppTheme {
 
     // Card Theme
     cardTheme: CardTheme(
-      color: secondaryColor.withOpacity(0.1),
+      color: secondaryColor.withValues(alpha: .1),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
