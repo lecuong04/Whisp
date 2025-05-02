@@ -125,57 +125,57 @@ class ChatService {
     }
   }
 
-  Future<Map<String, dynamic>> createDirectConversation({
-    required String userId1,
-    required String userId2,
-  }) async {
-    try {
-      final existingConversation =
-          await _supabase
-              .from('conversation_participants')
-              .select('conversation_id')
-              .eq('user_id', userId1)
-              .eq('is_deleted', false)
-              .inFilter(
-                'conversation_id',
-                await _supabase
-                    .from('conversation_participants')
-                    .select('conversation_id')
-                    .eq('user_id', userId2)
-                    .eq('conversations.is_group', false),
-              )
-              .maybeSingle();
+  // Future<Map<String, dynamic>> createDirectConversation({
+  //   required String userId1,
+  //   required String userId2,
+  // }) async {
+  //   try {
+  //     final existingConversation =
+  //         await _supabase
+  //             .from('conversation_participants')
+  //             .select('conversation_id')
+  //             .eq('user_id', userId1)
+  //             .eq('is_deleted', false)
+  //             .inFilter(
+  //               'conversation_id',
+  //               await _supabase
+  //                   .from('conversation_participants')
+  //                   .select('conversation_id')
+  //                   .eq('user_id', userId2)
+  //                   .eq('conversations.is_group', false),
+  //             )
+  //             .maybeSingle();
 
-      if (existingConversation != null) {
-        final conversationId = existingConversation['conversation_id'];
-        print('Existing conversation found: $conversationId');
-        return {'conversation_id': conversationId};
-      }
+  //     if (existingConversation != null) {
+  //       final conversationId = existingConversation['conversation_id'];
+  //       print('Existing conversation found: $conversationId');
+  //       return {'conversation_id': conversationId};
+  //     }
 
-      final conversationResponse =
-          await _supabase
-              .from('conversations')
-              .insert({'name': null, 'is_group': false, 'created_by': userId1})
-              .select('id')
-              .single();
+  //     final conversationResponse =
+  //         await _supabase
+  //             .from('conversations')
+  //             .insert({'name': null, 'is_group': false, 'created_by': userId1})
+  //             .select('id')
+  //             .single();
 
-      final conversationId = conversationResponse['id'];
-      print('New conversation created: $conversationId');
+  //     final conversationId = conversationResponse['id'];
+  //     print('New conversation created: $conversationId');
 
-      await _supabase.from('conversation_participants').insert([
-        {'conversation_id': conversationId, 'user_id': userId1},
-        {'conversation_id': conversationId, 'user_id': userId2},
-      ]);
+  //     await _supabase.from('conversation_participants').insert([
+  //       {'conversation_id': conversationId, 'user_id': userId1},
+  //       {'conversation_id': conversationId, 'user_id': userId2},
+  //     ]);
 
-      // final chats = await loadChatsByUserId(userId1); // Comment giữ lại từ SQLite
-      // await _dbService.saveChats(userId1, chats); // Comment giữ lại từ SQLite
+  //     // final chats = await loadChatsByUserId(userId1); // Comment giữ lại từ SQLite
+  //     // await _dbService.saveChats(userId1, chats); // Comment giữ lại từ SQLite
 
-      return {'conversation_id': conversationId};
-    } catch (e) {
-      print('Error creating conversation: $e');
-      throw Exception('Lỗi khi tạo cuộc trò chuyện: $e');
-    }
-  }
+  //     return {'conversation_id': conversationId};
+  //   } catch (e) {
+  //     print('Error creating conversation: $e');
+  //     throw Exception('Lỗi khi tạo cuộc trò chuyện: $e');
+  //   }
+  // }
 
   Future<void> markChatAsDeleted(String userId, String conversationId) async {
     try {
