@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/widgets/chat_title.dart';
 import 'package:whisp/services/chat_service.dart';
-import 'package:whisp/services/db_service.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 class Chats extends StatefulWidget {
@@ -23,7 +22,6 @@ class _ChatsState extends State<Chats>
   String? myId;
   String? myFullName;
   final ChatService _chatService = ChatService();
-  final DatabaseService _dbService = DatabaseService.instance;
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;
   String? _error;
@@ -52,7 +50,7 @@ class _ChatsState extends State<Chats>
         userInfo = await _chatService.getUserInfo(userId);
       } catch (e) {
         print('Error fetching user info: $e');
-        userInfo = await _dbService.loadUser(userId);
+        throw Exception('Lỗi khi tải thông tin người dùng: $e');
       }
 
       final fullName = userInfo?['full_name'] as String? ?? 'User';
@@ -64,9 +62,10 @@ class _ChatsState extends State<Chats>
 
       await _loadChats();
     } catch (e) {
-      _error = "Lỗi khi khởi tạo: $e";
-      _isLoading = false;
-      setState(() {});
+      setState(() {
+        _error = "Lỗi khi khởi tạo: $e";
+        _isLoading = false;
+      });
     }
   }
 
@@ -77,20 +76,16 @@ class _ChatsState extends State<Chats>
         _chats = chats;
         _isLoading = false;
       });
-      // print('Chats loaded in Chats: $_chats');
 
       final isOnline =
           await Connectivity().checkConnectivity() != ConnectivityResult.none;
       if (!isOnline) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đang sử dụng dữ liệu cục bộ (offline)'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Không có kết nối mạng')));
       }
 
       _chatService.subscribeToChats(myId!, (updatedChats) {
-        // print('Chats updated via Realtime in Chats: $updatedChats');
         if (mounted) {
           setState(() {
             _chats = updatedChats;
@@ -99,15 +94,13 @@ class _ChatsState extends State<Chats>
       });
     } catch (e) {
       print('Error loading chats: $e');
-      final localChats = await _dbService.loadChats(myId!);
       setState(() {
-        _chats = localChats;
+        _error = "Lỗi khi tải danh sách chat: $e";
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đang sử dụng dữ liệu cục bộ (offline)')),
-      );
-      print('Loaded ${localChats.length} chats from SQLite in offline mode');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Không có kết nối mạng')));
     }
   }
 
@@ -198,11 +191,22 @@ class _ChatsState extends State<Chats>
         Expanded(
           child:
               _chats.isEmpty
-                  ? const Center(
-                    child: Text(
-                      "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
-                      style: TextStyle(fontSize: 16),
-                      textAlign: TextAlign.center,
+                  ? RefreshIndicator(
+                    onRefresh: () async {
+                      await _loadChats();
+                    },
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height - 100,
+                        child: const Center(
+                          child: Text(
+                            "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
+                            style: TextStyle(fontSize: 16),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
                     ),
                   )
                   : RefreshIndicator(
@@ -324,7 +328,7 @@ class _ChatsState extends State<Chats>
                             const SizedBox(
                               width: double.infinity,
                               child: Divider(height: 8, thickness: 1),
-                            ), // Divider kéo dài hết màn hình
+                            ),
                           ],
                         );
                       },

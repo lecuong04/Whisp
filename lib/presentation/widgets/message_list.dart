@@ -42,7 +42,6 @@ class _MessageListState extends State<MessageList> {
 
   @override
   Widget build(BuildContext context) {
-    // Thêm 1 item ở đầu cho loading hoặc thông báo
     final itemCount = widget.messages.length + 1;
 
     return ListView.builder(
@@ -50,7 +49,6 @@ class _MessageListState extends State<MessageList> {
       padding: const EdgeInsets.symmetric(vertical: 10),
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        // Item đầu: Loading hoặc thông báo
         if (index == 0) {
           if (widget.isLoadingMore) {
             return const Padding(
@@ -68,11 +66,10 @@ class _MessageListState extends State<MessageList> {
               ),
             );
           } else {
-            return const SizedBox.shrink(); // Ẩn nếu không tải và còn tin nhắn
+            return const SizedBox.shrink();
           }
         }
 
-        // Các item tin nhắn
         final messageIndex = index - 1;
         final message = widget.messages[messageIndex];
         final isMe = message['sender_id'] == widget.myId;
