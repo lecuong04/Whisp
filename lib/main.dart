@@ -18,6 +18,7 @@ import 'package:whisp/presentation/screens/video_call_screen.dart';
 import 'package:whisp/presentation/widgets/custom_search.dart';
 import 'package:whisp/services/background_service.dart';
 import 'package:whisp/services/call_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -32,27 +33,24 @@ Future<void> main() async {
   runApp(const WhispApp());
 }
 
-class WhispApp extends StatefulWidget {
+class WhispApp extends StatelessWidget {
   const WhispApp({super.key});
 
   @override
-  State createState() => _WhispAppState();
-}
-
-class _WhispAppState extends State<WhispApp> {
-  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey,
-      // theme: AppTheme.lightTheme,
-      routes: {
-        '/sign_up': (context) => SignupScreen(),
-        '/login': (context) => LoginScreen(),
-        '/home': (context) => HomeScreen(),
-        '/reset_password': (context) => ResetPasswordScreen(),
-      },
-      home: const AuthWrapper(),
+    return ProviderScope(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
+        // theme: AppTheme.lightTheme,
+        routes: {
+          '/sign_up': (context) => SignupScreen(),
+          '/login': (context) => LoginScreen(),
+          '/home': (context) => HomeScreen(),
+          '/reset_password': (context) => ResetPasswordScreen(),
+        },
+        home: const AuthWrapper(),
+      ),
     );
   }
 }
@@ -62,12 +60,11 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Kiểm tra trạng thái đăng nhập
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
-      return const LoginScreen(); // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
+      return const LoginScreen();
     }
-    return HomeScreen(); // Nếu đã đăng nhập, hiển thị màn hình chính
+    return const HomeScreen();
   }
 }
 
@@ -84,7 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
   late PageController pageController;
   late SearchController searchController;
 
-  // Danh sách các màn hình tương ứng với từng tab
   final List<Widget> pages = [
     const Chats(),
     const Friends(),
@@ -125,9 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         leading: IconButton(
-          onPressed: () {
-            // Xử lý sự kiện khi nhấn vào menu
-          },
+          onPressed: () {},
           icon: const Icon(Icons.menu, size: 32),
         ),
         actions: [

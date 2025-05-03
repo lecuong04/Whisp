@@ -253,7 +253,7 @@ void backgroundHandler(NotificationResponse response) async {
     }
     Navigator.pushAndRemoveUntil(
       navigatorKey.currentContext!,
-      MaterialPageRoute(builder: (context) => HomeScreen()),
+      MaterialPageRoute(builder: (context) => const AuthWrapper()),
       (route) => false,
     );
     Navigator.push(

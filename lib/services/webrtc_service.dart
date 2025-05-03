@@ -14,8 +14,6 @@ class WebRTCService extends ChangeNotifier {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
-  // ignore: unused_field
-  bool _offer = false;
   bool _isConnectionEstablished = false;
   bool _isInitialized = false;
   bool _isHangup = false;
@@ -322,8 +320,6 @@ class WebRTCService extends ChangeNotifier {
       print("Call already established.");
       return;
     }
-    print('Starting call by creating Offer...');
-    _offer = true;
     try {
       RTCSessionDescription offer = await _peerConnection!.createOffer({
         'offerToReceiveVideo': !onlyAudio,
