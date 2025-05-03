@@ -78,7 +78,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
-  late PageController pageController;
   late SearchController searchController;
 
   final List<Widget> pages = [
@@ -99,14 +98,12 @@ class _HomeScreenState extends State<HomeScreen> {
       selectedIndex = widget.selectedIndex!;
     }
     searchController = SearchController();
-    pageController = PageController(initialPage: selectedIndex);
     super.initState();
     initRoute();
   }
 
   @override
   void dispose() {
-    pageController.dispose();
     searchController.dispose();
     super.dispose();
   }
@@ -146,11 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
                 : null,
       ),
-      body: PageView(
-        controller: pageController,
-        physics: NeverScrollableScrollPhysics(),
-        children: pages,
-      ),
+      body: IndexedStack(index: selectedIndex, children: pages),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Tin nhắn'),
@@ -167,7 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             searchController.clear();
             selectedIndex = index;
-            pageController.jumpToPage(selectedIndex);
           });
         },
       ),

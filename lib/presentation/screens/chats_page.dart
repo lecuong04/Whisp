@@ -14,11 +14,7 @@ class Chats extends StatefulWidget {
   State<StatefulWidget> createState() => _ChatsState();
 }
 
-class _ChatsState extends State<Chats>
-    with AutomaticKeepAliveClientMixin<Chats> {
-  @override
-  bool get wantKeepAlive => true;
-
+class _ChatsState extends State<Chats> {
   String? myId;
   String? myFullName;
   final ChatService _chatService = ChatService();
@@ -159,7 +155,6 @@ class _ChatsState extends State<Chats>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     if (_isLoading) {
       return const Center(
         child: Column(

@@ -16,7 +16,8 @@ class VideoCallScreen extends StatefulWidget {
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
-  late WebRTCService webRTCService;
+  late WebRTCService service;
+  late Timer timeOut;
   bool isServiceInitialized = false;
   bool isClosed = false;
   Map<String, dynamic>? otherUser;
@@ -33,15 +34,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     } else {
       otherUser = await UserService().getUser(widget.callInfo.calleeId);
     }
-    webRTCService = WebRTCService(
+    service = WebRTCService(
       roomId: widget.callInfo.id,
       selfId: UserService().id!,
       onlyAudio: !widget.callInfo.videoEnabled,
     );
     try {
-      await webRTCService.initialize();
+      await service.initialize();
       setState(() {
-        webRTCService.addListener(onServiceUpdate);
+        service.addListener(onServiceUpdate);
         isServiceInitialized = true;
       });
     } catch (e) {
@@ -55,8 +56,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       Navigator.pop(context);
       return;
     }
-    Timer(widget.callInfo.expiresAt.difference(now), () async {
-      if (!webRTCService.isConnectionEstablished) {
+    timeOut = Timer(widget.callInfo.expiresAt.difference(now), () async {
+      if (!service.isConnectionEstablished) {
         Navigator.pop(context);
       }
     });
@@ -65,7 +66,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   void onServiceUpdate() {
     if (mounted) {
       setState(() {});
-      if (webRTCService.isHangup && !isClosed) {
+      if (service.isHangup && !isClosed) {
         isClosed = true;
         Navigator.pop(context);
       }
@@ -74,15 +75,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    webRTCService.removeListener(onServiceUpdate);
-    webRTCService.dispose();
+    timeOut.cancel();
+    service.removeListener(onServiceUpdate);
+    service.dispose();
     super.dispose();
   }
 
   // Hàm xử lý gác máy từ UI
   Future<void> performHangup() async {
     try {
-      await webRTCService.hangUp();
+      await service.hangUp();
     } catch (e) {
       //print("Error during hangup: $e");
       if (mounted) {
@@ -94,14 +96,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   Future<void> performStartCall() async {
-    if (!isServiceInitialized || !webRTCService.isInitialized) {
+    if (!isServiceInitialized || !service.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dịch vụ chưa sẵn sàng, vui lòng đợi...')),
       );
       return;
     }
     try {
-      await webRTCService.startCall();
+      await service.startCall();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đang gửi lời mời cuộc gọi...')),
@@ -142,7 +144,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 color: Colors.black54,
                               ),
                               child: RTCVideoView(
-                                webRTCService.remoteRenderer,
+                                service.remoteRenderer,
                                 mirror: false,
                                 objectFit:
                                     RTCVideoViewObjectFit
@@ -150,7 +152,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               ),
                             ),
                           ),
-                          if (webRTCService.localStream != null)
+                          if (service.localStream != null)
                             Positioned(
                               bottom: 16.0,
                               right: 16.0,
@@ -158,7 +160,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 width: 120,
                                 height: 160,
                                 child: RTCVideoView(
-                                  webRTCService.localRenderer,
+                                  service.localRenderer,
                                   mirror: true,
                                   objectFit:
                                       RTCVideoViewObjectFit
@@ -202,8 +204,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             if (widget.callInfo.callerId != UserService().id &&
-                                !webRTCService.isConnectionEstablished &&
-                                webRTCService.localStream != null)
+                                !service.isConnectionEstablished &&
+                                service.localStream != null)
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.call),
                                 label: const Text('Bắt đầu gọi'),
@@ -223,24 +225,24 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 ),
                               ),
 
-                            if (webRTCService.isConnectionEstablished) ...[
+                            if (service.isConnectionEstablished) ...[
                               IconButton(
-                                onPressed: webRTCService.toggleMic,
+                                onPressed: service.toggleMic,
                                 icon:
-                                    webRTCService.isAudioOn
+                                    service.isAudioOn
                                         ? Icon(Icons.mic)
                                         : Icon(Icons.mic_off),
                               ),
                               IconButton(
-                                onPressed: webRTCService.toggleVideo,
+                                onPressed: service.toggleVideo,
                                 icon:
-                                    webRTCService.isVideoOn
+                                    service.isVideoOn
                                         ? Icon(Icons.videocam)
                                         : Icon(Icons.videocam_off),
                               ),
-                              if (webRTCService.isVideoOn)
+                              if (service.isVideoOn)
                                 IconButton(
-                                  onPressed: webRTCService.switchCamera,
+                                  onPressed: service.switchCamera,
                                   icon: Icon(Icons.switch_camera),
                                 ),
                             ],
