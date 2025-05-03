@@ -5,6 +5,7 @@ import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 import 'package:whisp/services/user_service.dart';
 import 'package:whisp/utils/constants.dart'; // Import constants.dart
+import 'dart:io';
 
 class MessagesScreen extends StatefulWidget {
   final String chatId;
@@ -212,6 +213,33 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
+  void _sendMedia(File file, String messageType) async {
+    try {
+      final newMessage = await _chatService.sendMessage(
+        conversationId: widget.chatId,
+        senderId: myId,
+        content: '',
+        messageType: messageType,
+        mediaFile: file,
+      );
+
+      setState(() {
+        _allMessages.add(newMessage);
+        _allMessages.sort((a, b) {
+          final aTime = DateTime.parse(a['sent_at']);
+          final bTime = DateTime.parse(b['sent_at']);
+          return aTime.compareTo(bTime);
+        });
+      });
+
+      _scrollToBottom();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi gửi media: $e')));
+    }
+  }
+
   void _onMessageTap(int index) {
     setState(() {
       if (_selectedMessages.contains(index)) {
@@ -289,6 +317,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 controller: _messageController,
                 onSend: _sendMessage,
                 onTextFieldTap: () {},
+                onMediaSelected: _sendMedia,
               ),
             ],
           ),

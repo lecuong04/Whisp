@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MessageList extends StatefulWidget {
   final List<Map<String, dynamic>> messages;
@@ -38,6 +40,89 @@ class _MessageListState extends State<MessageList> {
         _showTimestampIndices.add(index);
       }
     });
+  }
+
+  Widget _buildMessageContent(Map<String, dynamic> message) {
+    final messageType = message['message_type'] as String;
+    final content = message['content'] as String;
+
+    Widget contentWidget;
+    switch (messageType) {
+      case 'image':
+        contentWidget = ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: CachedNetworkImage(
+            imageUrl: content,
+            width: 200,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => const CircularProgressIndicator(),
+            errorWidget: (context, url, error) => const Icon(Icons.error),
+          ),
+        );
+        break;
+      case 'video':
+        contentWidget = GestureDetector(
+          onTap: () async {
+            final url = Uri.parse(content);
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.play_circle_filled,
+              size: 50,
+              color: Colors.blue,
+            ),
+          ),
+        );
+        break;
+      case 'file':
+        contentWidget = GestureDetector(
+          onTap: () async {
+            final url = Uri.parse(content);
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.insert_drive_file, color: Colors.blue),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    content.split('/').last,
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        break;
+      case 'text':
+      default:
+        contentWidget = Text(content, style: const TextStyle(fontSize: 16));
+        break;
+    }
+
+    return FractionallySizedBox(
+      widthFactor: 0.75, // Giới hạn chiều ngang bằng 3/4 màn hình
+      child: contentWidget,
+    );
   }
 
   @override
@@ -124,10 +209,7 @@ class _MessageListState extends State<MessageList> {
                                   ? Border.all(color: Colors.blue, width: 2)
                                   : null,
                         ),
-                        child: Text(
-                          message['content'],
-                          style: const TextStyle(fontSize: 16),
-                        ),
+                        child: _buildMessageContent(message),
                       ),
                       const SizedBox(height: 5),
                       if (showTimestamp)
