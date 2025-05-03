@@ -49,7 +49,7 @@ class UserService {
     } catch (e) {
       print(e);
     }
-    ;
+
     return result;
   }
 
