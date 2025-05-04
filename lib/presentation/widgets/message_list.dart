@@ -61,6 +61,10 @@ class _MessageListState extends State<MessageList> {
         );
         break;
       case 'video':
+        // Giả sử URL thumbnail giống URL video hoặc dùng placeholder
+        // Nếu có URL thumbnail riêng, bạn cần thêm vào dữ liệu message (ví dụ: message['thumbnail_url'])
+        final thumbnailUrl =
+            content; // Thay bằng message['thumbnail_url'] nếu có
         contentWidget = GestureDetector(
           onTap: () async {
             final url = Uri.parse(content);
@@ -68,17 +72,49 @@ class _MessageListState extends State<MessageList> {
               await launchUrl(url);
             }
           },
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.play_circle_filled,
-              size: 50,
-              color: Colors.blue,
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: CachedNetworkImage(
+                  imageUrl: thumbnailUrl,
+                  width: 200,
+                  height: 120, // Kích thước cố định cho video thumbnail
+                  fit: BoxFit.cover,
+                  placeholder:
+                      (context, url) => Container(
+                        width: 200,
+                        height: 120,
+                        color: Colors.grey[300],
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                  errorWidget:
+                      (context, url, error) => Container(
+                        width: 200,
+                        height: 120,
+                        color: Colors.grey[300],
+                        child: const Icon(
+                          Icons.play_circle_filled,
+                          size: 50,
+                          color: Colors.blue,
+                        ),
+                      ),
+                ),
+              ),
+              // Container(
+              //   decoration: BoxDecoration(
+              //     color: Colors.black.withOpacity(0.4),
+              //     shape: BoxShape.circle,
+              //   ),
+              //   padding: const EdgeInsets.all(8),
+              //   child: const Icon(
+              //     Icons.play_circle_filled,
+              //     size: 40,
+              //     color: Colors.white,
+              //   ),
+              // ),
+            ],
           ),
         );
         break;
@@ -119,8 +155,11 @@ class _MessageListState extends State<MessageList> {
         break;
     }
 
-    return FractionallySizedBox(
-      widthFactor: 0.75, // Giới hạn chiều ngang bằng 3/4 màn hình
+    // Sử dụng ConstrainedBox để giới hạn chiều rộng tối đa là 3/4 màn hình
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.75,
+      ),
       child: contentWidget,
     );
   }
@@ -160,6 +199,7 @@ class _MessageListState extends State<MessageList> {
         final isMe = message['sender_id'] == widget.myId;
         final isSelected = widget.selectedMessages.contains(messageIndex);
         final showTimestamp = _showTimestampIndices.contains(messageIndex);
+        final messageType = message['message_type'] as String;
 
         bool isReadByAll = false;
         if (isMe && message['message_statuses'] != null) {
@@ -200,14 +240,17 @@ class _MessageListState extends State<MessageList> {
                             : CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding:
+                            messageType == "text" || messageType == 'file'
+                                ? const EdgeInsets.all(10)
+                                : null,
                         decoration: BoxDecoration(
                           color: isMe ? Colors.blue[100] : Colors.grey[200],
                           borderRadius: BorderRadius.circular(10),
-                          border:
-                              isSelected
-                                  ? Border.all(color: Colors.blue, width: 2)
-                                  : null,
+                          // border:
+                          //     isSelected
+                          //         ? Border.all(color: Colors.blue, width: 2)
+                          //         : null,
                         ),
                         child: _buildMessageContent(message),
                       ),
