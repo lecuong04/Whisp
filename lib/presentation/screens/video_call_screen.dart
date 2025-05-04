@@ -23,6 +23,7 @@ class VideoCallScreen extends StatefulWidget {
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
   Timer? timeOut;
+  Timer? turnExpiry;
   late CallInfo callInfo;
 
   CallManager callManager = CallManager.instance;
@@ -45,13 +46,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     if (callInfo.callerId != UserService().id) {
       otherUser = await UserService().getUser(callInfo.callerId);
     } else {
-      otherUser = await UserService().getUser(callInfo.calleeId);
+      otherUser = await UserService().getUser(callInfo.receiverId);
     }
     if (callManager.service == null) {
       if (!(await callManager.createInstance(
         callId: callInfo.id,
         selfId: UserService().id!,
-        onlyAudio: !callInfo.videoEnabled,
+        isVideoCall: !callInfo.isVideoCall,
         iceServers: callInfo.iceServers,
       ))) {
         ScaffoldMessenger.of(
@@ -66,16 +67,23 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       isServiceInitialized = true;
     });
     var now = DateTime.now().toUtc();
-    // if (now.compareTo(callInfo.expiresAt) > 0) {
-    //   Navigator.pop(context);
-    //   return;
-    // }
-    timeOut = Timer(callInfo.expiresAt.difference(now), () async {
-      if (!callManager.service!.isConnectionEstablished) {
-        dispose();
-        Navigator.pop(context);
-      }
-    });
+    if (callInfo.status != 'pending' && callInfo.status != 'accepted') {
+      dispose();
+      Navigator.pop(context);
+      return;
+    }
+    timeOut = Timer(
+      callInfo.createdAt
+          .add(Duration(seconds: callInfo.timeout))
+          .difference(now),
+      () async {
+        if (!callManager.service!.isConnectionEstablished) {
+          CallService().endCall(callInfo.id);
+          dispose();
+          Navigator.pop(context);
+        }
+      },
+    );
   }
 
   void onServiceUpdate() {
@@ -83,6 +91,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       setState(() {});
       if (callManager.service!.isHangup && !isClosed) {
         isClosed = true;
+        CallService().endCall(callInfo.id);
         Navigator.pop(context);
       }
     }
@@ -90,15 +99,17 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    timeOut?.cancel();
     callManager.service?.removeListener(onServiceUpdate);
-    if (!callManager.service!.isConnectionEstablished) {
+    if (callManager.service != null &&
+        !callManager.service!.isConnectionEstablished) {
       try {
         callManager.removeInstance();
       } catch (e) {
         print(e);
       }
     }
+    timeOut?.cancel();
+    turnExpiry?.cancel();
     super.dispose();
   }
 
@@ -125,6 +136,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
     try {
       await callManager.service!.startCall();
+      CallService().acceptCall(callInfo.id);
+      turnExpiry = Timer(
+        callInfo.createdAt
+            .add(Duration(hours: 4))
+            .difference(DateTime.now().toUtc()),
+        () async {
+          await performHangup();
+        },
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đang gửi lời mời cuộc gọi...')),
@@ -152,12 +172,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       appBar: AppBar(
         title: Text(otherUser!["full_name"]),
         automaticallyImplyLeading: false,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back),
-        ),
+        leading:
+            callManager.service!.isConnectionEstablished
+                ? IconButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  icon: Icon(Icons.arrow_back),
+                )
+                : null,
       ),
       body: SafeArea(
         child: Column(
@@ -179,7 +202,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       ),
                     ),
                   ),
-                  if (callInfo.videoEnabled) ...[
+                  if (callInfo.isVideoCall) ...[
                     if (service.localStream != null)
                       // Video từ local
                       Positioned(
@@ -246,7 +269,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       icon: const Icon(Icons.call_end),
                       label: const Text('Gác máy'),
                       onPressed: () async {
-                        CallService().endCall(callInfo.id);
                         await performHangup();
                       },
                       style: ElevatedButton.styleFrom(
@@ -262,18 +284,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 ? Icon(Icons.mic)
                                 : Icon(Icons.mic_off),
                       ),
-                      IconButton(
-                        onPressed: service.toggleVideo,
-                        icon:
-                            service.isVideoOn
-                                ? Icon(Icons.videocam)
-                                : Icon(Icons.videocam_off),
-                      ),
-                      if (service.isVideoOn)
+                      if (service.isVideoOn) ...[
+                        IconButton(
+                          onPressed: service.toggleVideo,
+                          icon:
+                              service.isVideoOn
+                                  ? Icon(Icons.videocam)
+                                  : Icon(Icons.videocam_off),
+                        ),
                         IconButton(
                           onPressed: service.switchCamera,
                           icon: Icon(Icons.switch_camera),
                         ),
+                      ],
                     ],
                   ],
                 ),

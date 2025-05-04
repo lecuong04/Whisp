@@ -15,14 +15,14 @@ class CallManager extends ChangeNotifier {
   Future<bool> createInstance({
     required String callId,
     required String selfId,
-    bool onlyAudio = false,
+    bool isVideoCall = false,
     Map<String, dynamic>? iceServers,
   }) async {
     try {
       _service = WebRTCService(
         callId: callId,
         selfId: selfId,
-        onlyAudio: onlyAudio,
+        onlyAudio: isVideoCall,
         iceServers: iceServers,
       );
       await _service!.initialize();

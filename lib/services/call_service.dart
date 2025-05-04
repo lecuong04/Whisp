@@ -7,7 +7,7 @@ class CallService {
   Future<CallInfo?> makeCallRequest(
     String otherId,
     int timeout,
-    bool videoEnabled,
+    bool isVideoCall,
   ) async {
     try {
       String userId = _supabase.auth.currentUser!.id;
@@ -16,10 +16,9 @@ class CallService {
               .rpc(
                 "make_call_request",
                 params: {
-                  "self_id": userId,
-                  "other_id": otherId,
-                  "timeout": timeout,
-                  "video_enabled": videoEnabled,
+                  "caller_id": userId,
+                  "receiver_id": otherId,
+                  "is_video_call": isVideoCall,
                 },
               )
               .single();
@@ -54,6 +53,21 @@ class CallService {
       );
     } catch (e) {
       print(e);
+    }
+  }
+
+  Future<bool> acceptCall(String callId) async {
+    try {
+      return await _supabase.rpc(
+        "accept_call",
+        params: {
+          'call_id': callId,
+          'request_user': _supabase.auth.currentUser!.id,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return false;
     }
   }
 }

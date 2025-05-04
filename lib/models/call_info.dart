@@ -1,29 +1,32 @@
 class CallInfo {
   late final String id;
   late final String callerId;
-  late final String calleeId;
+  late final String receiverId;
   late final DateTime createdAt;
-  late final DateTime expiresAt;
-  late final bool videoEnabled;
+  late final String status;
+  late final int timeout;
+  late final bool isVideoCall;
   late final Map<String, dynamic>? iceServers;
 
   CallInfo(
     this.id,
     this.callerId,
-    this.calleeId,
+    this.receiverId,
     this.createdAt,
-    this.expiresAt,
-    this.videoEnabled, {
+    this.status,
+    this.timeout,
+    this.isVideoCall, {
     this.iceServers,
   });
 
   CallInfo.map(Map<String, dynamic> data) {
     id = data["id"];
     callerId = data["caller_id"];
-    calleeId = data["callee_id"];
+    receiverId = data["receiver_id"];
     createdAt = DateTime.parse(data["created_at"]);
-    expiresAt = DateTime.parse(data["expires_at"]);
-    videoEnabled = data["video_enabled"];
+    isVideoCall = data["is_video_call"];
     iceServers = data["ice_servers"];
+    status = data['status'];
+    timeout = data['timeout'];
   }
 }
