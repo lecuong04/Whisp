@@ -67,7 +67,6 @@
             android:value="2" />
 
 		<service
-			android:exported="false"
 			android:enabled="true"
 			android:stopWithTask="false"
 			android:name="id.flutter.flutter_background_service.BackgroundService"
