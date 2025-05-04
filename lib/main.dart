@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:whisp/models/call_manager.dart';
 // import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/reset_password_screen.dart';
@@ -18,9 +19,10 @@ import 'package:whisp/presentation/screens/video_call_screen.dart';
 import 'package:whisp/presentation/widgets/custom_search.dart';
 import 'package:whisp/services/background_service.dart';
 import 'package:whisp/services/call_service.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,19 +40,18 @@ class WhispApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProviderScope(
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navigatorKey,
-        // theme: AppTheme.lightTheme,
-        routes: {
-          '/sign_up': (context) => SignupScreen(),
-          '/login': (context) => LoginScreen(),
-          '/home': (context) => HomeScreen(),
-          '/reset_password': (context) => ResetPasswordScreen(),
-        },
-        home: const AuthWrapper(),
-      ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      navigatorObservers: <NavigatorObserver>[routeObserver],
+      navigatorKey: navigatorKey,
+      // theme: AppTheme.lightTheme,
+      routes: {
+        '/sign_up': (context) => SignupScreen(),
+        '/login': (context) => LoginScreen(),
+        '/home': (context) => HomeScreen(),
+        '/reset_password': (context) => ResetPasswordScreen(),
+      },
+      home: const AuthWrapper(),
     );
   }
 }
@@ -76,15 +77,20 @@ class HomeScreen extends StatefulWidget {
   State<StatefulWidget> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   int selectedIndex = 0;
   late SearchController searchController;
+  CallManager callManager = CallManager.instance;
 
   final List<Widget> pages = [
     const Chats(),
     const Friends(),
     const UserProfileScreen(),
   ];
+
+  void onServiceUpdate() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
@@ -99,13 +105,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     searchController = SearchController();
     super.initState();
+    callManager.addListener(onServiceUpdate);
     initRoute();
   }
 
   @override
   void dispose() {
+    callManager.removeListener(onServiceUpdate);
+    routeObserver.unsubscribe(this);
     searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void didPopNext() async {
+    Future.delayed(Duration(seconds: 1));
+    setState(() {});
   }
 
   @override
@@ -135,10 +156,55 @@ class _HomeScreenState extends State<HomeScreen> {
         bottom:
             selectedIndex != 2
                 ? PreferredSize(
-                  preferredSize: Size(double.infinity, 64),
-                  child: CustomSearch(
-                    page: selectedIndex,
-                    controller: searchController,
+                  preferredSize: Size(
+                    double.infinity,
+                    (callManager.service != null &&
+                            callManager.service?.isConnectionEstablished ==
+                                true)
+                        ? 112
+                        : 64,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      CustomSearch(
+                        page: selectedIndex,
+                        controller: searchController,
+                      ),
+                      if (callManager.service != null &&
+                          callManager.service?.isConnectionEstablished ==
+                              true) ...[
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => VideoCallScreen(
+                                      callId: callManager.service!.callId,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            color: Colors.lightGreen,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                "Trở lại cuộc gọi...",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ] else
+                        ...[],
+                    ],
                   ),
                 )
                 : null,

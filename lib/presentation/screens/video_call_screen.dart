@@ -3,21 +3,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:whisp/models/call_info.dart';
+import 'package:whisp/models/call_manager.dart';
+import 'package:whisp/services/call_service.dart';
 import 'package:whisp/services/user_service.dart';
-import 'package:whisp/services/webrtc_service.dart';
 
 class VideoCallScreen extends StatefulWidget {
-  final CallInfo callInfo;
+  final CallInfo? callInfo;
+  final String? callId;
 
-  const VideoCallScreen({super.key, required this.callInfo});
+  const VideoCallScreen({super.key, this.callInfo, this.callId})
+    : assert(
+        (callInfo == null && callId != null) ||
+            (callInfo != null && callId == null),
+      );
 
   @override
   State<VideoCallScreen> createState() => _VideoCallScreenState();
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
-  late WebRTCService service;
-  late Timer timeOut;
+  Timer? timeOut;
+  late CallInfo callInfo;
+
+  CallManager callManager = CallManager.instance;
   bool isServiceInitialized = false;
   bool isClosed = false;
   Map<String, dynamic>? otherUser;
@@ -25,39 +33,44 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   void initState() {
     super.initState();
-    initWebRTC();
+    initializeCall();
   }
 
-  Future<void> initWebRTC() async {
-    if (widget.callInfo.callerId != UserService().id) {
-      otherUser = await UserService().getUser(widget.callInfo.callerId);
+  Future<void> initializeCall() async {
+    if (widget.callId != null) {
+      callInfo = (await CallService().getCallInfo(widget.callId!))!;
     } else {
-      otherUser = await UserService().getUser(widget.callInfo.calleeId);
+      callInfo = widget.callInfo!;
     }
-    service = WebRTCService(
-      roomId: widget.callInfo.id,
-      selfId: UserService().id!,
-      onlyAudio: !widget.callInfo.videoEnabled,
-    );
-    try {
-      await service.initialize();
-      setState(() {
-        service.addListener(onServiceUpdate);
-        isServiceInitialized = true;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối: $e')));
-      dispose();
+    if (callInfo.callerId != UserService().id) {
+      otherUser = await UserService().getUser(callInfo.callerId);
+    } else {
+      otherUser = await UserService().getUser(callInfo.calleeId);
     }
+    if (callManager.service == null) {
+      if (!(await callManager.createInstance(
+        callId: callInfo.id,
+        selfId: UserService().id!,
+        onlyAudio: !callInfo.videoEnabled,
+      ))) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối!')));
+        dispose();
+        Navigator.pop(context);
+      }
+    }
+    callManager.service!.addListener(onServiceUpdate);
+    isServiceInitialized = true;
+    setState(() {});
     var now = DateTime.now().toUtc();
-    if (now.compareTo(widget.callInfo.expiresAt) > 0) {
-      Navigator.pop(context);
-      return;
-    }
-    timeOut = Timer(widget.callInfo.expiresAt.difference(now), () async {
-      if (!service.isConnectionEstablished) {
+    // if (now.compareTo(callInfo.expiresAt) > 0) {
+    //   Navigator.pop(context);
+    //   return;
+    // }
+    timeOut = Timer(callInfo.expiresAt.difference(now), () async {
+      if (!callManager.service!.isConnectionEstablished) {
+        dispose();
         Navigator.pop(context);
       }
     });
@@ -66,7 +79,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   void onServiceUpdate() {
     if (mounted) {
       setState(() {});
-      if (service.isHangup && !isClosed) {
+      if (callManager.service!.isHangup && !isClosed) {
         isClosed = true;
         Navigator.pop(context);
       }
@@ -75,16 +88,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    timeOut.cancel();
-    service.removeListener(onServiceUpdate);
-    service.dispose();
+    callManager.service?.removeListener(onServiceUpdate);
+    if (!callManager.service!.isConnectionEstablished) {
+      try {
+        callManager.removeInstance();
+      } catch (e) {
+        print(e);
+      }
+    }
+    timeOut?.cancel();
     super.dispose();
   }
 
   // Hàm xử lý gác máy từ UI
   Future<void> performHangup() async {
     try {
-      await service.hangUp();
+      await callManager.service!.hangUp();
     } catch (e) {
       //print("Error during hangup: $e");
       if (mounted) {
@@ -96,14 +115,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   Future<void> performStartCall() async {
-    if (!isServiceInitialized || !service.isInitialized) {
+    if (!isServiceInitialized || !callManager.service!.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dịch vụ chưa sẵn sàng, vui lòng đợi...')),
       );
       return;
     }
     try {
-      await service.startCall();
+      await callManager.service!.startCall();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đang gửi lời mời cuộc gọi...')),
@@ -121,137 +140,142 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!isServiceInitialized) {
+      return Scaffold(
+        body: SafeArea(child: const Center(child: CircularProgressIndicator())),
+      );
+    }
+    var service = callManager.service!;
     return Scaffold(
       appBar: AppBar(
-        title: isServiceInitialized ? Text(otherUser!["full_name"]) : null,
+        title: Text(otherUser!["full_name"]),
         automaticallyImplyLeading: false,
-        leading: IconButton(onPressed: () {}, icon: Icon(Icons.arrow_back)),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back),
+        ),
       ),
       body: SafeArea(
-        child:
-            !isServiceInitialized
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                  children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          // Video từ xa
-                          Positioned.fill(
-                            child: Container(
-                              margin: const EdgeInsets.all(4.0),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                              ),
-                              child: RTCVideoView(
-                                service.remoteRenderer,
-                                mirror: false,
-                                objectFit:
-                                    RTCVideoViewObjectFit
-                                        .RTCVideoViewObjectFitContain,
-                              ),
+        child: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  // Video từ xa
+                  Positioned.fill(
+                    child: Container(
+                      margin: const EdgeInsets.all(4.0),
+                      decoration: const BoxDecoration(color: Colors.black),
+                      child: RTCVideoView(
+                        service.remoteRenderer,
+                        mirror: false,
+                        filterQuality: FilterQuality.medium,
+                        objectFit:
+                            RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                      ),
+                    ),
+                  ),
+                  if (callInfo.videoEnabled) ...[
+                    if (service.localStream != null)
+                      // Video từ local
+                      Positioned(
+                        bottom: 16.0,
+                        right: 16.0,
+                        child: SizedBox(
+                          width: 120,
+                          height: 160,
+                          child: RTCVideoView(
+                            service.localRenderer,
+                            mirror: true,
+                            objectFit:
+                                RTCVideoViewObjectFit
+                                    .RTCVideoViewObjectFitCover,
+                          ),
+                        ),
+                      )
+                    else
+                      Positioned(
+                        bottom: 16.0,
+                        right: 16.0,
+                        child: Container(
+                          width: 120,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(25),
+                            border: Border.all(color: Colors.white, width: 1),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.videocam_off,
+                              color: Colors.white,
+                              size: 40,
                             ),
                           ),
-                          if (service.localStream != null)
-                            Positioned(
-                              bottom: 16.0,
-                              right: 16.0,
-                              child: SizedBox(
-                                width: 120,
-                                height: 160,
-                                child: RTCVideoView(
-                                  service.localRenderer,
-                                  mirror: true,
-                                  objectFit:
-                                      RTCVideoViewObjectFit
-                                          .RTCVideoViewObjectFitCover,
-                                ),
-                              ),
-                            )
-                          else
-                            Positioned(
-                              bottom: 16.0,
-                              right: 16.0,
-                              child: Container(
-                                width: 120,
-                                height: 160,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withAlpha(25),
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.videocam_off,
-                                    color: Colors.white,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          spacing: 10,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            if (widget.callInfo.callerId != UserService().id &&
-                                !service.isConnectionEstablished &&
-                                service.localStream != null)
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.call),
-                                label: const Text('Bắt đầu gọi'),
-                                onPressed: performStartCall,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                ),
-                              ),
-
-                            if (isServiceInitialized)
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.call_end),
-                                label: const Text('Gác máy'),
-                                onPressed: performHangup,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                ),
-                              ),
-
-                            if (service.isConnectionEstablished) ...[
-                              IconButton(
-                                onPressed: service.toggleMic,
-                                icon:
-                                    service.isAudioOn
-                                        ? Icon(Icons.mic)
-                                        : Icon(Icons.mic_off),
-                              ),
-                              IconButton(
-                                onPressed: service.toggleVideo,
-                                icon:
-                                    service.isVideoOn
-                                        ? Icon(Icons.videocam)
-                                        : Icon(Icons.videocam_off),
-                              ),
-                              if (service.isVideoOn)
-                                IconButton(
-                                  onPressed: service.switchCamera,
-                                  icon: Icon(Icons.switch_camera),
-                                ),
-                            ],
-                          ],
                         ),
                       ),
+                  ],
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  spacing: 10,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (callInfo.callerId != UserService().id &&
+                        !service.isConnectionEstablished &&
+                        service.localStream != null)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.call),
+                        label: const Text('Bắt đầu gọi'),
+                        onPressed: performStartCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
+                      ),
+
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.call_end),
+                      label: const Text('Gác máy'),
+                      onPressed: performHangup,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
                     ),
+
+                    if (service.isConnectionEstablished) ...[
+                      IconButton(
+                        onPressed: service.toggleMic,
+                        icon:
+                            service.isAudioOn
+                                ? Icon(Icons.mic)
+                                : Icon(Icons.mic_off),
+                      ),
+                      IconButton(
+                        onPressed: service.toggleVideo,
+                        icon:
+                            service.isVideoOn
+                                ? Icon(Icons.videocam)
+                                : Icon(Icons.videocam_off),
+                      ),
+                      if (service.isVideoOn)
+                        IconButton(
+                          onPressed: service.switchCamera,
+                          icon: Icon(Icons.switch_camera),
+                        ),
+                    ],
                   ],
                 ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

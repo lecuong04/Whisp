@@ -8,7 +8,7 @@ class WebRTCService extends ChangeNotifier {
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   final supabase = Supabase.instance.client;
   final String selfId;
-  final String roomId;
+  final String callId;
   final bool onlyAudio;
 
   RTCPeerConnection? _peerConnection;
@@ -37,11 +37,11 @@ class WebRTCService extends ChangeNotifier {
   late final Map<String, dynamic> _configuration;
 
   WebRTCService({
-    required this.roomId,
+    required this.callId,
     required this.selfId,
     this.onlyAudio = false,
     Map<String, dynamic>? iceServers,
-  }) {
+  }) : assert(callId.isNotEmpty && selfId.isNotEmpty) {
     if (onlyAudio) _isVideoOn = !onlyAudio;
     Map<String, dynamic> configuration = {"sdpSemantics": "unified-plan"};
     if (iceServers == null || iceServers.isEmpty) {
@@ -98,7 +98,7 @@ class WebRTCService extends ChangeNotifier {
   }
 
   void _connectSupabaseRealtime() {
-    final channelName = 'WebRTC-$roomId';
+    final channelName = 'WebRTC-$callId';
     print('Connecting to Supabase channel: $channelName');
     _channel = supabase.channel(
       channelName,

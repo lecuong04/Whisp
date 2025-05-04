@@ -53,7 +53,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Divider(height: 1),
+          Divider(height: 8),
           SizedBox(
             height: 46,
             child: Row(

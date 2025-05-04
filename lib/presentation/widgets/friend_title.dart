@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whisp/models/call_manager.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
@@ -9,6 +10,30 @@ class FriendTitle extends StatelessWidget {
   final Friend friend;
   final GestureLongPressCallback? onLongPress;
   const FriendTitle({required this.friend, super.key, this.onLongPress});
+
+  static Future<void> _makeCall(
+    BuildContext context,
+    String friendId,
+    bool videoEnabled,
+  ) async {
+    CallManager callManager = CallManager.instance;
+    if (callManager.service != null &&
+        callManager.service?.isConnectionEstablished == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cuộc gọi hiện tại chưa kết thúc!')),
+      );
+      return;
+    }
+    var data = await CallService().makeCallRequest(friendId, 30, videoEnabled);
+    if (data != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoCallScreen(callInfo: data),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,37 +92,13 @@ class FriendTitle extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () async {
-                  var data = await CallService().makeCallRequest(
-                    friend.id,
-                    30,
-                    true,
-                  );
-                  if (data != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => VideoCallScreen(callInfo: data),
-                      ),
-                    );
-                  }
+                  await _makeCall(context, friend.id, true);
                 },
                 icon: Icon(Icons.videocam),
               ),
               IconButton(
                 onPressed: () async {
-                  var data = await CallService().makeCallRequest(
-                    friend.id,
-                    30,
-                    false,
-                  );
-                  if (data != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => VideoCallScreen(callInfo: data),
-                      ),
-                    );
-                  }
+                  await _makeCall(context, friend.id, false);
                 },
                 icon: Icon(Icons.call),
               ),
