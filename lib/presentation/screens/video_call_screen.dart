@@ -145,6 +145,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         body: SafeArea(child: const Center(child: CircularProgressIndicator())),
       );
     }
+    if (callManager.service == null) {
+      Navigator.pop(context);
+    }
     var service = callManager.service!;
     return Scaffold(
       appBar: AppBar(
