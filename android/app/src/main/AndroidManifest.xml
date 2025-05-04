@@ -11,10 +11,12 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-	<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
 	<uses-permission android:name="android.permission.WAKE_LOCK"/>
 	<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     
     <application
         android:label="Whisp"
@@ -65,10 +67,11 @@
             android:value="2" />
 
 		<service
+			android:exported="false"
 			android:enabled="true"
 			android:stopWithTask="false"
 			android:name="id.flutter.flutter_background_service.BackgroundService"
-			android:foregroundServiceType="dataSync"/>
+			android:foregroundServiceType="remoteMessaging|microphone"/>
     </application>
 
     <!-- Required to query activities that can process text -->

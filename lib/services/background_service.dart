@@ -235,7 +235,10 @@ Future<void> startBackgroundService() async {
       initialNotificationTitle: 'Whisp Service',
       initialNotificationContent: 'Service is running...',
       foregroundServiceNotificationId: notificationId + 1,
-      foregroundServiceTypes: [AndroidForegroundType.dataSync],
+      foregroundServiceTypes: [
+        AndroidForegroundType.remoteMessaging,
+        AndroidForegroundType.microphone,
+      ],
     ),
     iosConfiguration: IosConfiguration(),
   );
