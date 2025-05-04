@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   ];
 
   void onServiceUpdate() {
-    if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) => setState(() {}));
   }
 
   @override

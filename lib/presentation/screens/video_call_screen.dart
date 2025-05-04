@@ -52,6 +52,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         callId: callInfo.id,
         selfId: UserService().id!,
         onlyAudio: !callInfo.videoEnabled,
+        iceServers: callInfo.iceServers,
       ))) {
         ScaffoldMessenger.of(
           context,
@@ -244,7 +245,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                     ElevatedButton.icon(
                       icon: const Icon(Icons.call_end),
                       label: const Text('Gác máy'),
-                      onPressed: performHangup,
+                      onPressed: () async {
+                        CallService().endCall(callInfo.id);
+                        await performHangup();
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                       ),

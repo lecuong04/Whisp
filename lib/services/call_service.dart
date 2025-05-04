@@ -10,12 +10,13 @@ class CallService {
     bool videoEnabled,
   ) async {
     try {
+      String userId = _supabase.auth.currentUser!.id;
       var data =
           await _supabase
               .rpc(
                 "make_call_request",
                 params: {
-                  "self_id": _supabase.auth.currentUser!.id,
+                  "self_id": userId,
                   "other_id": otherId,
                   "timeout": timeout,
                   "video_enabled": videoEnabled,
@@ -39,6 +40,20 @@ class CallService {
     } catch (e) {
       print(e);
       return null;
+    }
+  }
+
+  Future<void> endCall(String callId) async {
+    try {
+      await _supabase.rpc(
+        "end_call",
+        params: {
+          'call_id': callId,
+          'request_user': _supabase.auth.currentUser!.id,
+        },
+      );
+    } catch (e) {
+      print(e);
     }
   }
 }
