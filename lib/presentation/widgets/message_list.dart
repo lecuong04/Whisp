@@ -197,7 +197,7 @@ class _MessageListState extends State<MessageList> {
         final messageIndex = index - 1;
         final message = widget.messages[messageIndex];
         final isMe = message['sender_id'] == widget.myId;
-        final isSelected = widget.selectedMessages.contains(messageIndex);
+        // final isSelected = widget.selectedMessages.contains(messageIndex);
         final showTimestamp = _showTimestampIndices.contains(messageIndex);
         final messageType = message['message_type'] as String;
 
