@@ -61,8 +61,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       }
     }
     callManager.service!.addListener(onServiceUpdate);
-    isServiceInitialized = true;
-    setState(() {});
+    setState(() {
+      isServiceInitialized = true;
+    });
     var now = DateTime.now().toUtc();
     // if (now.compareTo(callInfo.expiresAt) > 0) {
     //   Navigator.pop(context);
@@ -88,6 +89,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
+    timeOut?.cancel();
     callManager.service?.removeListener(onServiceUpdate);
     if (!callManager.service!.isConnectionEstablished) {
       try {
@@ -96,7 +98,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         print(e);
       }
     }
-    timeOut?.cancel();
     super.dispose();
   }
 
@@ -144,9 +145,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       return Scaffold(
         body: SafeArea(child: const Center(child: CircularProgressIndicator())),
       );
-    }
-    if (callManager.service == null) {
-      Navigator.pop(context);
     }
     var service = callManager.service!;
     return Scaffold(
