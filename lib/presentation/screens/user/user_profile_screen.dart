@@ -12,11 +12,7 @@ class UserProfileScreen extends StatefulWidget {
   State createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen>
-    with AutomaticKeepAliveClientMixin<UserProfileScreen> {
-  @override
-  bool get wantKeepAlive => true;
-
+class _UserProfileScreenState extends State<UserProfileScreen> {
   final user = Supabase.instance.client.auth.currentUser;
 
   String? fullName;
@@ -170,7 +166,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

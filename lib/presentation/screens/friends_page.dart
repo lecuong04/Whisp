@@ -16,11 +16,7 @@ class Friends extends StatefulWidget {
   State<StatefulWidget> createState() => _FriendsState();
 }
 
-class _FriendsState extends State<Friends>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin<Friends> {
-  @override
-  bool get wantKeepAlive => true;
-
+class _FriendsState extends State<Friends> with TickerProviderStateMixin {
   late TabController tabController;
   var friends = FriendService().listFriends();
   List<ClassifyTabItem> tags = List.empty(growable: true);
@@ -52,8 +48,6 @@ class _FriendsState extends State<Friends>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-
     return Scaffold(
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,

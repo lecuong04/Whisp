@@ -18,7 +18,7 @@ class MessageInput extends StatefulWidget {
   });
 
   @override
-  _MessageInputState createState() => _MessageInputState();
+  State createState() => _MessageInputState();
 }
 
 class _MessageInputState extends State<MessageInput>
@@ -50,7 +50,7 @@ class _MessageInputState extends State<MessageInput>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+    final bottomInset = View.of(context).viewInsets.bottom;
     if (bottomInset == 0 && _mediaOverlay != null) {
       _removeOverlay();
     }
