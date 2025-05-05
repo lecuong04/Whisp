@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:whisp/models/tag.dart';
@@ -34,9 +35,19 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
       },
     );
     buildTags();
+    updateFriendStatuses();
   }
 
-  Future buildTags() async {
+  void updateFriendStatuses() {
+    Timer(Duration(minutes: 2), () async {
+      var friends = await FriendService().listFriends();
+      if (friends.isEmpty) return;
+      this.friends = Future.value(friends);
+      setState(() {});
+    });
+  }
+
+  Future<void> buildTags() async {
     tags.clear();
     for (Tag t in await TagService().listTags()) {
       tags.add(ClassifyTabItem.tag(tag: t));
