@@ -61,10 +61,7 @@ class _MessageListState extends State<MessageList> {
         );
         break;
       case 'video':
-        // Giả sử URL thumbnail giống URL video hoặc dùng placeholder
-        // Nếu có URL thumbnail riêng, bạn cần thêm vào dữ liệu message (ví dụ: message['thumbnail_url'])
-        final thumbnailUrl =
-            content; // Thay bằng message['thumbnail_url'] nếu có
+        final thumbnailUrl = content;
         contentWidget = GestureDetector(
           onTap: () async {
             final url = Uri.parse(content);
@@ -80,7 +77,7 @@ class _MessageListState extends State<MessageList> {
                 child: CachedNetworkImage(
                   imageUrl: thumbnailUrl,
                   width: 200,
-                  height: 120, // Kích thước cố định cho video thumbnail
+                  height: 120,
                   fit: BoxFit.cover,
                   placeholder:
                       (context, url) => Container(
@@ -102,18 +99,6 @@ class _MessageListState extends State<MessageList> {
                       ),
                 ),
               ),
-              // Container(
-              //   decoration: BoxDecoration(
-              //     color: Colors.black.withOpacity(0.4),
-              //     shape: BoxShape.circle,
-              //   ),
-              //   padding: const EdgeInsets.all(8),
-              //   child: const Icon(
-              //     Icons.play_circle_filled,
-              //     size: 40,
-              //     color: Colors.white,
-              //   ),
-              // ),
             ],
           ),
         );
@@ -149,16 +134,82 @@ class _MessageListState extends State<MessageList> {
           ),
         );
         break;
+      case 'call':
+        final callInfo = message['call_info'] as Map<String, dynamic>?;
+        if (callInfo == null) {
+          contentWidget = const Text(
+            'Cuộc gọi không xác định',
+            style: TextStyle(fontSize: 16),
+          );
+        } else {
+          final isVideoCall = callInfo['is_video_call'] as bool;
+          final status = callInfo['status'] as String;
+          String displayText;
+          IconData icon;
+
+          switch (status) {
+            case 'accepted':
+            case 'ended':
+              displayText =
+                  isVideoCall
+                      ? 'Cuộc gọi video đã kết thúc'
+                      : 'Cuộc gọi đã kết thúc';
+              icon = isVideoCall ? Icons.videocam : Icons.phone;
+              break;
+            case 'missed':
+              displayText = isVideoCall ? 'Cuộc gọi video nhỡ' : 'Cuộc gọi nhỡ';
+              icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
+              break;
+            case 'rejected':
+              displayText =
+                  isVideoCall
+                      ? 'Cuộc gọi video bị từ chối'
+                      : 'Cuộc gọi bị từ chối';
+              icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
+              break;
+            default:
+              displayText = 'Cuộc gọi không xác định';
+              icon = Icons.phone;
+          }
+
+          contentWidget = Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  color:
+                      status == 'missed' || status == "rejected"
+                          ? Colors.red
+                          : Colors.blue,
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    displayText,
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        break;
       case 'text':
       default:
         contentWidget = Text(content, style: const TextStyle(fontSize: 16));
         break;
     }
 
-    // Sử dụng ConstrainedBox để giới hạn chiều rộng tối đa là 3/4 màn hình
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.75,
+        maxWidth: MediaQuery.of(context).size.width * 0.7,
       ),
       child: contentWidget,
     );
@@ -197,7 +248,6 @@ class _MessageListState extends State<MessageList> {
         final messageIndex = index - 1;
         final message = widget.messages[messageIndex];
         final isMe = message['sender_id'] == widget.myId;
-        // final isSelected = widget.selectedMessages.contains(messageIndex);
         final showTimestamp = _showTimestampIndices.contains(messageIndex);
         final messageType = message['message_type'] as String;
 
@@ -241,16 +291,14 @@ class _MessageListState extends State<MessageList> {
                     children: [
                       Container(
                         padding:
-                            messageType == "text" || messageType == 'file'
+                            messageType == "text" ||
+                                    messageType == 'file' ||
+                                    messageType == 'call'
                                 ? const EdgeInsets.all(10)
                                 : null,
                         decoration: BoxDecoration(
                           color: isMe ? Colors.blue[100] : Colors.grey[200],
                           borderRadius: BorderRadius.circular(10),
-                          // border:
-                          //     isSelected
-                          //         ? Border.all(color: Colors.blue, width: 2)
-                          //         : null,
                         ),
                         child: _buildMessageContent(message),
                       ),

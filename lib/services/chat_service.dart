@@ -133,7 +133,7 @@ class ChatService {
                 .eq('conversation_id', conversationId)
                 .neq('user_id', userId)
                 .eq('is_deleted', false)
-                .limit(1) // Đảm bảo chỉ lấy 1 bản ghi
+                .limit(1)
                 .maybeSingle();
 
         if (friendResponse == null) {
@@ -165,12 +165,12 @@ class ChatService {
                   .maybeSingle();
           isRead = lastMessageStatus?['is_read'] ?? true;
 
-          // Xử lý hiển thị last_message dựa trên message_type
           final messageType = lastMessage['message_type'] as String;
           displayMessage = switch (messageType) {
             'image' => 'Hình ảnh',
             'video' => 'Video',
             'file' => 'File',
+            'call' => 'Cuộc gọi',
             _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
           };
 
@@ -294,7 +294,6 @@ class ChatService {
               final newMessage = payload.newRecord;
               final conversationId = newMessage['conversation_id'] as String;
 
-              // Kiểm tra xem cuộc trò chuyện có phải là 1-1 không
               final conversation =
                   await _supabase
                       .from('conversations')
@@ -330,7 +329,7 @@ class ChatService {
                       .eq('conversation_id', conversationId)
                       .neq('user_id', userId)
                       .eq('is_deleted', false)
-                      .limit(1) // Đảm bảo chỉ lấy 1 bản ghi
+                      .limit(1)
                       .maybeSingle();
 
               if (friendResponse == null) {
@@ -350,12 +349,12 @@ class ChatService {
                       .maybeSingle();
               final isRead = lastMessageStatus?['is_read'] ?? true;
 
-              // Xử lý hiển thị last_message dựa trên message_type
               final messageType = lastMessage['message_type'] as String;
               final displayMessage = switch (messageType) {
                 'image' => 'Hình ảnh',
                 'video' => 'Video',
                 'file' => 'File',
+                'call' => 'Cuộc gọi',
                 _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
               };
 
@@ -372,7 +371,6 @@ class ChatService {
                 'is_group': false,
               };
 
-              // Tải lại toàn bộ danh sách chat để đảm bảo nhất quán
               final currentChats = await loadChatsByUserId(userId);
               final updatedChats = [...currentChats];
               final chatIndex = updatedChats.indexWhere(
@@ -417,7 +415,6 @@ class ChatService {
 
               final conversationId = message['conversation_id'] as String;
 
-              // Tải lại danh sách chat để cập nhật trạng thái is_read
               final currentChats = await loadChatsByUserId(userId);
               final updatedChats =
                   currentChats.map((chat) {
@@ -445,7 +442,6 @@ class ChatService {
               final user = payload.newRecord;
               // await _dbService.saveUser(user); // Comment giữ lại từ SQLite
 
-              // Tải lại danh sách chat để cập nhật thông tin người dùng
               final currentChats = await loadChatsByUserId(userId);
               final updatedChats =
                   currentChats.map((chat) {
@@ -483,7 +479,6 @@ class ChatService {
           ),
           callback: (payload) async {
             try {
-              // Tải lại danh sách chat khi is_deleted thay đổi
               final updatedChats = await loadChatsByUserId(userId);
               if (updatedChats.isNotEmpty) {
                 onUpdate(updatedChats);
@@ -553,6 +548,20 @@ class ChatService {
       final messages = await query
           .order('sent_at', ascending: false)
           .limit(limit);
+
+      // Fetch call request details for messages with message_type = 'call'
+      for (var message in messages) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo =
+              await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
 
       print(
         'Loaded ${messages.length} messages from Supabase for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
@@ -666,6 +675,17 @@ class ChatService {
                 ''')
                     .eq('id', newMessage['id'])
                     .single();
+
+            if (message['message_type'] == 'call') {
+              final callId = message['content'];
+              final callInfo =
+                  await _supabase
+                      .from('call_requests')
+                      .select('is_video_call, status, created_at, ended_at')
+                      .eq('id', callId)
+                      .maybeSingle();
+              message['call_info'] = callInfo;
+            }
 
             // await _dbService.saveMessages(conversationId, [message]); // Comment giữ lại từ SQLite
             // if (message['users'] != null) { // Comment giữ lại từ SQLite
