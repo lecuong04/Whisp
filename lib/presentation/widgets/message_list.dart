@@ -292,9 +292,7 @@ class _MessageListState extends State<MessageList> {
                     children: [
                       Container(
                         padding:
-                            messageType == "text" ||
-                                    messageType == 'file' ||
-                                    messageType == 'call'
+                            messageType == "text"
                                 ? const EdgeInsets.all(10)
                                 : null,
                         decoration: BoxDecoration(
