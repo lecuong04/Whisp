@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:whisp/utils/constants.dart';
 
 class MessageList extends StatefulWidget {
   final List<Map<String, dynamic>> messages;
@@ -209,7 +210,7 @@ class _MessageListState extends State<MessageList> {
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.7,
+        maxWidth: MediaQuery.of(context).size.width * MESSAGE_BOX_MAX_SIZE,
       ),
       child: contentWidget,
     );
