@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:whisp/models/friend.dart';
 import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/classify_tab_item.dart';
 import 'package:whisp/presentation/widgets/color_slider.dart';
@@ -20,6 +21,7 @@ class Friends extends StatefulWidget {
 class _FriendsState extends State<Friends> with TickerProviderStateMixin {
   late TabController tabController;
   var friends = FriendService().listFriends();
+  List<Friend> oldFriends = List.empty();
   List<ClassifyTabItem> tags = List.empty(growable: true);
   int selectedIndex = 0;
 
@@ -40,6 +42,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
 
   void updateFriendStatuses() {
     Timer(Duration(minutes: 2), () async {
+      oldFriends = await this.friends;
       var friends = await FriendService().listFriends();
       if (friends.isEmpty) return;
       this.friends = Future.value(friends);
@@ -108,6 +111,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
           Expanded(
             child: FutureBuilder(
               future: friends,
+              initialData: oldFriends,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Column(
