@@ -192,7 +192,9 @@ Future<void> _showNotification(
     notificationsPlugin.show(
       notificationId,
       '<b>${conversation['title']}</b>',
-      payload['content'],
+      payload['type'] == 'call'
+          ? "<i>Có cuộc gọi đến...</i>"
+          : payload["content"],
       NotificationDetails(
         android: AndroidNotificationDetails(
           notificationChannelId,
@@ -204,6 +206,7 @@ Future<void> _showNotification(
           groupKey: payload["conversation_id"],
           tag: payload["conversation_id"],
           icon: 'ic_bg_service_small',
+          sound: UriAndroidNotificationSound("default"),
           styleInformation: DefaultStyleInformation(true, true),
           ongoing: false,
           category: AndroidNotificationCategory.social,
