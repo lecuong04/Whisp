@@ -284,7 +284,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 ? Icon(Icons.mic)
                                 : Icon(Icons.mic_off),
                       ),
-                      if (service.isVideoOn) ...[
+                      if (callInfo.isVideoCall) ...[
                         IconButton(
                           onPressed: service.toggleVideo,
                           icon:
