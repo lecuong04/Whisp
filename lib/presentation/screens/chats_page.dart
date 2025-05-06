@@ -196,23 +196,22 @@ class _ChatsState extends State<Chats> {
         Expanded(
           child:
               _chats.isEmpty
-                  ? RefreshIndicator(
-                    onRefresh: () async {
-                      await _loadChats();
-                    },
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.height - 100,
-                        child: const Center(
-                          child: Text(
-                            "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
-                            style: TextStyle(fontSize: 16),
-                            textAlign: TextAlign.center,
-                          ),
+                  ? Stack(
+                    children: [
+                      RefreshIndicator(
+                        onRefresh: () async {
+                          await _loadChats();
+                        },
+                        child: ListView(),
+                      ),
+                      const Center(
+                        child: Text(
+                          "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
+                          style: TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                    ),
+                    ],
                   )
                   : RefreshIndicator(
                     child: ListView.builder(
