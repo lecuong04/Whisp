@@ -101,6 +101,60 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
   }
 
+  Future<void> handleUpdatePassword() async {
+    final currentContext = context;
+
+    showModalBottomSheet(
+      context: currentContext,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return PasswordUpdateModal(
+          onSave: (currentPassword, newPassword, confirmPassword) async {
+            if (newPassword != confirmPassword) {
+              ScaffoldMessenger.of(currentContext).showSnackBar(
+                const SnackBar(content: Text('Mật khẩu xác nhận không khớp')),
+              );
+              return;
+            }
+
+            try {
+              // Vì Supabase không hỗ trợ xác minh mật khẩu cũ trực tiếp, bạn cần xác thực lại:
+              final email = user!.email!;
+              final res = await Supabase.instance.client.auth
+                  .signInWithPassword(email: email, password: currentPassword);
+
+              if (res.user == null) {
+                ScaffoldMessenger.of(currentContext).showSnackBar(
+                  const SnackBar(content: Text('Mật khẩu hiện tại không đúng')),
+                );
+                return;
+              }
+
+              // Cập nhật mật khẩu
+              await Supabase.instance.client.auth.updateUser(
+                UserAttributes(password: newPassword),
+              );
+
+              if (mounted) {
+                Navigator.pop(context); // đóng bottom sheet
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cập nhật mật khẩu thành công')),
+                );
+              }
+            } catch (e) {
+              ScaffoldMessenger.of(
+                currentContext,
+              ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+            }
+          },
+        );
+      },
+    );
+  }
+
   Future<void> handleUpdateInfo() async {
     // Kiểm tra user có tồn tại không
     if (user == null) {
@@ -220,7 +274,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               username ?? 'Cập nhật ngay',
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
             // Nút chỉnh sửa
             ElevatedButton.icon(
@@ -229,6 +283,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               },
               icon: Icon(Icons.edit),
               label: Text('Chỉnh sửa thông tin'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 48),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            ElevatedButton.icon(
+              onPressed: () => handleUpdatePassword(),
+              icon: Icon(Icons.lock),
+              label: Text('Cập nhật mật khẩu'),
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 48),
               ),
@@ -334,6 +399,84 @@ class _EditProfileModalState extends State<EditProfileModal> {
               });
             },
             child: Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PasswordUpdateModal extends StatefulWidget {
+  final Function(
+    String currentPassword,
+    String newPassword,
+    String confirmPassword,
+  )
+  onSave;
+
+  const PasswordUpdateModal({super.key, required this.onSave});
+
+  @override
+  State<PasswordUpdateModal> createState() => _PasswordUpdateModalState();
+}
+
+class _PasswordUpdateModalState extends State<PasswordUpdateModal> {
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Cập nhật mật khẩu',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _currentPasswordController,
+            decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại'),
+            obscureText: true,
+          ),
+          TextField(
+            controller: _newPasswordController,
+            decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+            obscureText: true,
+          ),
+          TextField(
+            controller: _confirmPasswordController,
+            decoration: const InputDecoration(
+              labelText: 'Xác nhận mật khẩu mới',
+            ),
+            obscureText: true,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              widget.onSave(
+                _currentPasswordController.text,
+                _newPasswordController.text,
+                _confirmPasswordController.text,
+              );
+            },
+            child: const Text('Cập nhật'),
           ),
         ],
       ),
