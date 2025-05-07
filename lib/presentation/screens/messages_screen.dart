@@ -274,12 +274,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           },
           icon: const Icon(FontAwesomeIcons.chevronLeft),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(FontAwesomeIcons.video),
-          ),
-        ],
       ),
       body: Stack(
         children: [

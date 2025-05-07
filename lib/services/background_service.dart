@@ -206,10 +206,16 @@ Future<void> _showNotification(
           groupKey: payload["conversation_id"],
           tag: payload["conversation_id"],
           icon: 'ic_bg_service_small',
-          sound: UriAndroidNotificationSound("default"),
+          priority:
+              payload['type'] == 'call'
+                  ? Priority.high
+                  : Priority.defaultPriority,
           styleInformation: DefaultStyleInformation(true, true),
-          ongoing: false,
           category: AndroidNotificationCategory.social,
+          audioAttributesUsage:
+              payload['type'] == 'call'
+                  ? AudioAttributesUsage.notificationRingtone
+                  : AudioAttributesUsage.notification,
         ),
       ),
       payload: jsonEncode(data),

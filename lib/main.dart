@@ -4,6 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/models/call_manager.dart';
 // import 'package:whisp/config/theme/app_theme.dart';
@@ -26,6 +27,9 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
   await dotenv.load(fileName: ".env");
   await Supabase.initialize(
     url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
