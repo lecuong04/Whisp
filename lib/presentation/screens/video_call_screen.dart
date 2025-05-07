@@ -179,7 +179,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         title: Text(otherUser!["full_name"]),
         automaticallyImplyLeading: false,
         leading:
-            callManager.service!.isConnectionEstablished
+            service.isConnectionEstablished
                 ? IconButton(
                   onPressed: () {
                     Navigator.pop(context);

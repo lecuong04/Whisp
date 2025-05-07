@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void didPopNext() async {
     await Future.delayed(Duration(seconds: 1));
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
