@@ -188,6 +188,7 @@ Future<void> _showNotification(
       payload: jsonEncode(data),
     );
   } else {
+    const int insistentFlag = 4;
     data["avatar_url"] = sender["avatar_url"];
     notificationsPlugin.show(
       notificationId,
@@ -212,10 +213,10 @@ Future<void> _showNotification(
                   : Priority.defaultPriority,
           styleInformation: DefaultStyleInformation(true, true),
           category: AndroidNotificationCategory.social,
-          audioAttributesUsage:
+          additionalFlags:
               payload['type'] == 'call'
-                  ? AudioAttributesUsage.notificationRingtone
-                  : AudioAttributesUsage.notification,
+                  ? Int32List.fromList(<int>[insistentFlag])
+                  : null,
         ),
       ),
       payload: jsonEncode(data),

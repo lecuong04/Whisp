@@ -64,7 +64,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
     callManager.service!.addListener(onServiceUpdate);
     setState(() {
-      isServiceInitialized = true;
+      if (callManager.service != null) {
+        isServiceInitialized = true;
+      } else {
+        Navigator.pop(context);
+      }
     });
     var now = DateTime.now().toUtc();
     if (callInfo.status != 'pending' && callInfo.status != 'accepted') {
@@ -77,7 +81,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           .add(Duration(seconds: callInfo.timeout))
           .difference(now),
       () async {
-        if (!callManager.service!.isConnectionEstablished) {
+        if (callManager.service != null &&
+            !callManager.service!.isConnectionEstablished) {
           CallService().endCall(callInfo.id);
           dispose();
           Navigator.pop(context);
@@ -118,7 +123,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     try {
       await callManager.service!.hangUp();
     } catch (e) {
-      //print("Error during hangup: $e");
+      print("Error during hangup: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -128,7 +133,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   Future<void> performStartCall() async {
-    if (!isServiceInitialized || !callManager.service!.isInitialized) {
+    if (!isServiceInitialized ||
+        (callManager.service != null && !callManager.service!.isInitialized)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dịch vụ chưa sẵn sàng, vui lòng đợi...')),
       );
@@ -151,7 +157,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         );
       }
     } catch (e) {
-      //print("Error starting call: $e");
+      print("Error starting call: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
