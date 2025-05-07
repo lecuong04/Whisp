@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:whisp/models/call_manager.dart';
 import 'package:whisp/models/friend.dart';
@@ -66,7 +67,7 @@ class FriendTitle extends StatelessWidget {
                 CircleAvatar(
                   backgroundImage:
                       friend.avatarUrl.isNotEmpty
-                          ? NetworkImage(friend.avatarUrl)
+                          ? CachedNetworkImageProvider(friend.avatarUrl)
                           : null,
                   radius: 26,
                 ),

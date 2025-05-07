@@ -116,6 +116,11 @@ Future<Uint8List?> _getAvatar(Directory avatarsDir, String avatarUrl) async {
     } catch (_) {
       isAvatarError = true;
     }
+  } else {
+    if (imgFile.lastModifiedSync().day > 15) {
+      imgFile.deleteSync();
+      return _getAvatar(avatarsDir, avatarUrl);
+    }
   }
   return isAvatarError ? null : imgFile.readAsBytesSync();
 }

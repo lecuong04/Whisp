@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:whisp/utilities.dart';
 
@@ -76,7 +77,7 @@ class _ChatTitleState extends State<ChatTitle> {
             CircleAvatar(
               backgroundImage:
                   widget.avatarUrl.isNotEmpty
-                      ? NetworkImage(widget.avatarUrl)
+                      ? CachedNetworkImageProvider(widget.avatarUrl)
                       : null,
               radius: 26,
             ),

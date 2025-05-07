@@ -1,5 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -95,7 +97,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(data: {'avatar_url': url}),
     );
-
+    (await DefaultCacheManager().getFileFromCache(url))?.file.deleteSync();
     setState(() {
       avatarUrl = url;
     });
@@ -232,7 +234,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 radius: 50,
                 backgroundImage:
                     avatarUrl != null && avatarUrl!.isNotEmpty
-                        ? NetworkImage(avatarUrl!)
+                        ? CachedNetworkImageProvider(avatarUrl!)
                         : null,
                 child: Align(
                   alignment: Alignment.bottomRight,
