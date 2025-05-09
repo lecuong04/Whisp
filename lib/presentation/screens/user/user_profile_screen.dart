@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -44,6 +46,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (shouldLogout == true) {
       FlutterBackgroundService().invoke("stopBackground");
       await Supabase.instance.client.auth.signOut();
+      await DefaultCacheManager().emptyCache();
 
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       ScaffoldMessenger.of(
@@ -91,8 +94,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     await storage
         .from('avatars')
         .upload(avatarPath, file, fileOptions: const FileOptions(upsert: true));
-
-    final url = storage.from('avatars').getPublicUrl(avatarPath);
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      await DefaultCacheManager().removeFile(avatarUrl!);
+    }
+    final url =
+        "${storage.from('avatars').getPublicUrl(avatarPath)}?r=${Random().nextInt(100)}";
 
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(data: {'avatar_url': url}),
@@ -233,9 +239,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 radius: 50,
                 backgroundImage:
                     avatarUrl != null && avatarUrl!.isNotEmpty
-                        ? NetworkImage(
-                          "${avatarUrl!}?v=${Random().nextInt(100)}",
-                        )
+                        ? CachedNetworkImageProvider(avatarUrl!)
                         : null,
                 child: Align(
                   alignment: Alignment.bottomRight,
