@@ -84,7 +84,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with RouteAware {
   int selectedIndex = 0;
   late SearchController searchController;
-  CallManager callManager = CallManager.instance;
+  CallManager callManager = CallManager();
 
   final List<Widget> pages = [
     const Chats(),

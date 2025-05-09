@@ -17,7 +17,7 @@ class FriendTitle extends StatelessWidget {
     String friendId,
     bool videoEnabled,
   ) async {
-    CallManager callManager = CallManager.instance;
+    CallManager callManager = CallManager();
     if (callManager.service != null &&
         callManager.service?.isConnectionEstablished == true) {
       ScaffoldMessenger.of(context).showSnackBar(

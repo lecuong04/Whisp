@@ -26,7 +26,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   Timer? turnExpiry;
   late CallInfo callInfo;
 
-  CallManager callManager = CallManager.instance;
+  CallManager callManager = CallManager();
   bool isServiceInitialized = false;
   bool isClosed = false;
   Map<String, dynamic>? otherUser;
