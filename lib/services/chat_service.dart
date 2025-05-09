@@ -680,4 +680,19 @@ class ChatService {
       return <String, dynamic>{};
     }
   }
+
+  Future<List<Map<String, dynamic>>> findMessages(String search) async {
+    try {
+      return await _supabase.rpc(
+        "find_messages",
+        params: {
+          "search": search,
+          "user_query": _supabase.auth.currentUser!.id,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
 }

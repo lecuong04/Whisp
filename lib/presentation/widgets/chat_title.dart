@@ -4,7 +4,7 @@ import 'package:whisp/utilities.dart';
 
 class ChatTitle extends StatefulWidget {
   final String avatarUrl;
-  final String fullName;
+  final String conversationName;
   final DateTime time;
   final bool isSeen;
   final bool isOnline;
@@ -13,7 +13,7 @@ class ChatTitle extends StatefulWidget {
 
   const ChatTitle(
     this.avatarUrl,
-    this.fullName,
+    this.conversationName,
     this.time,
     this.isSeen,
     this.isOnline,
@@ -42,7 +42,7 @@ class _ChatTitleState extends State<ChatTitle> {
         children: [
           Flexible(
             child: Text(
-              widget.fullName,
+              widget.conversationName,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight:

@@ -312,9 +312,9 @@ class _ChatsState extends State<Chats> {
                                       MaterialPageRoute(
                                         builder:
                                             (context) => MessagesScreen(
-                                              chatId: conversationId,
-                                              contactName: alias,
-                                              contactImage: avatarUrl,
+                                              conversationId: conversationId,
+                                              conversationName: alias,
+                                              conversationAvatar: avatarUrl,
                                             ),
                                       ),
                                     ).then((result) {

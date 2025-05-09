@@ -279,9 +279,9 @@ void backgroundHandler(NotificationResponse response) async {
       MaterialPageRoute(
         builder:
             (context) => MessagesScreen(
-              chatId: data["conversation_id"],
-              contactName: data["title"],
-              contactImage: data["avatar_url"],
+              conversationId: data["conversation_id"],
+              conversationName: data["title"],
+              conversationAvatar: data["avatar_url"],
             ),
       ),
     );

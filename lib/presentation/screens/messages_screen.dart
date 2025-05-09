@@ -9,15 +9,17 @@ import 'package:whisp/utils/constants.dart'; // Import constants.dart
 import 'dart:io';
 
 class MessagesScreen extends StatefulWidget {
-  final String chatId;
-  final String contactName;
-  final String contactImage;
+  final String conversationId;
+  final String conversationName;
+  final String conversationAvatar;
+  final String? messageId;
 
   const MessagesScreen({
     super.key,
-    required this.chatId,
-    required this.contactName,
-    required this.contactImage,
+    required this.conversationId,
+    required this.conversationName,
+    required this.conversationAvatar,
+    this.messageId,
   });
 
   @override
@@ -83,12 +85,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Future<void> _initializeMessages() async {
     try {
-      _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
+      _chatService.markMessagesAsRead(widget.conversationId).catchError((e) {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       });
 
       final messages = await _chatService.loadMessages(
-        widget.chatId,
+        widget.conversationId,
         limit: MESSAGE_PAGE_SIZE,
       );
       setState(() {
@@ -101,7 +103,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         _scrollToBottom();
       });
 
-      _chatService.subscribeToMessages(widget.chatId, (updatedMessages) {
+      _chatService.subscribeToMessages(widget.conversationId, (
+        updatedMessages,
+      ) {
         final newMessages =
             updatedMessages.where((newMsg) {
               return !_allMessages.any(
@@ -118,7 +122,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           });
 
           if (newMessages.any((msg) => msg['sender_id'] != myId)) {
-            _chatService.markMessagesAsRead(widget.chatId).catchError((e) {
+            _chatService.markMessagesAsRead(widget.conversationId).catchError((
+              e,
+            ) {
               print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
             });
           }
@@ -153,7 +159,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       final oldestMessage = _allMessages.first;
       final beforeSentAt = oldestMessage['sent_at'];
       final olderMessages = await _chatService.loadMessages(
-        widget.chatId,
+        widget.conversationId,
         limit: MESSAGE_PAGE_SIZE,
         beforeSentAt: beforeSentAt,
       );
@@ -191,7 +197,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     try {
       final newMessage = await _chatService.sendMessage(
-        conversationId: widget.chatId,
+        conversationId: widget.conversationId,
         senderId: myId,
         content: _messageController.text,
       );
@@ -217,7 +223,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _sendMedia(File file, String messageType) async {
     try {
       final newMessage = await _chatService.sendMessage(
-        conversationId: widget.chatId,
+        conversationId: widget.conversationId,
         senderId: myId,
         content: '',
         messageType: messageType,
@@ -259,12 +265,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
           children: [
             CircleAvatar(
               backgroundImage:
-                  widget.contactImage.isNotEmpty
+                  widget.conversationAvatar.isNotEmpty
                       ? Image.network(
-                        widget.contactImage,
+                        widget.conversationAvatar,
                         errorBuilder: (context, error, stackTrace) {
                           return CachedNetworkImage(
-                            imageUrl: widget.contactImage,
+                            imageUrl: widget.conversationAvatar,
                           );
                         },
                       ).image
@@ -272,13 +278,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
               radius: 20,
             ),
             const SizedBox(width: 10),
-            Text(widget.contactName),
+            Text(widget.conversationName),
           ],
         ),
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
-            Navigator.pop(context, {'conversation_id': widget.chatId});
+            Navigator.pop(context, {'conversation_id': widget.conversationId});
           },
           icon: const Icon(FontAwesomeIcons.chevronLeft),
         ),
@@ -307,7 +313,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         : MessageList(
                           messages: _allMessages,
                           myId: myId,
-                          friendImage: widget.contactImage,
+                          friendImage: widget.conversationAvatar,
                           scrollController: _scrollController,
                           isLoadingMore: _isLoadingMore,
                           hasMoreMessages: _hasMoreMessages,

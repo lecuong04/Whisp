@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:whisp/models/friend.dart';
+import 'package:whisp/presentation/screens/messages_screen.dart';
+import 'package:whisp/presentation/widgets/chat_title.dart';
 import 'package:whisp/presentation/widgets/friend_title.dart';
+import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/services/friend_service.dart';
 
 class CustomSearch extends StatefulWidget {
@@ -74,9 +77,7 @@ class _CustomSearchState extends State<CustomSearch> {
           int p = widget.page;
           switch (p) {
             case 0:
-              {
-                break;
-              }
+              return searchMessages(controller.text);
             case 1:
               return searchFriends(controller.text);
           }
@@ -93,5 +94,43 @@ class _CustomSearchState extends State<CustomSearch> {
         FriendTitle(friend: f),
       ],
     ];
+  }
+
+  Future<List<Widget>> searchMessages(String search) async {
+    if (search.length < 3) return [];
+    bool isFirst = true;
+    List<Widget> result = List.empty(growable: true);
+    for (var m in (await ChatService().findMessages(search))) {
+      if (!isFirst) {
+        result.add(Divider(height: 8, thickness: 1));
+      } else {
+        isFirst = false;
+      }
+      result.add(
+        ChatTitle(
+          m["avatar_url"],
+          m["conversation_name"],
+          DateTime.parse(m["sent_at"].toString()),
+          m["is_seen"],
+          m["is_online"],
+          m["content"],
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => MessagesScreen(
+                      conversationId: m["conversation_id"],
+                      conversationName: m["conversation_name"],
+                      conversationAvatar: m["avatar_url"],
+                      messageId: m["message_id"],
+                    ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+    return result;
   }
 }

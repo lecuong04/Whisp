@@ -261,9 +261,9 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                 MaterialPageRoute(
                   builder:
                       (context) => MessagesScreen(
-                        chatId: uri.queryParameters["conversation_id"]!,
-                        contactName: uri.queryParameters["title"]!,
-                        contactImage: uri.queryParameters["avatar_url"]!,
+                        conversationId: uri.queryParameters["conversation_id"]!,
+                        conversationName: uri.queryParameters["title"]!,
+                        conversationAvatar: uri.queryParameters["avatar_url"]!,
                       ),
                 ),
               );

@@ -27,9 +27,9 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
             MaterialPageRoute(
               builder:
                   (context) => MessagesScreen(
-                    chatId: chatId,
-                    contactName: req.fullName,
-                    contactImage: req.avatarURL,
+                    conversationId: chatId,
+                    conversationName: req.fullName,
+                    conversationAvatar: req.avatarURL,
                   ),
             ),
           );
