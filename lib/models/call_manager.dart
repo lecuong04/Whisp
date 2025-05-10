@@ -8,11 +8,11 @@ class CallManager extends ChangeNotifier {
 
   CallManager._();
 
+  static final CallManager _instance = CallManager._();
+
   factory CallManager() {
     return _instance;
   }
-
-  static final CallManager _instance = CallManager._();
 
   Future<bool> createInstance({
     required String callId,

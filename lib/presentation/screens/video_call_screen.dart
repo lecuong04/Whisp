@@ -58,7 +58,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối!')));
-        dispose();
         Navigator.pop(context);
       }
     }
@@ -73,7 +72,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     var now = DateTime.now().toUtc();
     if (callInfo.status != 'pending' && callInfo.status != 'accepted') {
       Navigator.pop(context);
-      dispose();
       return;
     }
     timeOut = Timer(
@@ -85,7 +83,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             !callManager.service!.isConnectionEstablished) {
           CallService().endCall(callInfo.id);
           Navigator.pop(context);
-          dispose();
         }
       },
     );
