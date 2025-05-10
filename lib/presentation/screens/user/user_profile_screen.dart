@@ -248,7 +248,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   alignment: Alignment.bottomRight,
                   child: CircleAvatar(
                     backgroundColor: Colors.white,
-                    radius: 16,
+                    radius: 12.5,
                     child: Icon(Icons.camera_alt, size: 18, color: Colors.grey),
                   ),
                 ),

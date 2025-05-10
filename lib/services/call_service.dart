@@ -70,4 +70,18 @@ class CallService {
       return false;
     }
   }
+
+  Future<void> updateCallWhenClick(String callId) async {
+    try {
+      await _supabase.rpc(
+        "update_call_when_click",
+        params: {
+          'call_id': callId,
+          'user_query': _supabase.auth.currentUser!.id,
+        },
+      );
+    } catch (e) {
+      print(e);
+    }
+  }
 }

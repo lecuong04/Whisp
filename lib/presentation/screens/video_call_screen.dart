@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:whisp/models/call_info.dart';
@@ -43,6 +44,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     } else {
       callInfo = widget.callInfo!;
     }
+    CallService().updateCallWhenClick(callInfo.id);
     if (callInfo.callerId != UserService().id) {
       otherUser = await UserService().getUser(callInfo.callerId);
     } else {
@@ -191,21 +193,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  // Video từ xa
-                  Positioned.fill(
-                    child: Container(
-                      margin: const EdgeInsets.all(4.0),
-                      decoration: const BoxDecoration(color: Colors.black),
-                      child: RTCVideoView(
-                        service.remoteRenderer,
-                        mirror: false,
-                        filterQuality: FilterQuality.medium,
-                        objectFit:
-                            RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                  if (callInfo.isVideoCall) ...[
+                    // Video từ xa
+                    Positioned.fill(
+                      child: Container(
+                        margin: const EdgeInsets.all(4.0),
+                        decoration: const BoxDecoration(color: Colors.black),
+                        child: RTCVideoView(
+                          service.remoteRenderer,
+                          mirror: false,
+                          filterQuality: FilterQuality.medium,
+                          objectFit:
+                              RTCVideoViewObjectFit
+                                  .RTCVideoViewObjectFitContain,
+                        ),
                       ),
                     ),
-                  ),
-                  if (callInfo.isVideoCall) ...[
                     if (service.localStream != null)
                       // Video từ local
                       Positioned(
@@ -244,6 +247,20 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                           ),
                         ),
                       ),
+                  ] else ...[
+                    Positioned.fill(
+                      child: Center(
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage:
+                              otherUser!["avatar_url"] != null
+                                  ? CachedNetworkImageProvider(
+                                    otherUser!["avatar_url"],
+                                  )
+                                  : null,
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -270,7 +287,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
                     ElevatedButton.icon(
                       icon: const Icon(Icons.call_end),
-                      label: const Text('Gác máy'),
+                      label: const Text('Kết thúc'),
                       onPressed: () async {
                         await performHangup();
                       },
