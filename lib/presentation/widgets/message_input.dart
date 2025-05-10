@@ -24,24 +24,24 @@ class MessageInput extends StatefulWidget {
 class _MessageInputState extends State<MessageInput>
     with WidgetsBindingObserver {
   bool hasText = false;
-  OverlayEntry? _mediaOverlay;
+  OverlayEntry? mediaOverlay;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    widget.controller.addListener(_updateTextState);
+    widget.controller.addListener(updateTextState);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.controller.removeListener(_updateTextState);
-    _removeOverlay();
+    widget.controller.removeListener(updateTextState);
+    removeOverlay();
     super.dispose();
   }
 
-  void _updateTextState() {
+  void updateTextState() {
     setState(() {
       hasText = widget.controller.text.trim().isNotEmpty;
     });
@@ -51,53 +51,53 @@ class _MessageInputState extends State<MessageInput>
   void didChangeMetrics() {
     super.didChangeMetrics();
     final bottomInset = View.of(context).viewInsets.bottom;
-    if (bottomInset == 0 && _mediaOverlay != null) {
-      _removeOverlay();
+    if (bottomInset == 0 && mediaOverlay != null) {
+      removeOverlay();
     }
   }
 
-  void _removeOverlay() {
-    _mediaOverlay?.remove();
-    _mediaOverlay = null;
+  void removeOverlay() {
+    mediaOverlay?.remove();
+    mediaOverlay = null;
   }
 
-  Future<void> _pickImage() async {
+  Future<void> pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       widget.onMediaSelected(File(pickedFile.path), 'image');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  Future<void> _captureImage() async {
+  Future<void> captureImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
     if (pickedFile != null) {
       widget.onMediaSelected(File(pickedFile.path), 'image');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  Future<void> _pickVideo() async {
+  Future<void> pickVideo() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
     if (pickedFile != null) {
       widget.onMediaSelected(File(pickedFile.path), 'video');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  Future<void> _pickFile() async {
+  Future<void> pickFile() async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
       widget.onMediaSelected(File(result.files.single.path!), 'file');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  void _showMediaOptions(BuildContext context, GlobalKey key) {
-    if (_mediaOverlay != null) return;
+  void showMediaOptions(BuildContext context, GlobalKey key) {
+    if (mediaOverlay != null) return;
 
     final RenderBox button =
         key.currentContext!.findRenderObject() as RenderBox;
@@ -106,7 +106,7 @@ class _MessageInputState extends State<MessageInput>
     final modalWidth = screenWidth * 0.6;
     const modalHeight = 160.0;
 
-    _mediaOverlay = OverlayEntry(
+    mediaOverlay = OverlayEntry(
       builder: (context) {
         return Stack(
           children: [
@@ -114,7 +114,7 @@ class _MessageInputState extends State<MessageInput>
               child: GestureDetector(
                 onTap: () {
                   FocusScope.of(context).unfocus();
-                  _removeOverlay();
+                  removeOverlay();
                 },
                 behavior: HitTestBehavior.translucent,
                 child: Container(),
@@ -130,28 +130,28 @@ class _MessageInputState extends State<MessageInput>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chụp ảnh',
                       icon: Icons.camera_alt,
-                      onTap: _captureImage,
+                      onTap: captureImage,
                       showDivider: true,
                     ),
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chọn ảnh',
                       icon: Icons.image,
-                      onTap: _pickImage,
+                      onTap: pickImage,
                       showDivider: true,
                     ),
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chọn video',
                       icon: Icons.videocam,
-                      onTap: _pickVideo,
+                      onTap: pickVideo,
                       showDivider: true,
                     ),
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chọn file',
                       icon: Icons.attach_file,
-                      onTap: _pickFile,
+                      onTap: pickFile,
                       showDivider: false,
                     ),
                   ],
@@ -163,10 +163,10 @@ class _MessageInputState extends State<MessageInput>
       },
     );
 
-    Overlay.of(context).insert(_mediaOverlay!);
+    Overlay.of(context).insert(mediaOverlay!);
   }
 
-  Widget _buildOptionRow({
+  Widget buildOptionRow({
     required String title,
     required IconData icon,
     required VoidCallback onTap,
@@ -204,7 +204,7 @@ class _MessageInputState extends State<MessageInput>
         children: [
           InkWell(
             key: plusButtonKey,
-            onTap: () => _showMediaOptions(context, plusButtonKey),
+            onTap: () => showMediaOptions(context, plusButtonKey),
             borderRadius: BorderRadius.circular(18),
             child: Container(
               width: 36,

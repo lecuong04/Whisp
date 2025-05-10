@@ -17,24 +17,24 @@ class Chats extends StatefulWidget {
 class _ChatsState extends State<Chats> {
   String? myId;
   String? myFullName;
-  final ChatService _chatService = ChatService();
-  List<Map<String, dynamic>> _chats = [];
-  bool _isLoading = true;
-  String? _error;
-  RealtimeChannel? _chatChannel;
+  final ChatService chatService = ChatService();
+  List<Map<String, dynamic>> chats = [];
+  bool isLoading = true;
+  String? error;
+  RealtimeChannel? chatChannel;
 
   @override
   void initState() {
     super.initState();
-    _initializeUser();
+    initializeUser();
   }
 
-  Future<void> _initializeUser() async {
+  Future<void> initializeUser() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       setState(() {
-        _error = "Người dùng chưa đăng nhập.";
-        _isLoading = false;
+        error = "Người dùng chưa đăng nhập.";
+        isLoading = false;
       });
       return;
     }
@@ -43,7 +43,7 @@ class _ChatsState extends State<Chats> {
       Map<String, dynamic>? userInfo;
 
       try {
-        userInfo = await _chatService.getUserInfo(userId);
+        userInfo = await chatService.getUserInfo(userId);
       } catch (e) {
         print('Error fetching user info: $e');
         throw Exception('Lỗi khi tải thông tin người dùng: $e');
@@ -56,21 +56,21 @@ class _ChatsState extends State<Chats> {
         myFullName = fullName;
       });
 
-      await _loadChats();
+      await loadChats();
     } catch (e) {
       setState(() {
-        _error = "Lỗi khi khởi tạo: $e";
-        _isLoading = false;
+        error = "Lỗi khi khởi tạo: $e";
+        isLoading = false;
       });
     }
   }
 
-  Future<void> _loadChats() async {
+  Future<void> loadChats() async {
     try {
-      final chats = await _chatService.loadChatsByUserId(myId!);
+      final tmpChats = await chatService.loadChatsByUserId(myId!);
       setState(() {
-        _chats = chats;
-        _isLoading = false;
+        chats = tmpChats;
+        isLoading = false;
       });
 
       final isOnline =
@@ -85,24 +85,24 @@ class _ChatsState extends State<Chats> {
       }
 
       // Hủy subscription cũ trước khi tạo mới
-      if (_chatChannel != null) {
-        await Supabase.instance.client.removeChannel(_chatChannel!);
-        _chatChannel = null;
+      if (chatChannel != null) {
+        await Supabase.instance.client.removeChannel(chatChannel!);
+        chatChannel = null;
       }
 
-      _chatChannel = Supabase.instance.client.channel('public:chats:$myId');
-      _chatService.subscribeToChats(myId!, (updatedChats) {
+      chatChannel = Supabase.instance.client.channel('public:chats:$myId');
+      chatService.subscribeToChats(myId!, (updatedChats) {
         if (mounted && updatedChats.isNotEmpty) {
           setState(() {
-            _chats = updatedChats;
+            chats = updatedChats;
           });
         }
       });
     } catch (e) {
       print('Error loading chats: $e');
       setState(() {
-        _error = "Lỗi khi tải danh sách chat: $e";
-        _isLoading = false;
+        error = "Lỗi khi tải danh sách chat: $e";
+        isLoading = false;
       });
       ScaffoldMessenger.of(
         context,
@@ -110,28 +110,28 @@ class _ChatsState extends State<Chats> {
     }
   }
 
-  void _updateChatReadStatus(String conversationId) {
+  void updateChatReadStatus(String conversationId) {
     setState(() {
-      _chats =
-          _chats.map((chat) {
+      chats =
+          chats.map((chat) {
             if (chat['conversation_id'] == conversationId) {
               return {...chat, 'is_read': true};
             }
             return chat;
           }).toList();
-      print('Updated local is_read for $conversationId: $_chats');
+      print('Updated local is_read for $conversationId: $chats');
     });
 
-    _chatService.updateChatReadStatus(myId!, conversationId).catchError((e) {
+    chatService.updateChatReadStatus(myId!, conversationId).catchError((e) {
       print('Error updating chat read status: $e');
     });
   }
 
-  Future<void> _deleteChat(String conversationId) async {
+  Future<void> deleteChat(String conversationId) async {
     try {
-      await _chatService.markChatAsDeleted(myId!, conversationId);
+      await chatService.markChatAsDeleted(myId!, conversationId);
       setState(() {
-        _chats.removeWhere((chat) => chat['conversation_id'] == conversationId);
+        chats.removeWhere((chat) => chat['conversation_id'] == conversationId);
       });
       ScaffoldMessenger.of(
         context,
@@ -146,16 +146,16 @@ class _ChatsState extends State<Chats> {
 
   @override
   void dispose() {
-    if (_chatChannel != null) {
-      Supabase.instance.client.removeChannel(_chatChannel!);
-      _chatChannel = null;
+    if (chatChannel != null) {
+      Supabase.instance.client.removeChannel(chatChannel!);
+      chatChannel = null;
     }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (isLoading) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -168,10 +168,10 @@ class _ChatsState extends State<Chats> {
       );
     }
 
-    if (_error != null) {
+    if (error != null) {
       return Center(
         child: Text(
-          "Lỗi: $_error",
+          "Lỗi: $error",
           style: const TextStyle(color: Colors.red, fontSize: 16),
           textAlign: TextAlign.center,
         ),
@@ -195,12 +195,12 @@ class _ChatsState extends State<Chats> {
         const Divider(height: 8),
         Expanded(
           child:
-              _chats.isEmpty
+              chats.isEmpty
                   ? Stack(
                     children: [
                       RefreshIndicator(
                         onRefresh: () async {
-                          await _loadChats();
+                          await loadChats();
                         },
                         child: ListView(),
                       ),
@@ -217,9 +217,9 @@ class _ChatsState extends State<Chats> {
                     child: ListView.builder(
                       scrollDirection: Axis.vertical,
                       padding: const EdgeInsets.only(bottom: 10),
-                      itemCount: _chats.length,
+                      itemCount: chats.length,
                       itemBuilder: (context, index) {
-                        final chat = _chats[index];
+                        final chat = chats[index];
                         final conversationId =
                             chat['conversation_id'] as String;
                         final friendId = chat['friend_id'] as String;
@@ -286,7 +286,7 @@ class _ChatsState extends State<Chats> {
                                             ),
                                       );
                                       if (confirm == true) {
-                                        _deleteChat(conversationId);
+                                        deleteChat(conversationId);
                                       }
                                     },
                                     backgroundColor: Colors.red,
@@ -320,7 +320,7 @@ class _ChatsState extends State<Chats> {
                                     ).then((result) {
                                       if (result != null &&
                                           result['conversation_id'] != null) {
-                                        _updateChatReadStatus(
+                                        updateChatReadStatus(
                                           result['conversation_id'],
                                         );
                                       }
@@ -338,7 +338,7 @@ class _ChatsState extends State<Chats> {
                       },
                     ),
                     onRefresh: () async {
-                      await _loadChats();
+                      await loadChats();
                     },
                   ),
         ),

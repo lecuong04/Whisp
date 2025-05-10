@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:whisp/utilities.dart';
+import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/utils/helpers.dart';
 
 class ChatTitle extends StatefulWidget {
   final String avatarUrl;
@@ -77,7 +78,10 @@ class _ChatTitleState extends State<ChatTitle> {
             CircleAvatar(
               backgroundImage:
                   widget.avatarUrl.isNotEmpty
-                      ? CachedNetworkImageProvider(widget.avatarUrl)
+                      ? CachedNetworkImageProvider(
+                        widget.avatarUrl,
+                        cacheManager: CustomCacheManager(),
+                      )
                       : null,
               radius: 26,
             ),

@@ -72,8 +72,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     });
     var now = DateTime.now().toUtc();
     if (callInfo.status != 'pending' && callInfo.status != 'accepted') {
-      dispose();
       Navigator.pop(context);
+      dispose();
       return;
     }
     timeOut = Timer(
@@ -84,8 +84,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         if (callManager.service != null &&
             !callManager.service!.isConnectionEstablished) {
           CallService().endCall(callInfo.id);
-          dispose();
           Navigator.pop(context);
+          dispose();
         }
       },
     );

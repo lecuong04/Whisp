@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/utils/constants.dart';
 
 class MessageList extends StatefulWidget {
@@ -31,19 +32,19 @@ class MessageList extends StatefulWidget {
 }
 
 class _MessageListState extends State<MessageList> {
-  final Set<int> _showTimestampIndices = {};
+  final Set<int> showTimestampIndices = {};
 
-  void _toggleTimestamp(int index) {
+  void toggleTimestamp(int index) {
     setState(() {
-      if (_showTimestampIndices.contains(index)) {
-        _showTimestampIndices.remove(index);
+      if (showTimestampIndices.contains(index)) {
+        showTimestampIndices.remove(index);
       } else {
-        _showTimestampIndices.add(index);
+        showTimestampIndices.add(index);
       }
     });
   }
 
-  Widget _buildMessageContent(Map<String, dynamic> message) {
+  Widget buildMessageContent(Map<String, dynamic> message) {
     final messageType = message['message_type'] as String;
     final content = message['content'] as String;
 
@@ -58,6 +59,7 @@ class _MessageListState extends State<MessageList> {
             fit: BoxFit.cover,
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
+            cacheManager: CustomCacheManager(),
           ),
         );
         break;
@@ -80,6 +82,7 @@ class _MessageListState extends State<MessageList> {
                   width: 200,
                   height: 120,
                   fit: BoxFit.cover,
+                  cacheManager: CustomCacheManager(),
                   placeholder:
                       (context, url) => Container(
                         width: 200,
@@ -150,6 +153,9 @@ class _MessageListState extends State<MessageList> {
 
           switch (status) {
             case 'accepted':
+              displayText = "Cuộc gọi đang diễn ra";
+              icon = isVideoCall ? Icons.videocam : Icons.phone;
+              break;
             case 'ended':
               displayText =
                   isVideoCall
@@ -167,6 +173,10 @@ class _MessageListState extends State<MessageList> {
                       ? 'Cuộc gọi video bị từ chối'
                       : 'Cuộc gọi bị từ chối';
               icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
+              break;
+            case 'pending':
+              displayText = "Cuộc gọi chờ chấp nhận";
+              icon = isVideoCall ? Icons.videocam : Icons.phone;
               break;
             default:
               displayText = 'Cuộc gọi không xác định';
@@ -249,7 +259,7 @@ class _MessageListState extends State<MessageList> {
         final messageIndex = index - 1;
         final message = widget.messages[messageIndex];
         final isMe = message['sender_id'] == widget.myId;
-        final showTimestamp = _showTimestampIndices.contains(messageIndex);
+        final showTimestamp = showTimestampIndices.contains(messageIndex);
         final messageType = message['message_type'] as String;
 
         bool isReadByAll = false;
@@ -263,7 +273,7 @@ class _MessageListState extends State<MessageList> {
 
         return GestureDetector(
           onTap: () {
-            _toggleTimestamp(messageIndex);
+            toggleTimestamp(messageIndex);
             widget.onMessageTap(messageIndex);
           },
           child: Container(
@@ -299,7 +309,7 @@ class _MessageListState extends State<MessageList> {
                           color: isMe ? Colors.blue[100] : Colors.grey[200],
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: _buildMessageContent(message),
+                        child: buildMessageContent(message),
                       ),
                       const SizedBox(height: 5),
                       if (showTimestamp)

@@ -4,10 +4,10 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:whisp/custom_cache_manager.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -46,7 +46,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (shouldLogout == true) {
       FlutterBackgroundService().invoke("stopBackground");
       await Supabase.instance.client.auth.signOut();
-      await DefaultCacheManager().emptyCache();
+      await CustomCacheManager().emptyCache();
 
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       ScaffoldMessenger.of(
@@ -95,10 +95,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         .from('avatars')
         .upload(avatarPath, file, fileOptions: const FileOptions(upsert: true));
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      await DefaultCacheManager().removeFile(avatarUrl!);
+      await CustomCacheManager().removeFile(avatarUrl!);
     }
     final url =
-        "${storage.from('avatars').getPublicUrl(avatarPath)}?r=${Random().nextInt(100)}";
+        "${storage.from('avatars').getPublicUrl(avatarPath)}?r=${Random().nextInt(512)}";
 
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(data: {'avatar_url': url}),
@@ -239,7 +239,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 radius: 50,
                 backgroundImage:
                     avatarUrl != null && avatarUrl!.isNotEmpty
-                        ? CachedNetworkImageProvider(avatarUrl!)
+                        ? CachedNetworkImageProvider(
+                          avatarUrl!,
+                          cacheManager: CustomCacheManager(),
+                        )
                         : null,
                 child: Align(
                   alignment: Alignment.bottomRight,
@@ -270,12 +273,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             const SizedBox(height: 24),
 
             // Thông tin cá nhân
-            _buildInfoTile(
+            buildInfoTile(
               Icons.person_outline_rounded,
               'Họ và tên',
               fullName ?? 'Cập nhật ngay',
             ),
-            _buildInfoTile(
+            buildInfoTile(
               Icons.person,
               'Username',
               username ?? 'Cập nhật ngay',
@@ -323,7 +326,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String value) {
+  Widget buildInfoTile(IconData icon, String label, String value) {
     return Column(
       children: [
         ListTile(
@@ -354,20 +357,20 @@ class EditProfileModal extends StatefulWidget {
 }
 
 class _EditProfileModalState extends State<EditProfileModal> {
-  late TextEditingController _usernameController;
-  late TextEditingController _fullNameController;
+  late TextEditingController usernameController;
+  late TextEditingController fullNameController;
 
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController(text: widget.username);
-    _fullNameController = TextEditingController(text: widget.fullName);
+    usernameController = TextEditingController(text: widget.username);
+    fullNameController = TextEditingController(text: widget.fullName);
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _fullNameController.dispose();
+    usernameController.dispose();
+    fullNameController.dispose();
     super.dispose();
   }
 
@@ -389,20 +392,20 @@ class _EditProfileModalState extends State<EditProfileModal> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _fullNameController,
+            controller: fullNameController,
             decoration: const InputDecoration(labelText: 'Họ và tên'),
             keyboardType: TextInputType.text, // Sửa thành text thay vì phone
           ),
           TextField(
-            controller: _usernameController,
+            controller: usernameController,
             decoration: InputDecoration(labelText: 'Username'),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               widget.onSave({
-                'full_name': _fullNameController.text,
-                'username': _usernameController.text,
+                'full_name': fullNameController.text,
+                'username': usernameController.text,
               });
             },
             child: Text('Lưu'),
@@ -428,15 +431,15 @@ class PasswordUpdateModal extends StatefulWidget {
 }
 
 class _PasswordUpdateModalState extends State<PasswordUpdateModal> {
-  final _currentPasswordController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final currentPasswordController = TextEditingController();
+  final newPasswordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
 
   @override
   void dispose() {
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -458,17 +461,17 @@ class _PasswordUpdateModalState extends State<PasswordUpdateModal> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _currentPasswordController,
+            controller: currentPasswordController,
             decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại'),
             obscureText: true,
           ),
           TextField(
-            controller: _newPasswordController,
+            controller: newPasswordController,
             decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
             obscureText: true,
           ),
           TextField(
-            controller: _confirmPasswordController,
+            controller: confirmPasswordController,
             decoration: const InputDecoration(
               labelText: 'Xác nhận mật khẩu mới',
             ),
@@ -478,9 +481,9 @@ class _PasswordUpdateModalState extends State<PasswordUpdateModal> {
           ElevatedButton(
             onPressed: () {
               widget.onSave(
-                _currentPasswordController.text,
-                _newPasswordController.text,
-                _confirmPasswordController.text,
+                currentPasswordController.text,
+                newPasswordController.text,
+                confirmPasswordController.text,
               );
             },
             child: const Text('Cập nhật'),

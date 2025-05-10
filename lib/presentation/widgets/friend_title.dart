@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/models/call_manager.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/presentation/screens/messages_screen.dart';
@@ -12,7 +13,7 @@ class FriendTitle extends StatelessWidget {
   final GestureLongPressCallback? onLongPress;
   const FriendTitle({required this.friend, super.key, this.onLongPress});
 
-  static Future<void> _makeCall(
+  static Future<void> makeCall(
     BuildContext context,
     String friendId,
     bool videoEnabled,
@@ -67,7 +68,10 @@ class FriendTitle extends StatelessWidget {
                 CircleAvatar(
                   backgroundImage:
                       friend.avatarUrl.isNotEmpty
-                          ? CachedNetworkImageProvider(friend.avatarUrl)
+                          ? CachedNetworkImageProvider(
+                            friend.avatarUrl,
+                            cacheManager: CustomCacheManager(),
+                          )
                           : null,
                   radius: 26,
                 ),
@@ -93,13 +97,13 @@ class FriendTitle extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () async {
-                  await _makeCall(context, friend.id, true);
+                  await makeCall(context, friend.id, true);
                 },
                 icon: Icon(Icons.videocam),
               ),
               IconButton(
                 onPressed: () async {
-                  await _makeCall(context, friend.id, false);
+                  await makeCall(context, friend.id, false);
                 },
                 icon: Icon(Icons.call),
               ),

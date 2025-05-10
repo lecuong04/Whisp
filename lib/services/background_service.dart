@@ -15,7 +15,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
-import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/screens/video_call_screen.dart';
 import 'package:whisp/services/call_service.dart';
 
@@ -273,17 +272,6 @@ void backgroundHandler(NotificationResponse response) async {
       navigatorKey.currentContext!,
       MaterialPageRoute(builder: (context) => const AuthWrapper()),
       (route) => false,
-    );
-    Navigator.push(
-      navigatorKey.currentContext!,
-      MaterialPageRoute(
-        builder:
-            (context) => MessagesScreen(
-              conversationId: data["conversation_id"],
-              conversationName: data["title"],
-              conversationAvatar: data["avatar_url"],
-            ),
-      ),
     );
     var callInfo = await CallService().getCallInfo(data["content"]);
     if (callInfo != null) {

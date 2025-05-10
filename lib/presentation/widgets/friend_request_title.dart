@@ -92,7 +92,7 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.grey),
               ),
-              child: Icon(_getStatus()),
+              child: Icon(getStatus()),
             ),
           ),
         ],
@@ -100,7 +100,7 @@ class _FriendRequestTitleState extends State<FriendRequestTitle> {
     );
   }
 
-  IconData? _getStatus() {
+  IconData? getStatus() {
     String s = widget.request.status;
     if (s == "" || s == "rejected") {
       return Icons.add;

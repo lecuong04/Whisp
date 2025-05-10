@@ -12,7 +12,7 @@ class AddFriendScreen extends StatefulWidget {
 
 class _AddFriendScreenState extends State<AddFriendScreen>
     with TickerProviderStateMixin {
-  late final TabController _tabController;
+  late final TabController tabController;
   Future<List<FriendRequest>> data = Future.value(List.empty());
   TextEditingController txtSearchController = TextEditingController();
   String tmpSearch = "";
@@ -20,13 +20,13 @@ class _AddFriendScreenState extends State<AddFriendScreen>
 
   @override
   void initState() {
-    _tabController = TabController(length: 2, vsync: this);
+    tabController = TabController(length: 2, vsync: this);
     super.initState();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    tabController.dispose();
     super.dispose();
   }
 
@@ -55,7 +55,7 @@ class _AddFriendScreenState extends State<AddFriendScreen>
             }
             setState(() {});
           },
-          controller: _tabController,
+          controller: tabController,
           tabs: [
             Tab(text: "Tìm kiếm người dùng"),
             Tab(text: "Chờ kết bạn"),
@@ -63,7 +63,7 @@ class _AddFriendScreenState extends State<AddFriendScreen>
         ),
       ),
       body: TabBarView(
-        controller: _tabController,
+        controller: tabController,
         children: [
           RefreshIndicator(
             child: buildFindUsers(data),

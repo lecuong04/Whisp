@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
@@ -29,136 +30,132 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   String myId = UserService().id!;
 
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final ChatService _chatService = ChatService();
-  List<Map<String, dynamic>> _allMessages = [];
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
-  bool _isAtBottom = true;
-  bool _hasNewMessage = false;
-  bool _hasMoreMessages = true;
-  String? _error;
-  final Set<int> _selectedMessages = {};
+  final TextEditingController messageController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
+  final ChatService chatService = ChatService();
+  List<Map<String, dynamic>> allMessages = [];
+  bool isLoading = true;
+  bool isLoadingMore = false;
+  bool isAtBottom = true;
+  bool hasNewMessage = false;
+  bool hasMoreMessages = true;
+  String? error;
+  final Set<int> selectedMessages = {};
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_scrollListener);
-    _initializeMessages();
+    scrollController.addListener(scrollListener);
+    initializeMessages();
   }
 
-  void _scrollListener() {
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final currentScroll = _scrollController.position.pixels;
+  void scrollListener() {
+    final maxScroll = scrollController.position.maxScrollExtent;
+    final currentScroll = scrollController.position.pixels;
     const threshold = 100.0;
 
     setState(() {
-      _isAtBottom = (maxScroll - currentScroll) <= threshold;
-      if (_isAtBottom) {
-        _hasNewMessage = false;
+      isAtBottom = (maxScroll - currentScroll) <= threshold;
+      if (isAtBottom) {
+        hasNewMessage = false;
       }
     });
 
-    if (currentScroll <= 100 && _hasMoreMessages && !_isLoadingMore) {
-      _loadMoreMessages();
+    if (currentScroll <= 100 && hasMoreMessages && !isLoadingMore) {
+      loadMoreMessages();
     }
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+  void scrollToBottom() {
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
       setState(() {
-        _isAtBottom = true;
-        _hasNewMessage = false;
+        isAtBottom = true;
+        hasNewMessage = false;
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
+        scrollToBottom();
       });
     }
   }
 
-  Future<void> _initializeMessages() async {
+  Future<void> initializeMessages() async {
     try {
-      _chatService.markMessagesAsRead(widget.conversationId).catchError((e) {
+      chatService.markMessagesAsRead(widget.conversationId).catchError((e) {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       });
 
-      final messages = await _chatService.loadMessages(
+      final messages = await chatService.loadMessages(
         widget.conversationId,
         limit: MESSAGE_PAGE_SIZE,
       );
       setState(() {
-        _allMessages = messages.reversed.toList();
-        _isLoading = false;
-        _hasMoreMessages = messages.length == MESSAGE_PAGE_SIZE;
+        allMessages = messages.reversed.toList();
+        isLoading = false;
+        hasMoreMessages = messages.length == MESSAGE_PAGE_SIZE;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
+        scrollToBottom();
       });
 
-      _chatService.subscribeToMessages(widget.conversationId, (
-        updatedMessages,
-      ) {
+      chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
         final newMessages =
             updatedMessages.where((newMsg) {
-              return !_allMessages.any(
-                (oldMsg) => oldMsg['id'] == newMsg['id'],
-              );
+              return !allMessages.any((oldMsg) => oldMsg['id'] == newMsg['id']);
             }).toList();
 
         if (newMessages.isNotEmpty) {
-          _allMessages.addAll(newMessages);
-          _allMessages.sort((a, b) {
+          allMessages.addAll(newMessages);
+          allMessages.sort((a, b) {
             final aTime = DateTime.parse(a['sent_at']);
             final bTime = DateTime.parse(b['sent_at']);
             return aTime.compareTo(bTime);
           });
 
           if (newMessages.any((msg) => msg['sender_id'] != myId)) {
-            _chatService.markMessagesAsRead(widget.conversationId).catchError((
+            chatService.markMessagesAsRead(widget.conversationId).catchError((
               e,
             ) {
               print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
             });
           }
 
-          if (_isAtBottom) {
+          if (isAtBottom) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToBottom();
+              scrollToBottom();
             });
           } else {
-            _hasNewMessage = true;
+            hasNewMessage = true;
           }
         }
         setState(() {});
       });
     } catch (e) {
-      _error = "Lỗi khi tải tin nhắn: $e";
-      _isLoading = false;
+      error = "Lỗi khi tải tin nhắn: $e";
+      isLoading = false;
       if (mounted) {
         setState(() {});
       }
     }
   }
 
-  Future<void> _loadMoreMessages() async {
-    if (!_hasMoreMessages || _isLoadingMore) return;
+  Future<void> loadMoreMessages() async {
+    if (!hasMoreMessages || isLoadingMore) return;
 
     setState(() {
-      _isLoadingMore = true;
+      isLoadingMore = true;
     });
 
     try {
-      final oldestMessage = _allMessages.first;
+      final oldestMessage = allMessages.first;
       final beforeSentAt = oldestMessage['sent_at'];
-      final olderMessages = await _chatService.loadMessages(
+      final olderMessages = await chatService.loadMessages(
         widget.conversationId,
         limit: MESSAGE_PAGE_SIZE,
         beforeSentAt: beforeSentAt,
@@ -168,23 +165,23 @@ class _MessagesScreenState extends State<MessagesScreen> {
         setState(() {
           final newMessages =
               olderMessages.where((newMsg) {
-                return !_allMessages.any(
+                return !allMessages.any(
                   (oldMsg) => oldMsg['id'] == newMsg['id'],
                 );
               }).toList();
-          _allMessages.insertAll(0, newMessages.reversed);
-          _isLoadingMore = false;
-          _hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
+          allMessages.insertAll(0, newMessages.reversed);
+          isLoadingMore = false;
+          hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
         });
       } else {
         setState(() {
-          _isLoadingMore = false;
-          _hasMoreMessages = false;
+          isLoadingMore = false;
+          hasMoreMessages = false;
         });
       }
     } catch (e) {
-      _error = "Lỗi khi tải thêm tin nhắn: $e";
-      _isLoadingMore = false;
+      error = "Lỗi khi tải thêm tin nhắn: $e";
+      isLoadingMore = false;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thêm tin nhắn')));
@@ -192,27 +189,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+  void sendMessage() async {
+    if (messageController.text.trim().isEmpty) return;
 
     try {
-      final newMessage = await _chatService.sendMessage(
+      final newMessage = await chatService.sendMessage(
         conversationId: widget.conversationId,
         senderId: myId,
-        content: _messageController.text,
+        content: messageController.text,
       );
 
       setState(() {
-        _allMessages.add(newMessage);
-        _allMessages.sort((a, b) {
+        allMessages.add(newMessage);
+        allMessages.sort((a, b) {
           final aTime = DateTime.parse(a['sent_at']);
           final bTime = DateTime.parse(b['sent_at']);
           return aTime.compareTo(bTime);
         });
       });
 
-      _messageController.clear();
-      _scrollToBottom();
+      messageController.clear();
+      scrollToBottom();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -220,9 +217,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _sendMedia(File file, String messageType) async {
+  void sendMedia(File file, String messageType) async {
     try {
-      final newMessage = await _chatService.sendMessage(
+      final newMessage = await chatService.sendMessage(
         conversationId: widget.conversationId,
         senderId: myId,
         content: '',
@@ -231,15 +228,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
       );
 
       setState(() {
-        _allMessages.add(newMessage);
-        _allMessages.sort((a, b) {
+        allMessages.add(newMessage);
+        allMessages.sort((a, b) {
           final aTime = DateTime.parse(a['sent_at']);
           final bTime = DateTime.parse(b['sent_at']);
           return aTime.compareTo(bTime);
         });
       });
 
-      _scrollToBottom();
+      scrollToBottom();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -247,12 +244,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _onMessageTap(int index) {
+  void onMessageTap(int index) {
     setState(() {
-      if (_selectedMessages.contains(index)) {
-        _selectedMessages.remove(index);
+      if (selectedMessages.contains(index)) {
+        selectedMessages.remove(index);
       } else {
-        _selectedMessages.add(index);
+        selectedMessages.add(index);
       }
     });
   }
@@ -266,14 +263,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
             CircleAvatar(
               backgroundImage:
                   widget.conversationAvatar.isNotEmpty
-                      ? Image.network(
+                      ? CachedNetworkImageProvider(
                         widget.conversationAvatar,
-                        errorBuilder: (context, error, stackTrace) {
-                          return CachedNetworkImage(
-                            imageUrl: widget.conversationAvatar,
-                          );
-                        },
-                      ).image
+                        cacheManager: CustomCacheManager(),
+                      )
                       : null,
               radius: 20,
             ),
@@ -295,12 +288,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
             children: [
               Expanded(
                 child:
-                    _isLoading && _allMessages.isEmpty
+                    isLoading && allMessages.isEmpty
                         ? const Center(child: CircularProgressIndicator())
-                        : _error != null
+                        : error != null
                         ? Center(
                           child: Text(
-                            "Lỗi: $_error",
+                            "Lỗi: $error",
                             style: const TextStyle(
                               color: Colors.red,
                               fontSize: 16,
@@ -308,33 +301,33 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             textAlign: TextAlign.center,
                           ),
                         )
-                        : _allMessages.isEmpty
+                        : allMessages.isEmpty
                         ? const Center(child: Text("Chưa có tin nhắn nào"))
                         : MessageList(
-                          messages: _allMessages,
+                          messages: allMessages,
                           myId: myId,
                           friendImage: widget.conversationAvatar,
-                          scrollController: _scrollController,
-                          isLoadingMore: _isLoadingMore,
-                          hasMoreMessages: _hasMoreMessages,
-                          selectedMessages: _selectedMessages,
-                          onMessageTap: _onMessageTap,
+                          scrollController: scrollController,
+                          isLoadingMore: isLoadingMore,
+                          hasMoreMessages: hasMoreMessages,
+                          selectedMessages: selectedMessages,
+                          onMessageTap: onMessageTap,
                         ),
               ),
               MessageInput(
-                controller: _messageController,
-                onSend: _sendMessage,
+                controller: messageController,
+                onSend: sendMessage,
                 onTextFieldTap: () {},
-                onMediaSelected: _sendMedia,
+                onMediaSelected: sendMedia,
               ),
             ],
           ),
-          if (_hasNewMessage)
+          if (hasNewMessage)
             Positioned(
               bottom: 80,
               right: 20,
               child: FloatingActionButton(
-                onPressed: _scrollToBottom,
+                onPressed: scrollToBottom,
                 child: const Icon(Icons.arrow_downward),
               ),
             ),
@@ -345,9 +338,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
-    _messageController.dispose();
-    _chatService.unsubscribeMessages();
+    scrollController.dispose();
+    messageController.dispose();
+    chatService.unsubscribeMessages();
     super.dispose();
   }
 }
