@@ -695,4 +695,163 @@ class ChatService {
       return [];
     }
   }
+
+  Future<List<Map<String, dynamic>>> loadMessagesAroundMessageId(
+    String conversationId,
+    String messageId, {
+    int limit = 20,
+  }) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      // Lấy thông tin của tin nhắn với messageId để lấy sent_at
+      final targetMessage =
+          await _supabase
+              .from('messages')
+              .select('sent_at')
+              .eq('id', messageId)
+              .eq('conversation_id', conversationId)
+              .single();
+
+      if (targetMessage == null) {
+        throw Exception('Không tìm thấy tin nhắn với ID: $messageId');
+      }
+
+      final targetSentAt = targetMessage['sent_at'];
+
+      // Truy vấn các tin nhắn xung quanh messageId
+      // Lấy tối đa (limit - 1) tin nhắn trước đó và tất cả tin nhắn từ messageId trở đi
+      final messagesBefore = await _supabase
+          .from('messages')
+          .select('''
+          id, conversation_id, sender_id, content, sent_at, message_type,
+          users!sender_id(id, full_name, avatar_url, status),
+          message_statuses(user_id, is_read, read_at)
+        ''')
+          .eq('conversation_id', conversationId)
+          .lte('sent_at', targetSentAt)
+          .order('sent_at', ascending: false)
+          .limit(limit - 1);
+
+      // Lấy tin nhắn từ messageId trở đi (bao gồm chính messageId)
+      final messagesFromTarget = await _supabase
+          .from('messages')
+          .select('''
+          id, conversation_id, sender_id, content, sent_at, message_type,
+          users!sender_id(id, full_name, avatar_url, status),
+          message_statuses(user_id, is_read, read_at)
+        ''')
+          .eq('conversation_id', conversationId)
+          .gte('sent_at', targetSentAt)
+          .order('sent_at', ascending: true)
+          .limit(limit);
+
+      // Kết hợp và sắp xếp lại danh sách tin nhắn
+      final allMessages =
+          [
+            ...messagesBefore.reversed,
+            ...messagesFromTarget,
+          ].where((msg) => msg['id'] != null).toList();
+
+      // Loại bỏ trùng lặp (nếu có) và đảm bảo tin nhắn với messageId ở đầu
+      final uniqueMessages = <String, Map<String, dynamic>>{};
+      for (var msg in allMessages) {
+        uniqueMessages[msg['id']] = msg;
+      }
+
+      final sortedMessages =
+          uniqueMessages.values.toList()..sort(
+            (a, b) => DateTime.parse(
+              b['sent_at'],
+            ).compareTo(DateTime.parse(a['sent_at'])),
+          );
+
+      // Đảm bảo số lượng tin nhắn không vượt quá limit
+      final result = sortedMessages.take(limit).toList();
+
+      // Xử lý thông tin cuộc gọi nếu có
+      for (var message in result) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo =
+              await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
+
+      print(
+        'Loaded ${result.length} messages around messageId $messageId for conversation $conversationId',
+      );
+      return result;
+    } catch (e) {
+      print('Error loading messages around messageId $messageId: $e');
+      throw Exception('Lỗi khi tải tin nhắn: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadNewerMessages(
+    String conversationId, {
+    required String afterSentAt,
+    int limit = MESSAGE_PAGE_SIZE,
+  }) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      final participant =
+          await _supabase
+              .from('conversation_participants')
+              .select('deleted_at')
+              .eq('conversation_id', conversationId)
+              .eq('user_id', _supabase.auth.currentUser!.id)
+              .maybeSingle();
+
+      var query = _supabase
+          .from('messages')
+          .select('''
+          id, conversation_id, sender_id, content, sent_at, message_type,
+          users!sender_id(id, full_name, avatar_url, status),
+          message_statuses(user_id, is_read, read_at)
+        ''')
+          .eq('conversation_id', conversationId)
+          .gt('sent_at', afterSentAt);
+
+      if (participant != null && participant['deleted_at'] != null) {
+        query = query.gt('sent_at', participant['deleted_at']);
+      }
+
+      final messages = await query
+          .order('sent_at', ascending: true)
+          .limit(limit);
+
+      for (var message in messages) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo =
+              await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
+
+      print(
+        'Loaded ${messages.length} newer messages for conversation $conversationId after $afterSentAt',
+      );
+
+      return messages;
+    } catch (e) {
+      print('Error loading newer messages: $e');
+      throw Exception('Lỗi khi tải tin nhắn mới hơn: $e');
+    }
+  }
 }
