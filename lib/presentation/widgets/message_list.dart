@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/presentation/widgets/message_block.dart';
 import 'package:whisp/utils/constants.dart';
 
 class MessageList extends StatefulWidget {
@@ -46,247 +44,9 @@ class _MessageListState extends State<MessageList> {
     });
   }
 
-  Widget buildMessageContent(Map<String, dynamic> message) {
-    final messageType = message['message_type'] as String;
-    final content = message['content'] as String;
-    final isTargetMessage =
-        message['id'] == widget.targetMessageId; // Kiểm tra tin nhắn mục tiêu
-
-    Widget contentWidget;
-    switch (messageType) {
-      case 'image':
-        contentWidget = Container(
-          decoration:
-              isTargetMessage
-                  ? BoxDecoration(
-                    border: Border.all(
-                      color: Colors.blue,
-                      width: 3, // Viền đậm cho tin nhắn mục tiêu
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  )
-                  : null,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: CachedNetworkImage(
-              imageUrl: content,
-              width: 200,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const CircularProgressIndicator(),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-              cacheManager: CustomCacheManager(),
-            ),
-          ),
-        );
-        break;
-      case 'video':
-        final thumbnailUrl = content;
-        contentWidget = Container(
-          decoration:
-              isTargetMessage
-                  ? BoxDecoration(
-                    border: Border.all(
-                      color: Colors.blue,
-                      width: 3, // Viền đậm cho tin nhắn mục tiêu
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  )
-                  : null,
-          child: GestureDetector(
-            onTap: () async {
-              final url = Uri.parse(content);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url);
-              }
-            },
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
-                    imageUrl: thumbnailUrl,
-                    width: 200,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    cacheManager: CustomCacheManager(),
-                    placeholder:
-                        (context, url) => Container(
-                          width: 200,
-                          height: 120,
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                    errorWidget:
-                        (context, url, error) => Container(
-                          width: 200,
-                          height: 120,
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.play_circle_filled,
-                            size: 50,
-                            color: Colors.blue,
-                          ),
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        break;
-      case 'file':
-        contentWidget = GestureDetector(
-          onTap: () async {
-            final url = Uri.parse(content);
-            if (await canLaunchUrl(url)) {
-              await launchUrl(url);
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.insert_drive_file, color: Colors.blue),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    content.split('/').last,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                          isTargetMessage
-                              ? FontWeight.bold
-                              : FontWeight
-                                  .normal, // In đậm nếu là tin nhắn mục tiêu
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        break;
-      case 'call':
-        final callInfo = message['call_info'] as Map<String, dynamic>?;
-        if (callInfo == null) {
-          contentWidget = Text(
-            'Cuộc gọi không xác định',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight:
-                  isTargetMessage
-                      ? FontWeight.bold
-                      : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
-            ),
-          );
-        } else {
-          final isVideoCall = callInfo['is_video_call'] as bool;
-          final status = callInfo['status'] as String;
-          String displayText;
-          IconData icon;
-
-          switch (status) {
-            case 'accepted':
-              displayText = "Cuộc gọi đang diễn ra";
-              icon = isVideoCall ? Icons.videocam : Icons.phone;
-              break;
-            case 'ended':
-              displayText =
-                  isVideoCall
-                      ? 'Cuộc gọi video đã kết thúc'
-                      : 'Cuộc gọi đã kết thúc';
-              icon = isVideoCall ? Icons.videocam : Icons.phone;
-              break;
-            case 'missed':
-              displayText = isVideoCall ? 'Cuộc gọi video nhỡ' : 'Cuộc gọi nhỡ';
-              icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
-              break;
-            case 'rejected':
-              displayText =
-                  isVideoCall
-                      ? 'Cuộc gọi video bị từ chối'
-                      : 'Cuộc gọi bị từ chối';
-              icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
-              break;
-            case 'pending':
-              displayText = "Cuộc gọi chờ chấp nhận";
-              icon = isVideoCall ? Icons.videocam : Icons.phone;
-              break;
-            default:
-              displayText = 'Cuộc gọi không xác định';
-              icon = Icons.phone;
-          }
-
-          contentWidget = Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color:
-                      status == 'missed' || status == "rejected"
-                          ? Colors.red
-                          : Colors.blue,
-                ),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    displayText,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                          isTargetMessage
-                              ? FontWeight.bold
-                              : FontWeight
-                                  .normal, // In đậm nếu là tin nhắn mục tiêu
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        break;
-      case 'text':
-      default:
-        contentWidget = Text(
-          content,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight:
-                isTargetMessage
-                    ? FontWeight.bold
-                    : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
-          ),
-        );
-        break;
-    }
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * MESSAGE_BOX_MAX_SIZE,
-      ),
-      child: contentWidget,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final maxWidth = MediaQuery.of(context).size.width * MESSAGE_BOX_MAX_SIZE;
     final itemCount = widget.messages.length + 1;
 
     return ListView.builder(
@@ -352,56 +112,57 @@ class _MessageListState extends State<MessageList> {
                   ),
                   const SizedBox(width: 10),
                 ],
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment:
-                        isMe
-                            ? CrossAxisAlignment.end
-                            : CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding:
-                            messageType == "text"
-                                ? const EdgeInsets.all(10)
-                                : null,
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blue[100] : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: buildMessageContent(message),
+                Column(
+                  crossAxisAlignment:
+                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding:
+                          messageType == "text"
+                              ? const EdgeInsets.all(10)
+                              : null,
+                      decoration: BoxDecoration(
+                        color: isMe ? Colors.blue[100] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(height: 5),
-                      if (showTimestamp)
-                        Text(
-                          _formatTimestamp(message['sent_at']),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                      child: MessageBlock(
+                        key: ValueKey(message['id']),
+                        message: message,
+                        targetMessageId: widget.targetMessageId,
+                        maxWidth: maxWidth,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    if (showTimestamp)
+                      Text(
+                        formatTimestamp(message['sent_at']),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
                         ),
-                      if (isMe && messageIndex == widget.messages.length - 1)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isReadByAll
-                                  ? FontAwesomeIcons.solidCircleCheck
-                                  : FontAwesomeIcons.circleCheck,
-                              size: 14,
+                      ),
+                    if (isMe && messageIndex == widget.messages.length - 1)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isReadByAll
+                                ? FontAwesomeIcons.solidCircleCheck
+                                : FontAwesomeIcons.circleCheck,
+                            size: 14,
+                            color: isReadByAll ? Colors.blue : Colors.grey,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isReadByAll ? 'Đã xem' : 'Đã gửi',
+                            style: TextStyle(
+                              fontSize: 12,
                               color: isReadByAll ? Colors.blue : Colors.grey,
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              isReadByAll ? 'Đã xem' : 'Đã gửi',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isReadByAll ? Colors.blue : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
                 if (isMe) const SizedBox(width: 10),
               ],
@@ -412,7 +173,7 @@ class _MessageListState extends State<MessageList> {
     );
   }
 
-  String _formatTimestamp(String sentAt) {
+  String formatTimestamp(String sentAt) {
     final dateTime = DateTime.parse(sentAt).toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'dart:math';
 
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 bool checkEmailValid(String email) => RegExp(
   r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
@@ -56,4 +60,25 @@ String dateTimeFormat(DateTime dateTime, bool is24HourFormat) {
     formatter = DateFormat("MM/dd/yy");
   }
   return formatter.format(dateTime);
+}
+
+Future<XFile?> getThumbnail(String url, int maxWidth) async {
+  // Get the path to the temporary directory.
+  final String tempDir = (await getApplicationCacheDirectory()).path;
+  // Set up a file path using a hash of the URL.
+  final String thumbnailPath = '$tempDir/${url.hashCode}.png';
+  // Check if the thumbnail already exists to avoid re-generating it.
+  if (File(thumbnailPath).existsSync()) {
+    return XFile(thumbnailPath);
+  }
+  // Generate the thumbnail using the video_thumbnail package.
+  await VideoThumbnail.thumbnailFile(
+    video: url,
+    thumbnailPath: thumbnailPath,
+    imageFormat: ImageFormat.PNG,
+    maxWidth: maxWidth, // Specify the width of the thumbnail.
+    quality: 100, // Set the quality of the thumbnail image.
+    timeMs: 0, // Set the time (in ms) to capture the thumbnail frame.
+  );
+  return XFile(thumbnailPath);
 }

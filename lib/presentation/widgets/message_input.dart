@@ -176,6 +176,7 @@ class _MessageInputState extends State<MessageInput>
       children: [
         GestureDetector(
           onTap: onTap,
+          behavior: HitTestBehavior.opaque,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
             child: Row(

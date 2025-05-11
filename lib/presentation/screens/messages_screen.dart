@@ -251,10 +251,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
     } catch (e) {
       error = "Lỗi khi tải tin nhắn mới hơn: $e";
       isLoadingNewer = false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải tin nhắn mới hơn')));
-      setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải tin nhắn mới hơn')));
+        setState(() {});
+      }
     }
   }
 
