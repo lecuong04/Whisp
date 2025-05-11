@@ -14,6 +14,7 @@ class MessageList extends StatefulWidget {
   final bool hasMoreMessages;
   final Set<int> selectedMessages;
   final Function(int) onMessageTap;
+  final String? targetMessageId;
 
   const MessageList({
     super.key,
@@ -25,6 +26,7 @@ class MessageList extends StatefulWidget {
     required this.hasMoreMessages,
     required this.selectedMessages,
     required this.onMessageTap,
+    this.targetMessageId,
   });
 
   @override
@@ -47,63 +49,91 @@ class _MessageListState extends State<MessageList> {
   Widget buildMessageContent(Map<String, dynamic> message) {
     final messageType = message['message_type'] as String;
     final content = message['content'] as String;
+    final isTargetMessage =
+        message['id'] == widget.targetMessageId; // Kiểm tra tin nhắn mục tiêu
 
     Widget contentWidget;
     switch (messageType) {
       case 'image':
-        contentWidget = ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: CachedNetworkImage(
-            imageUrl: content,
-            width: 200,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => const CircularProgressIndicator(),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
-            cacheManager: CustomCacheManager(),
+        contentWidget = Container(
+          decoration:
+              isTargetMessage
+                  ? BoxDecoration(
+                    border: Border.all(
+                      color: Colors.blue,
+                      width: 3, // Viền đậm cho tin nhắn mục tiêu
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  )
+                  : null,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: CachedNetworkImage(
+              imageUrl: content,
+              width: 200,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const CircularProgressIndicator(),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+              cacheManager: CustomCacheManager(),
+            ),
           ),
         );
         break;
       case 'video':
         final thumbnailUrl = content;
-        contentWidget = GestureDetector(
-          onTap: () async {
-            final url = Uri.parse(content);
-            if (await canLaunchUrl(url)) {
-              await launchUrl(url);
-            }
-          },
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: thumbnailUrl,
-                  width: 200,
-                  height: 120,
-                  fit: BoxFit.cover,
-                  cacheManager: CustomCacheManager(),
-                  placeholder:
-                      (context, url) => Container(
-                        width: 200,
-                        height: 120,
-                        color: Colors.grey[300],
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                  errorWidget:
-                      (context, url, error) => Container(
-                        width: 200,
-                        height: 120,
-                        color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.play_circle_filled,
-                          size: 50,
-                          color: Colors.blue,
+        contentWidget = Container(
+          decoration:
+              isTargetMessage
+                  ? BoxDecoration(
+                    border: Border.all(
+                      color: Colors.blue,
+                      width: 3, // Viền đậm cho tin nhắn mục tiêu
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  )
+                  : null,
+          child: GestureDetector(
+            onTap: () async {
+              final url = Uri.parse(content);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              }
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: thumbnailUrl,
+                    width: 200,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    cacheManager: CustomCacheManager(),
+                    placeholder:
+                        (context, url) => Container(
+                          width: 200,
+                          height: 120,
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
                         ),
-                      ),
+                    errorWidget:
+                        (context, url, error) => Container(
+                          width: 200,
+                          height: 120,
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.play_circle_filled,
+                            size: 50,
+                            color: Colors.blue,
+                          ),
+                        ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
         break;
@@ -129,7 +159,14 @@ class _MessageListState extends State<MessageList> {
                 Flexible(
                   child: Text(
                     content.split('/').last,
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          isTargetMessage
+                              ? FontWeight.bold
+                              : FontWeight
+                                  .normal, // In đậm nếu là tin nhắn mục tiêu
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -141,9 +178,15 @@ class _MessageListState extends State<MessageList> {
       case 'call':
         final callInfo = message['call_info'] as Map<String, dynamic>?;
         if (callInfo == null) {
-          contentWidget = const Text(
+          contentWidget = Text(
             'Cuộc gọi không xác định',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  isTargetMessage
+                      ? FontWeight.bold
+                      : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
+            ),
           );
         } else {
           final isVideoCall = callInfo['is_video_call'] as bool;
@@ -203,7 +246,14 @@ class _MessageListState extends State<MessageList> {
                 Flexible(
                   child: Text(
                     displayText,
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          isTargetMessage
+                              ? FontWeight.bold
+                              : FontWeight
+                                  .normal, // In đậm nếu là tin nhắn mục tiêu
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -214,7 +264,16 @@ class _MessageListState extends State<MessageList> {
         break;
       case 'text':
       default:
-        contentWidget = Text(content, style: const TextStyle(fontSize: 16));
+        contentWidget = Text(
+          content,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight:
+                isTargetMessage
+                    ? FontWeight.bold
+                    : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
+          ),
+        );
         break;
     }
 
