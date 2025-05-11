@@ -111,7 +111,7 @@ class _CustomSearchState extends State<CustomSearch> {
           m["avatar_url"],
           m["conversation_name"],
           DateTime.parse(m["sent_at"].toString()),
-          m["is_seen"],
+          true,
           m["is_online"],
           m["content"],
           onTap: () {
