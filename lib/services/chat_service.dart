@@ -715,7 +715,7 @@ class ChatService {
               .eq('conversation_id', conversationId)
               .single();
 
-      if (targetMessage == null) {
+      if (targetMessage.isEmpty) {
         throw Exception('Không tìm thấy tin nhắn với ID: $messageId');
       }
 
