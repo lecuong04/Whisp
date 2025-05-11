@@ -39,8 +39,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
   bool isAtBottom = true;
   bool hasNewMessage = false;
   bool hasMoreMessages = true;
+  bool isLoadingNewer = false;
+  bool hasNewerMessages = true;
+  bool isSearchMode = false;
   String? error;
   final Set<int> selectedMessages = {};
+  double _lastScrollPosition = 0.0;
+  bool _isScrollingUp = false;
 
   @override
   void initState() {
@@ -54,15 +59,30 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final currentScroll = scrollController.position.pixels;
     const threshold = 100.0;
 
+    // Xác định hướng cuộn
     setState(() {
+      _isScrollingUp = currentScroll < _lastScrollPosition;
+      _lastScrollPosition = currentScroll;
+
       isAtBottom = (maxScroll - currentScroll) <= threshold;
       if (isAtBottom) {
         hasNewMessage = false;
       }
     });
 
-    if (currentScroll <= 100 && hasMoreMessages && !isLoadingMore) {
+    // Tải tin nhắn cũ hơn khi cuộn lên gần đầu danh sách và đang cuộn lên
+    if (currentScroll <= threshold &&
+        hasMoreMessages &&
+        !isLoadingMore &&
+        _isScrollingUp) {
       loadMoreMessages();
+    }
+
+    // Tải tin nhắn mới hơn khi cuộn xuống gần cuối danh sách
+    if (currentScroll >= maxScroll - threshold &&
+        hasNewerMessages &&
+        !isLoadingNewer) {
+      loadNewerMessages();
     }
   }
 
@@ -90,10 +110,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       });
 
-      final messages = await chatService.loadMessages(
-        widget.conversationId,
-        limit: MESSAGE_PAGE_SIZE,
-      );
+      List<Map<String, dynamic>> messages;
+      if (widget.messageId != null) {
+        messages = await chatService.loadMessagesAroundMessageId(
+          widget.conversationId,
+          widget.messageId!,
+          limit: MESSAGE_PAGE_SIZE,
+        );
+        isSearchMode = true; // Đặt chế độ tìm kiếm
+      } else {
+        messages = await chatService.loadMessages(
+          widget.conversationId,
+          limit: MESSAGE_PAGE_SIZE,
+        );
+        isSearchMode = false; // Chế độ bình thường
+      }
+
       setState(() {
         allMessages = messages.reversed.toList();
         isLoading = false;
@@ -101,7 +133,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        scrollToBottom();
+        if (widget.messageId != null) {
+          final targetIndex = allMessages.indexWhere(
+            (msg) => msg['id'] == widget.messageId,
+          );
+          if (targetIndex != -1 && scrollController.hasClients) {
+            scrollController.animateTo(
+              targetIndex * 100.0, // Điều chỉnh theo chiều cao tin nhắn thực tế
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          } else {
+            scrollToBottom();
+          }
+        } else {
+          scrollToBottom();
+        }
       });
 
       chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
@@ -142,6 +189,72 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (mounted) {
         setState(() {});
       }
+    }
+  }
+
+  Future<void> loadNewerMessages() async {
+    if (!hasNewerMessages || isLoadingNewer) return;
+
+    setState(() {
+      isLoadingNewer = true;
+    });
+
+    try {
+      final newestMessage = allMessages.last;
+      final afterSentAt = newestMessage['sent_at'];
+
+      final newerMessages = await chatService.loadNewerMessages(
+        widget.conversationId,
+        afterSentAt: afterSentAt,
+        limit: MESSAGE_PAGE_SIZE,
+      );
+
+      if (newerMessages.isNotEmpty) {
+        setState(() {
+          final newMessages =
+              newerMessages.where((newMsg) {
+                return !allMessages.any(
+                  (oldMsg) => oldMsg['id'] == newMsg['id'],
+                );
+              }).toList();
+          allMessages.addAll(newMessages);
+          allMessages.sort((a, b) {
+            final aTime = DateTime.parse(a['sent_at']);
+            final bTime = DateTime.parse(b['sent_at']);
+            return aTime.compareTo(bTime);
+          });
+          isLoadingNewer = false;
+          hasNewerMessages = newerMessages.length == MESSAGE_PAGE_SIZE;
+
+          // Đánh dấu tin nhắn mới từ người khác là đã đọc
+          if (newMessages.any((msg) => msg['sender_id'] != myId)) {
+            chatService.markMessagesAsRead(widget.conversationId).catchError((
+              e,
+            ) {
+              print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
+            });
+          }
+
+          // Nếu không còn tin nhắn mới hơn, thoát chế độ tìm kiếm
+          if (!hasNewerMessages) {
+            isSearchMode = false;
+          }
+        });
+      } else {
+        setState(() {
+          isLoadingNewer = false;
+          hasNewerMessages = false;
+          isSearchMode =
+              false; // Thoát chế độ tìm kiếm nếu không còn tin nhắn mới
+        });
+      }
+    } catch (e) {
+      error = "Lỗi khi tải tin nhắn mới hơn: $e";
+      isLoadingNewer = false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải tin nhắn mới hơn')));
+      setState(() {});
     }
   }
 
@@ -303,15 +416,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         )
                         : allMessages.isEmpty
                         ? const Center(child: Text("Chưa có tin nhắn nào"))
-                        : MessageList(
-                          messages: allMessages,
-                          myId: myId,
-                          friendImage: widget.conversationAvatar,
-                          scrollController: scrollController,
-                          isLoadingMore: isLoadingMore,
-                          hasMoreMessages: hasMoreMessages,
-                          selectedMessages: selectedMessages,
-                          onMessageTap: onMessageTap,
+                        : RefreshIndicator(
+                          onRefresh: loadNewerMessages,
+                          child: MessageList(
+                            messages: allMessages,
+                            myId: myId,
+                            friendImage: widget.conversationAvatar,
+                            scrollController: scrollController,
+                            isLoadingMore: isLoadingMore,
+                            hasMoreMessages: hasMoreMessages,
+                            selectedMessages: selectedMessages,
+                            onMessageTap: onMessageTap,
+                            targetMessageId:
+                                widget.messageId, // Truyền messageId
+                          ),
                         ),
               ),
               MessageInput(
