@@ -6,7 +6,7 @@ import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 import 'package:whisp/services/user_service.dart';
-import 'package:whisp/utils/constants.dart'; // Import constants.dart
+import 'package:whisp/utils/constants.dart';
 import 'dart:io';
 
 class MessagesScreen extends StatefulWidget {
@@ -86,8 +86,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void scrollToBottom() {
+  void scrollToBottom() async {
     if (scrollController.hasClients) {
+      await Future.delayed(Duration(milliseconds: 300));
       scrollController.animateTo(
         scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),

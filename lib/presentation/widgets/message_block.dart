@@ -13,12 +13,14 @@ class MessageBlock extends StatefulWidget {
   final Map<String, dynamic> message;
   final String? targetMessageId;
   final double maxWidth;
+  final ScrollController scrollController;
 
   const MessageBlock({
     super.key,
     this.targetMessageId,
     required this.message,
     required this.maxWidth,
+    required this.scrollController,
   });
 
   @override
@@ -296,6 +298,13 @@ class _MessageBlockState extends State<MessageBlock>
         widget.maxWidth,
       );
     }
+  }
+
+  Future<void> postInit() async {
+    await Future.delayed(Duration(milliseconds: 100));
+    widget.scrollController.jumpTo(
+      widget.scrollController.position.maxScrollExtent,
+    );
   }
 
   @override

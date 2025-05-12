@@ -130,6 +130,7 @@ class _MessageListState extends State<MessageList> {
                         message: message,
                         targetMessageId: widget.targetMessageId,
                         maxWidth: maxWidth,
+                        scrollController: widget.scrollController,
                       ),
                     ),
                     const SizedBox(height: 5),
