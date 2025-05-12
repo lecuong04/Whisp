@@ -29,7 +29,6 @@ class MessagesScreen extends StatefulWidget {
 
 class _MessagesScreenState extends State<MessagesScreen> {
   String myId = UserService().id!;
-
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final ChatService chatService = ChatService();
@@ -59,7 +58,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final currentScroll = scrollController.position.pixels;
     const threshold = 100.0;
 
-    // Xác định hướng cuộn
     setState(() {
       _isScrollingUp = currentScroll < _lastScrollPosition;
       _lastScrollPosition = currentScroll;
@@ -70,7 +68,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
     });
 
-    // Tải tin nhắn cũ hơn khi cuộn lên gần đầu danh sách và đang cuộn lên
     if (currentScroll <= threshold &&
         hasMoreMessages &&
         !isLoadingMore &&
@@ -78,7 +75,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
       loadMoreMessages();
     }
 
-    // Tải tin nhắn mới hơn khi cuộn xuống gần cuối danh sách
     if (currentScroll >= maxScroll - threshold &&
         hasNewerMessages &&
         !isLoadingNewer) {
@@ -88,7 +84,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void scrollToBottom() async {
     if (scrollController.hasClients) {
-      await Future.delayed(Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 300));
       scrollController.animateTo(
         scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
@@ -118,13 +114,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
           widget.messageId!,
           limit: MESSAGE_PAGE_SIZE,
         );
-        isSearchMode = true; // Đặt chế độ tìm kiếm
+        isSearchMode = true;
       } else {
         messages = await chatService.loadMessages(
           widget.conversationId,
           limit: MESSAGE_PAGE_SIZE,
         );
-        isSearchMode = false; // Chế độ bình thường
+        isSearchMode = false;
       }
 
       setState(() {
@@ -140,7 +136,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           );
           if (targetIndex != -1 && scrollController.hasClients) {
             scrollController.animateTo(
-              targetIndex * 100.0, // Điều chỉnh theo chiều cao tin nhắn thực tế
+              targetIndex * 100.0,
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
             );
@@ -155,15 +151,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
       chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
         final newMessages =
             updatedMessages.where((newMsg) {
+              // Kiểm tra nếu tin nhắn bị ẩn
+              if (newMsg.containsKey('is_hidden') &&
+                  newMsg['is_hidden'] == true) {
+                setState(() {
+                  allMessages.removeWhere((msg) => msg['id'] == newMsg['id']);
+                });
+                return false; // Không thêm tin nhắn bị ẩn vào danh sách
+              }
+              // Kiểm tra tin nhắn mới
               return !allMessages.any((oldMsg) => oldMsg['id'] == newMsg['id']);
             }).toList();
 
         if (newMessages.isNotEmpty) {
-          allMessages.addAll(newMessages);
-          allMessages.sort((a, b) {
-            final aTime = DateTime.parse(a['sent_at']);
-            final bTime = DateTime.parse(b['sent_at']);
-            return aTime.compareTo(bTime);
+          setState(() {
+            allMessages.addAll(newMessages);
+            allMessages.sort((a, b) {
+              final aTime = DateTime.parse(a['sent_at']);
+              final bTime = DateTime.parse(b['sent_at']);
+              return aTime.compareTo(bTime);
+            });
           });
 
           if (newMessages.any((msg) => msg['sender_id'] != myId)) {
@@ -182,7 +189,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
             hasNewMessage = true;
           }
         }
-        setState(() {});
       });
     } catch (e) {
       error = "Lỗi khi tải tin nhắn: $e";
@@ -227,7 +233,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           isLoadingNewer = false;
           hasNewerMessages = newerMessages.length == MESSAGE_PAGE_SIZE;
 
-          // Đánh dấu tin nhắn mới từ người khác là đã đọc
           if (newMessages.any((msg) => msg['sender_id'] != myId)) {
             chatService.markMessagesAsRead(widget.conversationId).catchError((
               e,
@@ -236,7 +241,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
             });
           }
 
-          // Nếu không còn tin nhắn mới hơn, thoát chế độ tìm kiếm
           if (!hasNewerMessages) {
             isSearchMode = false;
           }
@@ -245,8 +249,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         setState(() {
           isLoadingNewer = false;
           hasNewerMessages = false;
-          isSearchMode =
-              false; // Thoát chế độ tìm kiếm nếu không còn tin nhắn mới
+          isSearchMode = false;
         });
       }
     } catch (e) {
@@ -360,14 +363,80 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void onMessageTap(int index) {
-    setState(() {
-      if (selectedMessages.contains(index)) {
-        selectedMessages.remove(index);
-      } else {
-        selectedMessages.add(index);
+  void onMessageTap(int index) async {
+    final message = allMessages[index];
+    final isMe = message['sender_id'] == myId;
+
+    // Hiển thị menu ngữ cảnh khi nhấn giữ
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Xóa đối với bạn'),
+                  onTap: () => Navigator.pop(context, 'delete_for_me'),
+                ),
+                if (isMe)
+                  ListTile(
+                    leading: const Icon(Icons.delete_forever),
+                    title: const Text('Xóa đối với mọi người'),
+                    onTap: () => Navigator.pop(context, 'delete_for_all'),
+                  ),
+              ],
+            ),
+          ),
+    );
+
+    if (result != null) {
+      try {
+        if (result == 'delete_for_me') {
+          await chatService.deleteMessageForMe(message['id'], myId);
+          setState(() {
+            // Cập nhật danh sách tin nhắn để ẩn tin nhắn
+            allMessages[index]['message_statuses'] = [
+              ...(message['message_statuses'] as List<dynamic>)
+                  .map(
+                    (status) =>
+                        status['user_id'] == myId
+                            ? {...status, 'is_hidden': true}
+                            : status,
+                  )
+                  .toList(),
+            ];
+          });
+        } else if (result == 'delete_for_all') {
+          await chatService.deleteMessageForAll(message['id']);
+          setState(() {
+            // Cập nhật danh sách tin nhắn để ẩn tin nhắn cho tất cả
+            allMessages[index]['message_statuses'] = [
+              ...(message['message_statuses'] as List<dynamic>)
+                  .map((status) => {...status, 'is_hidden': true})
+                  .toList(),
+            ];
+          });
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Tin nhắn đã được xóa')));
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa tin nhắn: $e')));
       }
-    });
+    } else {
+      setState(() {
+        if (selectedMessages.contains(index)) {
+          selectedMessages.remove(index);
+        } else {
+          selectedMessages.add(index);
+        }
+      });
+    }
   }
 
   @override
@@ -430,8 +499,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             hasMoreMessages: hasMoreMessages,
                             selectedMessages: selectedMessages,
                             onMessageTap: onMessageTap,
-                            targetMessageId:
-                                widget.messageId, // Truyền messageId
+                            targetMessageId: widget.messageId,
                           ),
                         ),
               ),

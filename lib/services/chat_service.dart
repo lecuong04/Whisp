@@ -146,27 +146,33 @@ class ChatService {
 
         bool isRead = true;
         String displayMessage = 'Chưa có tin nhắn';
+        bool isHidden = false;
         if (lastMessage != null) {
           final lastMessageStatus =
               await _supabase
                   .from('message_statuses')
-                  .select('is_read')
+                  .select('is_read, is_hidden')
                   .eq('message_id', lastMessage['id'])
                   .eq('user_id', userId)
                   .maybeSingle();
           isRead = lastMessageStatus?['is_read'] ?? true;
+          isHidden = lastMessageStatus?['is_hidden'] ?? false;
 
-          final messageType = lastMessage['message_type'] as String;
-          displayMessage = switch (messageType) {
-            'image' => 'Hình ảnh',
-            'video' => 'Video',
-            'file' => 'File',
-            'call' => 'Cuộc gọi',
-            _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
-          };
+          if (isHidden) {
+            displayMessage = 'Tin nhắn đã bị xóa';
+          } else {
+            final messageType = lastMessage['message_type'] as String;
+            displayMessage = switch (messageType) {
+              'image' => 'Hình ảnh',
+              'video' => 'Video',
+              'file' => 'File',
+              'call' => 'Cuộc gọi',
+              _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
+            };
+          }
 
           print(
-            'Last message for $conversationId: $displayMessage, sent_at: ${lastMessage['sent_at']}, is_read: $isRead',
+            'Last message for $conversationId: $displayMessage, sent_at: ${lastMessage['sent_at']}, is_read: $isRead, is_hidden: $isHidden',
           );
         } else {
           print('No messages for $conversationId');
@@ -308,20 +314,26 @@ class ChatService {
               final lastMessageStatus =
                   await _supabase
                       .from('message_statuses')
-                      .select('is_read')
+                      .select('is_read, is_hidden')
                       .eq('message_id', lastMessage['id'])
                       .eq('user_id', userId)
                       .maybeSingle();
               final isRead = lastMessageStatus?['is_read'] ?? true;
+              final isHidden = lastMessageStatus?['is_hidden'] ?? false;
 
-              final messageType = lastMessage['message_type'] as String;
-              final displayMessage = switch (messageType) {
-                'image' => 'Hình ảnh',
-                'video' => 'Video',
-                'file' => 'File',
-                'call' => 'Cuộc gọi',
-                _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
-              };
+              String displayMessage = 'Chưa có tin nhắn';
+              if (isHidden) {
+                displayMessage = 'Tin nhắn đã bị xóa';
+              } else {
+                final messageType = lastMessage['message_type'] as String;
+                displayMessage = switch (messageType) {
+                  'image' => 'Hình ảnh',
+                  'video' => 'Video',
+                  'file' => 'File',
+                  'call' => 'Cuộc gọi',
+                  _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
+                };
+              }
 
               final updatedChat = {
                 'conversation_id': conversationId,
@@ -365,28 +377,113 @@ class ChatService {
           event: PostgresChangeEvent.update,
           schema: 'public',
           table: 'message_statuses',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
           callback: (payload) async {
             try {
-              final messageId = payload.newRecord['message_id'] as String;
-              final isRead = payload.newRecord['is_read'] as bool;
+              final updatedStatus = payload.newRecord;
+              final messageId = updatedStatus['message_id'] as String;
+              final isHidden = updatedStatus['is_hidden'] as bool;
 
               final message =
                   await _supabase
                       .from('messages')
-                      .select('conversation_id')
+                      .select('conversation_id, content, sent_at, message_type')
                       .eq('id', messageId)
                       .single();
 
               final conversationId = message['conversation_id'] as String;
 
+              final lastMessage =
+                  await _supabase
+                      .from('messages')
+                      .select('id, content, sent_at, message_type')
+                      .eq('conversation_id', conversationId)
+                      .order('sent_at', ascending: false)
+                      .limit(1)
+                      .maybeSingle();
+
+              if (lastMessage == null || lastMessage['id'] != messageId) {
+                // Nếu tin nhắn bị xóa không phải tin nhắn cuối cùng, không cần cập nhật
+                return;
+              }
+
+              final friendResponse =
+                  await _supabase
+                      .from('conversation_participants')
+                      .select(
+                        'user_id, users!inner(id, full_name, avatar_url, status)',
+                      )
+                      .eq('conversation_id', conversationId)
+                      .neq('user_id', userId)
+                      .eq('is_deleted', false)
+                      .limit(1)
+                      .maybeSingle();
+
+              if (friendResponse == null) {
+                print('No friend found for conversation $conversationId');
+                return;
+              }
+
+              final friend = friendResponse['users'] as Map<String, dynamic>;
+
+              final lastMessageStatus =
+                  await _supabase
+                      .from('message_statuses')
+                      .select('is_read, is_hidden')
+                      .eq('message_id', lastMessage['id'])
+                      .eq('user_id', userId)
+                      .maybeSingle();
+              final isRead = lastMessageStatus?['is_read'] ?? true;
+              final isHiddenStatus = lastMessageStatus?['is_hidden'] ?? false;
+
+              String displayMessage = 'Chưa có tin nhắn';
+              if (isHiddenStatus) {
+                displayMessage = 'Tin nhắn đã bị xóa';
+              } else {
+                final messageType = lastMessage['message_type'] as String;
+                displayMessage = switch (messageType) {
+                  'image' => 'Hình ảnh',
+                  'video' => 'Video',
+                  'file' => 'File',
+                  'call' => 'Cuộc gọi',
+                  _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
+                };
+              }
+
+              final updatedChat = {
+                'conversation_id': conversationId,
+                'friend_id': friend['id'],
+                'friend_full_name': friend['full_name'] ?? 'Unknown',
+                'friend_avatar_url': friend['avatar_url'] ?? '',
+                'friend_status': friend['status'] ?? 'offline',
+                'last_message': displayMessage,
+                'last_message_time':
+                    DateTime.parse(lastMessage['sent_at']).toLocal(),
+                'is_read': isRead,
+                'is_group': false,
+              };
+
               final currentChats = await loadChatsByUserId(userId);
-              final updatedChats =
-                  currentChats.map((chat) {
-                    if (chat['conversation_id'] == conversationId) {
-                      return {...chat, 'is_read': isRead};
-                    }
-                    return chat;
-                  }).toList();
+              final updatedChats = [...currentChats];
+              final chatIndex = updatedChats.indexWhere(
+                (chat) => chat['conversation_id'] == conversationId,
+              );
+
+              if (chatIndex >= 0) {
+                updatedChats[chatIndex] = updatedChat;
+              } else {
+                updatedChats.add(updatedChat);
+              }
+
+              updatedChats.sort(
+                (a, b) =>
+                    b['last_message_time'].compareTo(a['last_message_time']),
+              );
+
               if (updatedChats.isNotEmpty) {
                 onUpdate(updatedChats);
               }
@@ -479,26 +576,29 @@ class ChatService {
               .eq('user_id', _supabase.auth.currentUser!.id)
               .maybeSingle();
 
-      var query = _supabase
-          .from('messages')
-          .select('''
-            id, conversation_id, sender_id, content, sent_at, message_type,
-            users!sender_id(id, full_name, avatar_url, status),
-            message_statuses(user_id, is_read, read_at)
-          ''')
-          .eq('conversation_id', conversationId);
+      var params = {
+        '_conversation_id': conversationId,
+        '_user_id': _supabase.auth.currentUser!.id,
+        '_limit': limit,
+      };
 
       if (beforeSentAt != null) {
-        query = query.lt('sent_at', beforeSentAt);
+        params['_before_sent_at'] = beforeSentAt;
       }
 
       if (participant != null && participant['deleted_at'] != null) {
-        query = query.gt('sent_at', participant['deleted_at']);
+        params['_after_sent_at'] = participant['deleted_at'];
       }
 
-      final messages = await query
-          .order('sent_at', ascending: false)
-          .limit(limit);
+      final rawMessages = await _supabase.rpc(
+        'get_visible_messages',
+        params: params,
+      );
+      final messages =
+          (rawMessages as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .map((msg) => Map<String, dynamic>.from(msg))
+              .toList();
 
       for (var message in messages) {
         if (message['message_type'] == 'call') {
@@ -521,6 +621,176 @@ class ChatService {
     } catch (e) {
       print('Error loading messages: $e');
       throw Exception('Lỗi khi tải tin nhắn: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadMessagesAroundMessageId(
+    String conversationId,
+    String messageId, {
+    int limit = 20,
+  }) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      // Lấy thông tin của tin nhắn với messageId để lấy sent_at
+      final targetMessage =
+          await _supabase
+              .from('messages')
+              .select('sent_at')
+              .eq('id', messageId)
+              .eq('conversation_id', conversationId)
+              .single();
+
+      if (targetMessage.isEmpty) {
+        throw Exception('Không tìm thấy tin nhắn với ID: $messageId');
+      }
+
+      final targetSentAt = targetMessage['sent_at'];
+
+      // Truy vấn các tin nhắn trước messageId
+      final rawMessagesBefore = await _supabase.rpc(
+        'get_visible_messages',
+        params: {
+          '_conversation_id': conversationId,
+          '_user_id': _supabase.auth.currentUser!.id,
+          '_limit': limit - 1,
+          '_before_sent_at': targetSentAt,
+        },
+      );
+      final messagesBefore =
+          (rawMessagesBefore as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .map((msg) => Map<String, dynamic>.from(msg))
+              .toList();
+
+      // Truy vấn các tin nhắn từ messageId trở đi
+      final rawMessagesFromTarget = await _supabase.rpc(
+        'get_visible_messages',
+        params: {
+          '_conversation_id': conversationId,
+          '_user_id': _supabase.auth.currentUser!.id,
+          '_limit': limit,
+          '_after_sent_at':
+              DateTime.parse(
+                targetSentAt,
+              ).subtract(Duration(milliseconds: 1)).toIso8601String(),
+        },
+      );
+      final messagesFromTarget =
+          (rawMessagesFromTarget as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .map((msg) => Map<String, dynamic>.from(msg))
+              .toList();
+
+      // Kết hợp và sắp xếp lại danh sách tin nhắn
+      final allMessages =
+          [
+            ...messagesBefore.reversed,
+            ...messagesFromTarget,
+          ].where((msg) => msg['id'] != null).toList();
+
+      // Loại bỏ trùng lặp và sắp xếp
+      final uniqueMessages = <String, Map<String, dynamic>>{};
+      for (var msg in allMessages) {
+        uniqueMessages[msg['id']] = msg;
+      }
+
+      final sortedMessages =
+          uniqueMessages.values.toList()..sort(
+            (a, b) => DateTime.parse(
+              b['sent_at'],
+            ).compareTo(DateTime.parse(a['sent_at'])),
+          );
+
+      // Giới hạn số lượng tin nhắn
+      final result = sortedMessages.take(limit).toList();
+
+      // Xử lý thông tin cuộc gọi
+      for (var message in result) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo =
+              await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
+
+      print(
+        'Loaded ${result.length} messages around messageId $messageId for conversation $conversationId',
+      );
+      return result;
+    } catch (e) {
+      print('Error loading messages around messageId $messageId: $e');
+      throw Exception('Lỗi khi tải tin nhắn: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadNewerMessages(
+    String conversationId, {
+    required String afterSentAt,
+    int limit = MESSAGE_PAGE_SIZE,
+  }) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      final participant =
+          await _supabase
+              .from('conversation_participants')
+              .select('deleted_at')
+              .eq('conversation_id', conversationId)
+              .eq('user_id', _supabase.auth.currentUser!.id)
+              .maybeSingle();
+
+      var params = {
+        '_conversation_id': conversationId,
+        '_user_id': _supabase.auth.currentUser!.id,
+        '_limit': limit,
+        '_after_sent_at': afterSentAt,
+      };
+
+      if (participant != null && participant['deleted_at'] != null) {
+        params['_after_sent_at'] = participant['deleted_at'];
+      }
+
+      final rawMessages = await _supabase.rpc(
+        'get_visible_messages',
+        params: params,
+      );
+      final messages =
+          (rawMessages as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .map((msg) => Map<String, dynamic>.from(msg))
+              .toList();
+
+      for (var message in messages) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo =
+              await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
+
+      print(
+        'Loaded ${messages.length} newer messages for conversation $conversationId after $afterSentAt',
+      );
+
+      return messages;
+    } catch (e) {
+      print('Error loading newer messages: $e');
+      throw Exception('Lỗi khi tải tin nhắn mới hơn: $e');
     }
   }
 
@@ -600,7 +870,7 @@ class ChatService {
                     .select('''
                   id, conversation_id, sender_id, content, sent_at, message_type,
                   users!sender_id(id, full_name, avatar_url, status),
-                  message_statuses(user_id, is_read, read_at)
+                  message_statuses(user_id, is_read, read_at, is_hidden)
                 ''')
                     .eq('id', newMessage['id'])
                     .single();
@@ -616,6 +886,57 @@ class ChatService {
               message['call_info'] = callInfo;
             }
             onUpdate([message]);
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'message_statuses',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: _supabase.auth.currentUser!.id,
+          ),
+          callback: (payload) async {
+            try {
+              final updatedStatus = payload.newRecord;
+              final messageId = updatedStatus['message_id'] as String;
+              final isHidden = updatedStatus['is_hidden'] as bool;
+
+              if (isHidden) {
+                // Tin nhắn đã bị ẩn, xóa khỏi danh sách
+                onUpdate([
+                  {'id': messageId, 'is_hidden': true},
+                ]);
+              } else {
+                // Tin nhắn được khôi phục (nếu có), tải lại tin nhắn
+                final message =
+                    await _supabase
+                        .from('messages')
+                        .select('''
+                      id, conversation_id, sender_id, content, sent_at, message_type,
+                      users!sender_id(id, full_name, avatar_url, status),
+                      message_statuses(user_id, is_read, read_at, is_hidden)
+                    ''')
+                        .eq('id', messageId)
+                        .eq('conversation_id', conversationId)
+                        .single();
+
+                if (message['message_type'] == 'call') {
+                  final callId = message['content'];
+                  final callInfo =
+                      await _supabase
+                          .from('call_requests')
+                          .select('is_video_call, status, created_at, ended_at')
+                          .eq('id', callId)
+                          .maybeSingle();
+                  message['call_info'] = callInfo;
+                }
+                onUpdate([message]);
+              }
+            } catch (e) {
+              print('Error processing message_statuses update event: $e');
+            }
           },
         )
         .subscribe((status, [error]) {
@@ -696,162 +1017,38 @@ class ChatService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> loadMessagesAroundMessageId(
-    String conversationId,
-    String messageId, {
-    int limit = 20,
-  }) async {
+  Future<void> deleteMessageForMe(String messageId, String userId) async {
     try {
       if (!(await _isOnline())) {
         throw Exception('Không có kết nối mạng');
       }
 
-      // Lấy thông tin của tin nhắn với messageId để lấy sent_at
-      final targetMessage =
-          await _supabase
-              .from('messages')
-              .select('sent_at')
-              .eq('id', messageId)
-              .eq('conversation_id', conversationId)
-              .single();
-
-      if (targetMessage.isEmpty) {
-        throw Exception('Không tìm thấy tin nhắn với ID: $messageId');
-      }
-
-      final targetSentAt = targetMessage['sent_at'];
-
-      // Truy vấn các tin nhắn xung quanh messageId
-      // Lấy tối đa (limit - 1) tin nhắn trước đó và tất cả tin nhắn từ messageId trở đi
-      final messagesBefore = await _supabase
-          .from('messages')
-          .select('''
-          id, conversation_id, sender_id, content, sent_at, message_type,
-          users!sender_id(id, full_name, avatar_url, status),
-          message_statuses(user_id, is_read, read_at)
-        ''')
-          .eq('conversation_id', conversationId)
-          .lte('sent_at', targetSentAt)
-          .order('sent_at', ascending: false)
-          .limit(limit - 1);
-
-      // Lấy tin nhắn từ messageId trở đi (bao gồm chính messageId)
-      final messagesFromTarget = await _supabase
-          .from('messages')
-          .select('''
-          id, conversation_id, sender_id, content, sent_at, message_type,
-          users!sender_id(id, full_name, avatar_url, status),
-          message_statuses(user_id, is_read, read_at)
-        ''')
-          .eq('conversation_id', conversationId)
-          .gte('sent_at', targetSentAt)
-          .order('sent_at', ascending: true)
-          .limit(limit);
-
-      // Kết hợp và sắp xếp lại danh sách tin nhắn
-      final allMessages =
-          [
-            ...messagesBefore.reversed,
-            ...messagesFromTarget,
-          ].where((msg) => msg['id'] != null).toList();
-
-      // Loại bỏ trùng lặp (nếu có) và đảm bảo tin nhắn với messageId ở đầu
-      final uniqueMessages = <String, Map<String, dynamic>>{};
-      for (var msg in allMessages) {
-        uniqueMessages[msg['id']] = msg;
-      }
-
-      final sortedMessages =
-          uniqueMessages.values.toList()..sort(
-            (a, b) => DateTime.parse(
-              b['sent_at'],
-            ).compareTo(DateTime.parse(a['sent_at'])),
-          );
-
-      // Đảm bảo số lượng tin nhắn không vượt quá limit
-      final result = sortedMessages.take(limit).toList();
-
-      // Xử lý thông tin cuộc gọi nếu có
-      for (var message in result) {
-        if (message['message_type'] == 'call') {
-          final callId = message['content'];
-          final callInfo =
-              await _supabase
-                  .from('call_requests')
-                  .select('is_video_call, status, created_at, ended_at')
-                  .eq('id', callId)
-                  .maybeSingle();
-          message['call_info'] = callInfo;
-        }
-      }
-
-      print(
-        'Loaded ${result.length} messages around messageId $messageId for conversation $conversationId',
-      );
-      return result;
+      await _supabase
+          .from('message_statuses')
+          .update({'is_hidden': true})
+          .eq('message_id', messageId)
+          .eq('user_id', userId);
+      print('Deleted message $messageId for user $userId');
     } catch (e) {
-      print('Error loading messages around messageId $messageId: $e');
-      throw Exception('Lỗi khi tải tin nhắn: $e');
+      print('Error deleting message for user: $e');
+      throw Exception('Lỗi khi xóa tin nhắn: $e');
     }
   }
 
-  Future<List<Map<String, dynamic>>> loadNewerMessages(
-    String conversationId, {
-    required String afterSentAt,
-    int limit = MESSAGE_PAGE_SIZE,
-  }) async {
+  Future<void> deleteMessageForAll(String messageId) async {
     try {
       if (!(await _isOnline())) {
         throw Exception('Không có kết nối mạng');
       }
 
-      final participant =
-          await _supabase
-              .from('conversation_participants')
-              .select('deleted_at')
-              .eq('conversation_id', conversationId)
-              .eq('user_id', _supabase.auth.currentUser!.id)
-              .maybeSingle();
-
-      var query = _supabase
-          .from('messages')
-          .select('''
-          id, conversation_id, sender_id, content, sent_at, message_type,
-          users!sender_id(id, full_name, avatar_url, status),
-          message_statuses(user_id, is_read, read_at)
-        ''')
-          .eq('conversation_id', conversationId)
-          .gt('sent_at', afterSentAt);
-
-      if (participant != null && participant['deleted_at'] != null) {
-        query = query.gt('sent_at', participant['deleted_at']);
-      }
-
-      final messages = await query
-          .order('sent_at', ascending: true)
-          .limit(limit);
-
-      for (var message in messages) {
-        if (message['message_type'] == 'call') {
-          final callId = message['content'];
-          final callInfo =
-              await _supabase
-                  .from('call_requests')
-                  .select('is_video_call, status, created_at, ended_at')
-                  .eq('id', callId)
-                  .maybeSingle();
-          message['call_info'] = callInfo;
-        }
-      }
-
-      print(
-        'Loaded ${messages.length} newer messages for conversation $conversationId after $afterSentAt',
-      );
-
-      return messages;
+      await _supabase
+          .from('message_statuses')
+          .update({'is_hidden': true})
+          .eq('message_id', messageId);
+      print('Deleted message $messageId for all users');
     } catch (e) {
-      print('Error loading newer messages: $e');
-      throw Exception('Lỗi khi tải tin nhắn mới hơn: $e');
+      print('Error deleting message for all: $e');
+      throw Exception('Lỗi khi xóa tin nhắn: $e');
     }
   }
 }
