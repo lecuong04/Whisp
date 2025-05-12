@@ -81,6 +81,21 @@ class _MessageListState extends State<MessageList> {
         final showTimestamp = showTimestampIndices.contains(messageIndex);
         final messageType = message['message_type'] as String;
 
+        // Kiểm tra trạng thái is_hidden cho người dùng hiện tại
+        bool isHidden = false;
+        if (message['message_statuses'] != null) {
+          final statuses = message['message_statuses'] as List<dynamic>;
+          final myStatus = statuses.firstWhere(
+            (status) => status['user_id'] == widget.myId,
+            orElse: () => {'is_hidden': false},
+          );
+          isHidden = myStatus['is_hidden'] == true;
+        }
+
+        if (isHidden) {
+          return const SizedBox.shrink(); // Không hiển thị tin nhắn đã bị ẩn
+        }
+
         bool isReadByAll = false;
         if (isMe && message['message_statuses'] != null) {
           final statuses = message['message_statuses'] as List<dynamic>;
@@ -91,6 +106,42 @@ class _MessageListState extends State<MessageList> {
         }
 
         return GestureDetector(
+          onLongPress: () {
+            // Hiển thị menu ngữ cảnh khi nhấn giữ
+            showModalBottomSheet(
+              context: context,
+              builder:
+                  (context) => Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.delete),
+                          title: const Text('Xóa đối với bạn'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            widget.onMessageTap(
+                              messageIndex,
+                            ); // Gọi callback để xử lý xóa
+                          },
+                        ),
+                        if (isMe) // Chỉ hiển thị tùy chọn "Xóa đối với mọi người" nếu là tin nhắn của người dùng
+                          ListTile(
+                            leading: const Icon(Icons.delete_forever),
+                            title: const Text('Xóa đối với mọi người'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              widget.onMessageTap(
+                                messageIndex,
+                              ); // Gọi callback để xử lý xóa
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+            );
+          },
           onTap: () {
             toggleTimestamp(messageIndex);
             widget.onMessageTap(messageIndex);
