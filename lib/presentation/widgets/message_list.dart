@@ -93,7 +93,40 @@ class _MessageListState extends State<MessageList> {
         }
 
         if (isHidden) {
-          return const SizedBox.shrink(); // Không hiển thị tin nhắn đã bị ẩn
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+            child: Align(
+              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.7,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 12,
+                ),
+                // decoration: BoxDecoration(
+                //   color: Colors.grey[200],
+                //   borderRadius: BorderRadius.circular(12),
+                //   boxShadow: [
+                //     BoxShadow(
+                //       color: Colors.black12,
+                //       blurRadius: 4,
+                //       offset: const Offset(0, 2),
+                //     ),
+                //   ],
+                // ),
+                child: Text(
+                  'Tin nhắn đã bị xóa',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          );
         }
 
         bool isReadByAll = false;
@@ -121,20 +154,16 @@ class _MessageListState extends State<MessageList> {
                           title: const Text('Xóa đối với bạn'),
                           onTap: () {
                             Navigator.pop(context);
-                            widget.onMessageTap(
-                              messageIndex,
-                            ); // Gọi callback để xử lý xóa
+                            widget.onMessageTap(messageIndex);
                           },
                         ),
-                        if (isMe) // Chỉ hiển thị tùy chọn "Xóa đối với mọi người" nếu là tin nhắn của người dùng
+                        if (isMe)
                           ListTile(
                             leading: const Icon(Icons.delete_forever),
                             title: const Text('Xóa đối với mọi người'),
                             onTap: () {
                               Navigator.pop(context);
-                              widget.onMessageTap(
-                                messageIndex,
-                              ); // Gọi callback để xử lý xóa
+                              widget.onMessageTap(messageIndex);
                             },
                           ),
                       ],
