@@ -30,6 +30,9 @@ Future<void> main() async {
   if (await Permission.notification.isDenied) {
     await Permission.notification.request();
   }
+  if (await Permission.microphone.isDenied) {
+    await Permission.microphone.request();
+  }
   await dotenv.load(fileName: ".env");
   await Supabase.initialize(
     url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',

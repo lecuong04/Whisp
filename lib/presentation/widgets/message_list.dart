@@ -139,43 +139,11 @@ class _MessageListState extends State<MessageList> {
         }
 
         return GestureDetector(
-          onLongPress: () async {
-            // Hiển thị menu ngữ cảnh khi nhấn giữ
-            await showModalBottomSheet(
-              context: context,
-              useSafeArea: true,
-              clipBehavior: Clip.hardEdge,
-              builder:
-                  (context) => Container(
-                    padding: const EdgeInsets.all(16),
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.delete),
-                          title: const Text('Xóa đối với bạn'),
-                          onTap: () {
-                            Navigator.pop(context);
-                            widget.onMessageTap(messageIndex);
-                          },
-                        ),
-                        if (isMe)
-                          ListTile(
-                            leading: const Icon(Icons.delete_forever),
-                            title: const Text('Xóa đối với mọi người'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              widget.onMessageTap(messageIndex);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-            );
+          onLongPress: () {
+            widget.onMessageTap(messageIndex);
           },
           onTap: () {
             toggleTimestamp(messageIndex);
-            widget.onMessageTap(messageIndex);
           },
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
