@@ -222,14 +222,27 @@ class _ChatsState extends State<Chats> {
                         final chat = chats[index];
                         final conversationId =
                             chat['conversation_id'] as String;
-                        final friendId = chat['friend_id'] as String;
-                        final alias = chat['friend_full_name'] as String;
-                        final avatarUrl = chat['friend_avatar_url'] as String;
-                        final lastMessage = chat['last_message'] as String;
+                        final friendId = chat['friend_id'] as String?;
+                        final alias =
+                            chat['friend_full_name'] as String? ?? 'Unknown';
+                        final avatarUrl =
+                            chat['friend_avatar_url'] as String? ?? '';
+                        final lastMessage =
+                            chat['last_message'] as String? ??
+                            'Chưa có tin nhắn';
                         final lastMessageTime =
-                            chat['last_message_time'] as DateTime;
+                            chat['last_message_time'] as DateTime?;
                         final isOnline = chat['friend_status'] == 'online';
-                        final isSeen = chat['is_read'] as bool;
+                        final isSeen = chat['is_read'] as bool? ?? true;
+
+                        // Bỏ qua chat nếu friendId hoặc lastMessageTime là null
+                        if (friendId == null || lastMessageTime == null) {
+                          print(
+                            'Skipping chat with null friend_id or last_message_time: $conversationId',
+                          );
+                          return const SizedBox.shrink();
+                        }
+
                         print(
                           'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
                         );

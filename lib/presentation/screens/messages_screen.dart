@@ -149,45 +149,38 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
 
       chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
-        final newMessages =
-            updatedMessages.where((newMsg) {
-              // Kiểm tra nếu tin nhắn bị ẩn
-              if (newMsg.containsKey('is_hidden') &&
-                  newMsg['is_hidden'] == true) {
-                setState(() {
-                  allMessages.removeWhere((msg) => msg['id'] == newMsg['id']);
-                });
-                return false; // Không thêm tin nhắn bị ẩn vào danh sách
-              }
-              // Kiểm tra tin nhắn mới
-              return !allMessages.any((oldMsg) => oldMsg['id'] == newMsg['id']);
-            }).toList();
-
-        if (newMessages.isNotEmpty) {
-          setState(() {
-            allMessages.addAll(newMessages);
-            allMessages.sort((a, b) {
-              final aTime = DateTime.parse(a['sent_at']);
-              final bTime = DateTime.parse(b['sent_at']);
-              return aTime.compareTo(bTime);
-            });
+        setState(() {
+          for (var updatedMessage in updatedMessages) {
+            final index = allMessages.indexWhere(
+              (msg) => msg['id'] == updatedMessage['id'],
+            );
+            if (index != -1) {
+              // Cập nhật tin nhắn hiện có
+              allMessages[index] = updatedMessage;
+            } else {
+              // Thêm tin nhắn mới
+              allMessages.add(updatedMessage);
+            }
+          }
+          allMessages.sort((a, b) {
+            final aTime = DateTime.parse(a['sent_at']);
+            final bTime = DateTime.parse(b['sent_at']);
+            return aTime.compareTo(bTime);
           });
+        });
 
-          if (newMessages.any((msg) => msg['sender_id'] != myId)) {
-            chatService.markMessagesAsRead(widget.conversationId).catchError((
-              e,
-            ) {
-              print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
-            });
-          }
+        if (updatedMessages.any((msg) => msg['sender_id'] != myId)) {
+          chatService.markMessagesAsRead(widget.conversationId).catchError((e) {
+            print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
+          });
+        }
 
-          if (isAtBottom) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              scrollToBottom();
-            });
-          } else {
-            hasNewMessage = true;
-          }
+        if (isAtBottom) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scrollToBottom();
+          });
+        } else {
+          hasNewMessage = true;
         }
       });
     } catch (e) {
@@ -397,26 +390,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (result == 'delete_for_me') {
           await chatService.deleteMessageForMe(message['id'], myId);
           setState(() {
-            // Cập nhật danh sách tin nhắn để ẩn tin nhắn
             allMessages[index]['message_statuses'] = [
-              ...(message['message_statuses'] as List<dynamic>)
-                  .map(
-                    (status) =>
-                        status['user_id'] == myId
-                            ? {...status, 'is_hidden': true}
-                            : status,
-                  )
-                  .toList(),
+              ...(message['message_statuses'] as List<dynamic>).map(
+                (status) =>
+                    status['user_id'] == myId
+                        ? {...status, 'is_hidden': true}
+                        : status,
+              ),
             ];
           });
         } else if (result == 'delete_for_all') {
           await chatService.deleteMessageForAll(message['id']);
           setState(() {
-            // Cập nhật danh sách tin nhắn để ẩn tin nhắn cho tất cả
             allMessages[index]['message_statuses'] = [
-              ...(message['message_statuses'] as List<dynamic>)
-                  .map((status) => {...status, 'is_hidden': true})
-                  .toList(),
+              ...(message['message_statuses'] as List<dynamic>).map(
+                (status) => {...status, 'is_hidden': true},
+              ),
             ];
           });
         }
