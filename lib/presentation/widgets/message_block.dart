@@ -63,7 +63,10 @@ class _MessageBlockState extends State<MessageBlock>
                 width: 200,
                 fit: BoxFit.cover,
                 placeholder:
-                    (context, url) => const CircularProgressIndicator(),
+                    (context, url) => SizedBox.square(
+                      dimension: 128,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
                 errorWidget: (context, url, error) => const Icon(Icons.error),
                 cacheManager: CustomCacheManager(),
               ),
