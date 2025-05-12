@@ -139,15 +139,17 @@ class _MessageListState extends State<MessageList> {
         }
 
         return GestureDetector(
-          onLongPress: () {
+          onLongPress: () async {
             // Hiển thị menu ngữ cảnh khi nhấn giữ
-            showModalBottomSheet(
+            await showModalBottomSheet(
               context: context,
+              useSafeArea: true,
+              clipBehavior: Clip.hardEdge,
               builder:
                   (context) => Container(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                    child: ListView(
+                      shrinkWrap: true,
                       children: [
                         ListTile(
                           leading: const Icon(Icons.delete),
