@@ -136,7 +136,7 @@ class _MessageListState extends State<MessageList> {
                             widget.friendImage.isNotEmpty
                                 ? NetworkImage(widget.friendImage)
                                 : null,
-                        radius: 10,
+                        radius: 18,
                       ),
                       const SizedBox(width: 5),
                     ] else if (!isMe) ...[
