@@ -208,7 +208,7 @@ class _MessageListState extends State<MessageList> {
                   Padding(
                     padding: EdgeInsets.only(
                       right: isMe ? 10 : 0,
-                      left: !isMe ? 25 : 0,
+                      left: !isMe ? 41 : 0,
                     ),
                     child: Text(
                       formatTimestamp(message['sent_at']),
