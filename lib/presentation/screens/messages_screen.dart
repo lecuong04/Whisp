@@ -144,6 +144,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         messages = result as List<Map<String, dynamic>>;
       }
 
+      if (!mounted) return; // Kiểm tra mounted trước khi gọi setState
       setState(() {
         allMessages = messages.reversed.toList();
         isLoading = false;
@@ -152,6 +153,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return; // Kiểm tra mounted trước khi thực hiện scroll
         if (widget.messageId != null && targetIndex != null) {
           if (scrollController.hasClients) {
             final estimatedPosition = targetIndex * 100.0;
@@ -163,9 +165,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
             // Nếu targetIndex gần đầu danh sách, đặt scroll gần 0
             if (targetIndex < 5) {
               Future.delayed(const Duration(milliseconds: 400), () {
-                if (scrollController.hasClients) {
-                  scrollController.jumpTo(50.0); // Gần đầu để load nhạy hơn
-                }
+                if (!mounted || !scrollController.hasClients)
+                  return; // Kiểm tra mounted
+                scrollController.jumpTo(50.0); // Gần đầu để load nhạy hơn
               });
             }
           } else {
@@ -177,6 +179,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
 
       chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
+        if (!mounted) return; // Kiểm tra mounted trước khi xử lý subscription
         setState(() {
           for (var updatedMessage in updatedMessages) {
             final index = allMessages.indexWhere(
@@ -203,15 +206,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
         if (isAtBottom) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return; // Kiểm tra mounted trước khi scroll
             scrollToBottom();
           });
         } else {
+          if (!mounted) return; // Kiểm tra mounted trước khi gọi setState
           setState(() {
             hasNewMessage = true;
           });
         }
       });
     } catch (e) {
+      if (!mounted) return; // Kiểm tra mounted trước khi gọi setState
       setState(() {
         error = "Lỗi khi tải tin nhắn: $e";
         isLoading = false;
