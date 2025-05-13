@@ -144,7 +144,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         messages = result as List<Map<String, dynamic>>;
       }
 
-      if (!mounted) return; // Kiểm tra mounted trước khi gọi setState
+      if (!mounted) return;
       setState(() {
         allMessages = messages.reversed.toList();
         isLoading = false;
@@ -153,7 +153,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return; // Kiểm tra mounted trước khi thực hiện scroll
+        if (!mounted) return;
         if (widget.messageId != null && targetIndex != null) {
           if (scrollController.hasClients) {
             final estimatedPosition = targetIndex * 100.0;
@@ -162,12 +162,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
             );
-            // Nếu targetIndex gần đầu danh sách, đặt scroll gần 0
+
             if (targetIndex < 5) {
               Future.delayed(const Duration(milliseconds: 400), () {
-                if (!mounted || !scrollController.hasClients)
-                  return; // Kiểm tra mounted
-                scrollController.jumpTo(50.0); // Gần đầu để load nhạy hơn
+                if (!mounted || !scrollController.hasClients) {
+                  return;
+                }
+                scrollController.jumpTo(50.0);
               });
             }
           } else {
