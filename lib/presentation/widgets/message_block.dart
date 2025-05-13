@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_size_getter/image_size_getter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/presentation/widgets/video_player_popup.dart';
 import 'package:whisp/utils/helpers.dart';
 
 class MessageBlock extends StatefulWidget {
@@ -14,6 +15,7 @@ class MessageBlock extends StatefulWidget {
   final String? targetMessageId;
   final double maxWidth;
   final ScrollController scrollController;
+  final BuildContext context;
 
   const MessageBlock({
     super.key,
@@ -21,6 +23,7 @@ class MessageBlock extends StatefulWidget {
     required this.message,
     required this.maxWidth,
     required this.scrollController,
+    required this.context,
   });
 
   @override
@@ -35,6 +38,7 @@ class _MessageBlockState extends State<MessageBlock>
   Future<Widget>? data;
 
   static Future<Widget> buildMessageContent(
+    BuildContext context,
     Map<String, dynamic> message,
     String? targetMessageId,
     double maxWidth,
@@ -99,9 +103,15 @@ class _MessageBlockState extends State<MessageBlock>
             child: GestureDetector(
               onTap: () async {
                 final url = Uri.parse(content);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url);
-                }
+                await showAdaptiveDialog(
+                  barrierDismissible: true,
+                  context: context,
+                  builder:
+                      (context) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        child: VideoPlayerPopup(url: url),
+                      ),
+                );
               },
               child: Stack(
                 alignment: AlignmentDirectional.center,
@@ -281,6 +291,7 @@ class _MessageBlockState extends State<MessageBlock>
   @override
   void initState() {
     data = buildMessageContent(
+      widget.context,
       widget.message,
       widget.targetMessageId,
       widget.maxWidth,
@@ -293,6 +304,7 @@ class _MessageBlockState extends State<MessageBlock>
     super.didUpdateWidget(oldWidget);
     if (widget.message['id'] != oldWidget.message['id']) {
       data = buildMessageContent(
+        widget.context,
         widget.message,
         widget.targetMessageId,
         widget.maxWidth,

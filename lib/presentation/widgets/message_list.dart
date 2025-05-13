@@ -197,6 +197,7 @@ class _MessageListState extends State<MessageList> {
                                   targetMessageId: widget.targetMessageId,
                                   maxWidth: maxWidth,
                                   scrollController: widget.scrollController,
+                                  context: context,
                                 ),
                               ),
                     ),
