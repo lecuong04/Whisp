@@ -1,6 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:whisp/presentation/widgets/message_block.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/presentation/widgets/video_thumbnail.dart';
 import 'package:whisp/utils/constants.dart';
 
 class MessageList extends StatefulWidget {
@@ -33,6 +36,7 @@ class MessageList extends StatefulWidget {
 
 class _MessageListState extends State<MessageList> {
   final Set<int> showTimestampIndices = {};
+  bool isAtBottom = false;
 
   void toggleTimestamp(int index) {
     setState(() {
@@ -53,11 +57,242 @@ class _MessageListState extends State<MessageList> {
     return currentMessage['sender_id'] != nextMessage['sender_id'];
   }
 
+  static Widget buildMessageContent(
+    BuildContext context,
+    Map<String, dynamic> message,
+    String? targetMessageId,
+    double maxWidth,
+  ) {
+    final messageType = message['message_type'] as String;
+    final content = message['content'] as String;
+    final isTargetMessage = message['id'] == targetMessageId;
+
+    Widget contentWidget;
+    switch (messageType) {
+      case 'image':
+        {
+          contentWidget = Container(
+            decoration:
+                isTargetMessage
+                    ? BoxDecoration(
+                      border: Border.all(
+                        color: Colors.blue,
+                        width: 3, // Viền đậm cho tin nhắn mục tiêu
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    )
+                    : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: GestureDetector(
+                onDoubleTap: () async {
+                  await showAdaptiveDialog(
+                    barrierDismissible: true,
+                    context: context,
+                    builder:
+                        (context) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: GestureDetector(
+                              onLongPress: () async {
+                                var url = Uri.parse(content);
+                                if (await canLaunchUrl(url)) {
+                                  await launchUrl(
+                                    url,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                }
+                              },
+                              child: CachedNetworkImage(imageUrl: content),
+                            ),
+                          ),
+                        ),
+                  );
+                },
+                child: CachedNetworkImage(
+                  imageUrl: content,
+                  width: 200,
+                  fit: BoxFit.cover,
+                  placeholder:
+                      (context, url) => SizedBox.square(
+                        dimension: 128,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                  cacheManager: CustomCacheManager(),
+                ),
+              ),
+            ),
+          );
+          break;
+        }
+      case 'video':
+        {
+          contentWidget = VideoThumbnail(
+            url: content,
+            isTargetMessage: isTargetMessage,
+          );
+          break;
+        }
+      case 'file':
+        {
+          contentWidget = GestureDetector(
+            onTap: () async {
+              final url = Uri.parse(content);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.insert_drive_file, color: Colors.blue),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      content.split('/').last,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight:
+                            isTargetMessage
+                                ? FontWeight.bold
+                                : FontWeight
+                                    .normal, // In đậm nếu là tin nhắn mục tiêu
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+          break;
+        }
+      case 'call':
+        {
+          final callInfo = message['call_info'] as Map<String, dynamic>?;
+          if (callInfo == null) {
+            contentWidget = Text(
+              'Cuộc gọi không xác định',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight:
+                    isTargetMessage
+                        ? FontWeight.bold
+                        : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
+              ),
+            );
+          } else {
+            final isVideoCall = callInfo['is_video_call'] as bool;
+            final status = callInfo['status'] as String;
+            String displayText;
+            IconData icon;
+
+            switch (status) {
+              case 'accepted':
+                displayText = "Cuộc gọi đang diễn ra";
+                icon = isVideoCall ? Icons.videocam : Icons.phone;
+                break;
+              case 'ended':
+                displayText =
+                    isVideoCall
+                        ? 'Cuộc gọi video đã kết thúc'
+                        : 'Cuộc gọi đã kết thúc';
+                icon = isVideoCall ? Icons.videocam : Icons.phone;
+                break;
+              case 'missed':
+                displayText =
+                    isVideoCall ? 'Cuộc gọi video nhỡ' : 'Cuộc gọi nhỡ';
+                icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
+                break;
+              case 'rejected':
+                displayText =
+                    isVideoCall
+                        ? 'Cuộc gọi video bị từ chối'
+                        : 'Cuộc gọi bị từ chối';
+                icon = isVideoCall ? Icons.videocam_off : Icons.phone_missed;
+                break;
+              case 'pending':
+                displayText = "Cuộc gọi chờ chấp nhận";
+                icon = isVideoCall ? Icons.videocam : Icons.phone;
+                break;
+              default:
+                displayText = 'Cuộc gọi không xác định';
+                icon = Icons.phone;
+            }
+
+            contentWidget = Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    color:
+                        status == 'missed' || status == "rejected"
+                            ? Colors.red
+                            : Colors.blue,
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      displayText,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight:
+                            isTargetMessage
+                                ? FontWeight.bold
+                                : FontWeight
+                                    .normal, // In đậm nếu là tin nhắn mục tiêu
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          break;
+        }
+      case 'text':
+      default:
+        {
+          contentWidget = Text(
+            content,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  isTargetMessage
+                      ? FontWeight.bold
+                      : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
+            ),
+          );
+          break;
+        }
+    }
+
+    return ConstrainedBox(
+      key: ValueKey(message['id']),
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: contentWidget,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final maxWidth = MediaQuery.of(context).size.width * MESSAGE_BOX_MAX_SIZE;
     final itemCount = widget.messages.length + 1;
-
     return ListView.builder(
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -191,13 +426,11 @@ class _MessageListState extends State<MessageList> {
                                           : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: MessageBlock(
-                                  key: ValueKey(message['id']),
-                                  message: message,
-                                  targetMessageId: widget.targetMessageId,
-                                  maxWidth: maxWidth,
-                                  scrollController: widget.scrollController,
-                                  context: context,
+                                child: buildMessageContent(
+                                  context,
+                                  message,
+                                  widget.targetMessageId,
+                                  maxWidth,
                                 ),
                               ),
                     ),

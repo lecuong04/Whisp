@@ -95,7 +95,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void scrollToBottom() async {
     if (scrollController.hasClients) {
-      await Future.delayed(const Duration(milliseconds: 100));
       scrollController.animateTo(
         scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),

@@ -40,7 +40,11 @@ String dateTimeFormat(DateTime dateTime, bool is24HourFormat) {
   return formatter.format(dateTime);
 }
 
-Future<XFile?> getThumbnail(String url, int maxWidth) async {
+Future<XFile?> getThumbnail(
+  String url, {
+  int maxHeight = 0,
+  int maxWidth = 0,
+}) async {
   var thumbnailFolder = Directory(
     join((await getApplicationCacheDirectory()).path, "video_thumbnails"),
   );
@@ -55,6 +59,7 @@ Future<XFile?> getThumbnail(String url, int maxWidth) async {
     video: url,
     thumbnailPath: thumbnailPath,
     imageFormat: ImageFormat.PNG,
+    maxHeight: maxHeight,
     maxWidth: maxWidth,
     quality: 100,
     timeMs: 0,

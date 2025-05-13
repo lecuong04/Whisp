@@ -64,6 +64,19 @@ class _VideoPlayerPopupState extends State<VideoPlayerPopup> {
           borderRadius: BorderRadius.all(Radius.circular(12)),
           child: Chewie(controller: chewieController!),
         )
-        : const Center(child: CircularProgressIndicator());
+        : const Center(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 18,
+            children: [
+              CircularProgressIndicator(color: Colors.grey),
+              Text(
+                "Đang tải...",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        );
   }
 }
