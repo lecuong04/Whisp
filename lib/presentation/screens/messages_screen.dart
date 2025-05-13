@@ -45,6 +45,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   final Set<int> selectedMessages = {};
   double _lastScrollPosition = 0.0;
   bool _isScrollingUp = false;
+  DateTime _lastLoadMoreTime = DateTime.now();
+  DateTime _lastLoadNewerTime = DateTime.now();
 
   @override
   void initState() {
@@ -56,35 +58,44 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void scrollListener() {
     final maxScroll = scrollController.position.maxScrollExtent;
     final currentScroll = scrollController.position.pixels;
-    const threshold = 100.0;
+    final threshold =
+        isSearchMode ? 50.0 : 200.0; // Giảm ngưỡng trong search mode
+    const minLoadInterval = Duration(seconds: 1);
 
-    setState(() {
-      _isScrollingUp = currentScroll < _lastScrollPosition;
-      _lastScrollPosition = currentScroll;
+    _isScrollingUp = currentScroll < _lastScrollPosition;
+    _lastScrollPosition = currentScroll;
 
-      isAtBottom = (maxScroll - currentScroll) <= threshold;
-      if (isAtBottom) {
-        hasNewMessage = false;
-      }
-    });
+    final newIsAtBottom = (maxScroll - currentScroll) <= threshold;
+    if (newIsAtBottom != isAtBottom) {
+      setState(() {
+        isAtBottom = newIsAtBottom;
+        if (isAtBottom) {
+          hasNewMessage = false;
+        }
+      });
+    }
 
     if (currentScroll <= threshold &&
         hasMoreMessages &&
         !isLoadingMore &&
-        _isScrollingUp) {
+        _isScrollingUp &&
+        DateTime.now().difference(_lastLoadMoreTime) >= minLoadInterval) {
       loadMoreMessages();
+      _lastLoadMoreTime = DateTime.now();
     }
 
     if (currentScroll >= maxScroll - threshold &&
         hasNewerMessages &&
-        !isLoadingNewer) {
+        !isLoadingNewer &&
+        DateTime.now().difference(_lastLoadNewerTime) >= minLoadInterval) {
       loadNewerMessages();
+      _lastLoadNewerTime = DateTime.now();
     }
   }
 
   void scrollToBottom() async {
     if (scrollController.hasClients) {
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 100));
       scrollController.animateTo(
         scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
@@ -107,39 +118,56 @@ class _MessagesScreenState extends State<MessagesScreen> {
         print('Cảnh báo: Không thể đánh dấu tin nhắn đã đọc: $e');
       });
 
-      List<Map<String, dynamic>> messages;
+      dynamic result;
       if (widget.messageId != null) {
-        messages = await chatService.loadMessagesAroundMessageId(
+        result = await chatService.loadMessagesAroundMessageId(
           widget.conversationId,
           widget.messageId!,
           limit: MESSAGE_PAGE_SIZE,
         );
         isSearchMode = true;
       } else {
-        messages = await chatService.loadMessages(
+        result = await chatService.loadMessages(
           widget.conversationId,
           limit: MESSAGE_PAGE_SIZE,
         );
         isSearchMode = false;
       }
 
+      List<Map<String, dynamic>> messages;
+      int? targetIndex;
+
+      if (widget.messageId != null) {
+        messages = result['messages'] as List<Map<String, dynamic>>;
+        targetIndex = result['targetIndex'] as int;
+      } else {
+        messages = result as List<Map<String, dynamic>>;
+      }
+
       setState(() {
         allMessages = messages.reversed.toList();
         isLoading = false;
         hasMoreMessages = messages.length == MESSAGE_PAGE_SIZE;
+        hasNewerMessages = messages.length == MESSAGE_PAGE_SIZE;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (widget.messageId != null) {
-          final targetIndex = allMessages.indexWhere(
-            (msg) => msg['id'] == widget.messageId,
-          );
-          if (targetIndex != -1 && scrollController.hasClients) {
+        if (widget.messageId != null && targetIndex != null) {
+          if (scrollController.hasClients) {
+            final estimatedPosition = targetIndex * 100.0;
             scrollController.animateTo(
-              targetIndex * 100.0,
+              estimatedPosition,
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
             );
+            // Nếu targetIndex gần đầu danh sách, đặt scroll gần 0
+            if (targetIndex < 5) {
+              Future.delayed(const Duration(milliseconds: 400), () {
+                if (scrollController.hasClients) {
+                  scrollController.jumpTo(50.0); // Gần đầu để load nhạy hơn
+                }
+              });
+            }
           } else {
             scrollToBottom();
           }
@@ -155,10 +183,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
               (msg) => msg['id'] == updatedMessage['id'],
             );
             if (index != -1) {
-              // Cập nhật tin nhắn hiện có
               allMessages[index] = updatedMessage;
             } else {
-              // Thêm tin nhắn mới
               allMessages.add(updatedMessage);
             }
           }
@@ -180,15 +206,58 @@ class _MessagesScreenState extends State<MessagesScreen> {
             scrollToBottom();
           });
         } else {
-          hasNewMessage = true;
+          setState(() {
+            hasNewMessage = true;
+          });
         }
       });
     } catch (e) {
-      error = "Lỗi khi tải tin nhắn: $e";
-      isLoading = false;
-      if (mounted) {
-        setState(() {});
-      }
+      setState(() {
+        error = "Lỗi khi tải tin nhắn: $e";
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> loadMoreMessages() async {
+    if (!hasMoreMessages || isLoadingMore) return;
+
+    setState(() {
+      isLoadingMore = true;
+    });
+
+    try {
+      final oldestMessage = allMessages.first;
+      final beforeSentAt = oldestMessage['sent_at'];
+      final olderMessages = await chatService.loadMessages(
+        widget.conversationId,
+        limit: MESSAGE_PAGE_SIZE,
+        beforeSentAt: beforeSentAt,
+      );
+
+      setState(() {
+        if (olderMessages.isNotEmpty) {
+          final newMessages =
+              olderMessages.where((newMsg) {
+                return !allMessages.any(
+                  (oldMsg) => oldMsg['id'] == newMsg['id'],
+                );
+              }).toList();
+          allMessages.insertAll(0, newMessages.reversed);
+          hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
+        } else {
+          hasMoreMessages = false;
+        }
+        isLoadingMore = false;
+      });
+    } catch (e) {
+      setState(() {
+        error = "Lỗi khi tải thêm tin nhắn: $e";
+        isLoadingMore = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thêm tin nhắn')));
     }
   }
 
@@ -209,8 +278,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
         limit: MESSAGE_PAGE_SIZE,
       );
 
-      if (newerMessages.isNotEmpty) {
-        setState(() {
+      setState(() {
+        if (newerMessages.isNotEmpty) {
           final newMessages =
               newerMessages.where((newMsg) {
                 return !allMessages.any(
@@ -223,7 +292,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
             final bTime = DateTime.parse(b['sent_at']);
             return aTime.compareTo(bTime);
           });
-          isLoadingNewer = false;
           hasNewerMessages = newerMessages.length == MESSAGE_PAGE_SIZE;
 
           if (newMessages.any((msg) => msg['sender_id'] != myId)) {
@@ -237,67 +305,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
           if (!hasNewerMessages) {
             isSearchMode = false;
           }
-        });
-      } else {
-        setState(() {
-          isLoadingNewer = false;
+        } else {
           hasNewerMessages = false;
           isSearchMode = false;
-        });
-      }
+        }
+        isLoadingNewer = false;
+      });
     } catch (e) {
-      error = "Lỗi khi tải tin nhắn mới hơn: $e";
-      isLoadingNewer = false;
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải tin nhắn mới hơn')));
-        setState(() {});
-      }
-    }
-  }
-
-  Future<void> loadMoreMessages() async {
-    if (!hasMoreMessages || isLoadingMore) return;
-
-    setState(() {
-      isLoadingMore = true;
-    });
-
-    try {
-      final oldestMessage = allMessages.first;
-      final beforeSentAt = oldestMessage['sent_at'];
-      final olderMessages = await chatService.loadMessages(
-        widget.conversationId,
-        limit: MESSAGE_PAGE_SIZE,
-        beforeSentAt: beforeSentAt,
-      );
-
-      if (olderMessages.isNotEmpty) {
-        setState(() {
-          final newMessages =
-              olderMessages.where((newMsg) {
-                return !allMessages.any(
-                  (oldMsg) => oldMsg['id'] == newMsg['id'],
-                );
-              }).toList();
-          allMessages.insertAll(0, newMessages.reversed);
-          isLoadingMore = false;
-          hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
-        });
-      } else {
-        setState(() {
-          isLoadingMore = false;
-          hasMoreMessages = false;
-        });
-      }
-    } catch (e) {
-      error = "Lỗi khi tải thêm tin nhắn: $e";
-      isLoadingMore = false;
+      setState(() {
+        error = "Lỗi khi tải tin nhắn mới hơn: $e";
+        isLoadingNewer = false;
+      });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thêm tin nhắn')));
-      setState(() {});
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải tin nhắn mới hơn')));
     }
   }
 
@@ -360,7 +381,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final message = allMessages[index];
     final isMe = message['sender_id'] == myId;
 
-    // Hiển thị menu ngữ cảnh khi nhấn giữ
     final result = await showModalBottomSheet<String>(
       context: context,
       builder:
@@ -477,19 +497,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         )
                         : allMessages.isEmpty
                         ? const Center(child: Text("Chưa có tin nhắn nào"))
-                        : RefreshIndicator(
-                          onRefresh: loadNewerMessages,
-                          child: MessageList(
-                            messages: allMessages,
-                            myId: myId,
-                            friendImage: widget.conversationAvatar,
-                            scrollController: scrollController,
-                            isLoadingMore: isLoadingMore,
-                            hasMoreMessages: hasMoreMessages,
-                            selectedMessages: selectedMessages,
-                            onMessageTap: onMessageTap,
-                            targetMessageId: widget.messageId,
-                          ),
+                        : MessageList(
+                          messages: allMessages,
+                          myId: myId,
+                          friendImage: widget.conversationAvatar,
+                          scrollController: scrollController,
+                          isLoadingMore: isLoadingMore,
+                          hasMoreMessages: hasMoreMessages,
+                          selectedMessages: selectedMessages,
+                          onMessageTap: onMessageTap,
+                          targetMessageId: widget.messageId,
                         ),
               ),
               MessageInput(

@@ -395,7 +395,6 @@ class ChatService {
             try {
               final updatedStatus = payload.newRecord;
               final messageId = updatedStatus['message_id'] as String;
-              // final isHidden = updatedStatus['is_hidden'] as bool;
 
               final message =
                   await _supabase
@@ -640,7 +639,7 @@ class ChatService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> loadMessagesAroundMessageId(
+  Future<Map<String, dynamic>> loadMessagesAroundMessageId(
     String conversationId,
     String messageId, {
     int limit = 20,
@@ -665,8 +664,7 @@ class ChatService {
 
       final targetSentAt = targetMessage['sent_at'];
 
-      // Truy vấn các tin nhắn xung quanh messageId
-      // Lấy tối đa (limit - 1) tin nhắn trước đó và tất cả tin nhắn từ messageId trở đi
+      // Truy vấn các tin nhắn trước messageId
       final messagesBefore = await _supabase
           .from('messages')
           .select('''
@@ -677,9 +675,9 @@ class ChatService {
           .eq('conversation_id', conversationId)
           .lte('sent_at', targetSentAt)
           .order('sent_at', ascending: false)
-          .limit(limit - 1);
+          .limit(limit ~/ 2); // Lấy nửa số tin nhắn trước
 
-      // Lấy tin nhắn từ messageId trở đi (bao gồm chính messageId)
+      // Lấy tin nhắn từ messageId trở đi
       final messagesFromTarget = await _supabase
           .from('messages')
           .select('''
@@ -690,7 +688,7 @@ class ChatService {
           .eq('conversation_id', conversationId)
           .gte('sent_at', targetSentAt)
           .order('sent_at', ascending: true)
-          .limit(limit);
+          .limit(limit ~/ 2 + 1); // Lấy nửa số tin nhắn sau, cộng thêm 1
 
       // Kết hợp và sắp xếp lại danh sách tin nhắn
       final allMessages =
@@ -699,7 +697,7 @@ class ChatService {
             ...messagesFromTarget,
           ].where((msg) => msg['id'] != null).toList();
 
-      // Loại bỏ trùng lặp (nếu có) và đảm bảo tin nhắn với messageId ở đầu
+      // Loại bỏ trùng lặp
       final uniqueMessages = <String, Map<String, dynamic>>{};
       for (var msg in allMessages) {
         uniqueMessages[msg['id']] = msg;
@@ -711,6 +709,11 @@ class ChatService {
               b['sent_at'],
             ).compareTo(DateTime.parse(a['sent_at'])),
           );
+
+      // Tìm index của messageId
+      final targetIndex = sortedMessages.indexWhere(
+        (msg) => msg['id'] == messageId,
+      );
 
       // Đảm bảo số lượng tin nhắn không vượt quá limit
       final result = sortedMessages.take(limit).toList();
@@ -730,9 +733,10 @@ class ChatService {
       }
 
       print(
-        'Loaded ${result.length} messages around messageId $messageId for conversation $conversationId',
+        'Loaded ${result.length} messages around messageId $messageId for conversation $conversationId, targetIndex: $targetIndex',
       );
-      return result;
+
+      return {'messages': result, 'targetIndex': targetIndex};
     } catch (e) {
       print('Error loading messages around messageId $messageId: $e');
       throw Exception('Lỗi khi tải tin nhắn: $e');
