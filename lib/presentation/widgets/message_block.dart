@@ -300,13 +300,6 @@ class _MessageBlockState extends State<MessageBlock>
     }
   }
 
-  Future<void> postInit() async {
-    await Future.delayed(Duration(milliseconds: 100));
-    widget.scrollController.jumpTo(
-      widget.scrollController.position.maxScrollExtent,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
