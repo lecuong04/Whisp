@@ -113,9 +113,12 @@ class _MessageListState extends State<MessageList> {
         }
 
         return GestureDetector(
-          onLongPress: () {
-            widget.onMessageTap(messageIndex);
-          },
+          onLongPress:
+              !isHidden
+                  ? () {
+                    widget.onMessageTap(messageIndex);
+                  }
+                  : null,
           onTap: () {
             toggleTimestamp(messageIndex);
           },
