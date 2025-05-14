@@ -426,11 +426,40 @@ class _MessageListState extends State<MessageList> {
                                           : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: buildMessageContent(
-                                  context,
-                                  message,
-                                  widget.targetMessageId,
-                                  maxWidth,
+                                child: NotificationListener<
+                                  SizeChangedLayoutNotification
+                                >(
+                                  onNotification: (notification) {
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) async {
+                                          await Future.delayed(
+                                            Duration(milliseconds: 300),
+                                          );
+                                          if (widget
+                                              .scrollController
+                                              .hasClients) {
+                                            widget.scrollController.animateTo(
+                                              widget
+                                                  .scrollController
+                                                  .position
+                                                  .maxScrollExtent,
+                                              duration: const Duration(
+                                                milliseconds: 100,
+                                              ),
+                                              curve: Curves.easeOut,
+                                            );
+                                          }
+                                        });
+                                    return false;
+                                  },
+                                  child: SizeChangedLayoutNotifier(
+                                    child: buildMessageContent(
+                                      context,
+                                      message,
+                                      widget.targetMessageId,
+                                      maxWidth,
+                                    ),
+                                  ),
                                 ),
                               ),
                     ),
