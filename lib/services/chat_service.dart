@@ -21,6 +21,7 @@ class ChatService {
         'image' => 'pictures',
         'video' => 'videos',
         'file' => 'chat-files',
+        'audio' => 'audio',
         _ => throw Exception('Loại media không hợp lệ: $messageType'),
       };
 

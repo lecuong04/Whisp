@@ -96,6 +96,14 @@ class _MessageInputState extends State<MessageInput>
     removeOverlay();
   }
 
+  Future<void> pickAudio() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+    if (result != null && result.files.single.path != null) {
+      widget.onMediaSelected(File(result.files.single.path!), 'audio');
+    }
+    removeOverlay();
+  }
+
   void showMediaOptions(BuildContext context, GlobalKey key) {
     if (mediaOverlay != null) return;
 
@@ -121,8 +129,8 @@ class _MessageInputState extends State<MessageInput>
               ),
             ),
             Positioned(
-              left: 0,
-              top: position.dy - modalHeight - 8,
+              left: 12,
+              top: position.dy - modalHeight - 20,
               width: modalWidth,
               child: Material(
                 elevation: 4,
@@ -140,6 +148,12 @@ class _MessageInputState extends State<MessageInput>
                       title: 'Chọn ảnh',
                       icon: Icons.image,
                       onTap: pickImage,
+                      showDivider: true,
+                    ),
+                    buildOptionRow(
+                      title: 'Chọn audio',
+                      icon: Icons.audio_file_outlined,
+                      onTap: pickAudio,
                       showDivider: true,
                     ),
                     buildOptionRow(
