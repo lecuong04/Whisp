@@ -36,7 +36,6 @@ class MessageList extends StatefulWidget {
 
 class _MessageListState extends State<MessageList> {
   final Set<int> showTimestampIndices = {};
-  bool isAtBottom = false;
 
   void toggleTimestamp(int index) {
     setState(() {
@@ -430,26 +429,7 @@ class _MessageListState extends State<MessageList> {
                                   SizeChangedLayoutNotification
                                 >(
                                   onNotification: (notification) {
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) async {
-                                          await Future.delayed(
-                                            Duration(milliseconds: 300),
-                                          );
-                                          if (widget
-                                              .scrollController
-                                              .hasClients) {
-                                            widget.scrollController.animateTo(
-                                              widget
-                                                  .scrollController
-                                                  .position
-                                                  .maxScrollExtent,
-                                              duration: const Duration(
-                                                milliseconds: 100,
-                                              ),
-                                              curve: Curves.easeOut,
-                                            );
-                                          }
-                                        });
+                                    // TODO
                                     return false;
                                   },
                                   child: SizeChangedLayoutNotifier(

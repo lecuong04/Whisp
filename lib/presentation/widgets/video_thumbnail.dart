@@ -1,8 +1,8 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:image_size_getter/image_size_getter.dart';
 import 'package:whisp/presentation/widgets/video_player_popup.dart';
 import 'package:whisp/utils/helpers.dart';
@@ -29,16 +29,13 @@ class _VideoThumbnailState extends State<VideoThumbnail>
   static int maxWidth = 240;
 
   Size size = Size(0, 0);
-  Uint8List data = Uint8List(0);
+  Uint8List? data;
 
   Future<void> initData() async {
-    XFile? thumbnail = await getThumbnail(widget.url, maxWidth: maxWidth);
+    File? thumbnail = await getThumbnail(widget.url, maxWidth: maxWidth);
     if (thumbnail != null) {
-      size =
-          ImageSizeGetter.getSizeResult(
-            MemoryInput(await thumbnail.readAsBytes()),
-          ).size;
       data = await thumbnail.readAsBytes();
+      size = ImageSizeGetter.getSizeResult(MemoryInput(data!)).size;
     }
     setState(() {});
   }
@@ -52,7 +49,7 @@ class _VideoThumbnailState extends State<VideoThumbnail>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return data.isEmpty
+    return data == null
         ? const Padding(
           padding: EdgeInsets.all(15),
           child: Center(child: CircularProgressIndicator()),
@@ -78,25 +75,42 @@ class _VideoThumbnailState extends State<VideoThumbnail>
                     ),
               );
             },
-            child: Stack(
-              alignment: AlignmentDirectional.center,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.memory(
-                    data,
-                    width: size.width.toDouble(),
-                    height: size.height.toDouble(),
-                    gaplessPlayback: true,
-                  ),
-                ),
-                Icon(
-                  Icons.play_circle_filled,
-                  size: min(size.width.toDouble(), size.height.toDouble()) / 3,
-                  color: Colors.black54,
-                ),
-              ],
-            ),
+            child:
+                data!.isNotEmpty
+                    ? Stack(
+                      alignment: AlignmentDirectional.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.memory(
+                            data!,
+                            width: size.width.toDouble(),
+                            height: size.height.toDouble(),
+                            gaplessPlayback: true,
+                          ),
+                        ),
+                        Icon(
+                          Icons.play_circle_filled,
+                          size:
+                              min(
+                                size.width.toDouble(),
+                                size.height.toDouble(),
+                              ) /
+                              3,
+                          color: Colors.black54,
+                        ),
+                      ],
+                    )
+                    : Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        spacing: 12,
+                        children: [
+                          Icon(Icons.error),
+                          Text("Không thể tải video..."),
+                        ],
+                      ),
+                    ),
           ),
         );
   }

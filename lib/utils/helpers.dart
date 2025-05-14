@@ -40,7 +40,7 @@ String dateTimeFormat(DateTime dateTime, bool is24HourFormat) {
   return formatter.format(dateTime);
 }
 
-Future<XFile?> getThumbnail(
+Future<File?> getThumbnail(
   String url, {
   int maxHeight = 0,
   int maxWidth = 0,
@@ -51,18 +51,20 @@ Future<XFile?> getThumbnail(
   if (!thumbnailFolder.existsSync()) {
     thumbnailFolder.createSync();
   }
-  final String thumbnailPath = '${thumbnailFolder.path}/${url.hashCode}.png';
-  if (File(thumbnailPath).existsSync()) {
-    return XFile(thumbnailPath);
+  final thumbnail = File('${thumbnailFolder.path}/${url.hashCode}.png');
+  if (thumbnail.existsSync()) {
+    return thumbnail;
   }
-  await VideoThumbnail.thumbnailFile(
+  var data = await VideoThumbnail.thumbnailData(
     video: url,
-    thumbnailPath: thumbnailPath,
     imageFormat: ImageFormat.PNG,
     maxHeight: maxHeight,
     maxWidth: maxWidth,
     quality: 100,
     timeMs: 0,
   );
-  return XFile(thumbnailPath);
+  if (data.isNotEmpty) {
+    await thumbnail.writeAsBytes(data);
+  }
+  return thumbnail;
 }
