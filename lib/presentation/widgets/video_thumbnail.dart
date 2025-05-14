@@ -50,9 +50,13 @@ class _VideoThumbnailState extends State<VideoThumbnail>
   Widget build(BuildContext context) {
     super.build(context);
     return data == null
-        ? const Padding(
-          padding: EdgeInsets.all(15),
-          child: Center(child: CircularProgressIndicator()),
+        ? SizedBox(
+          width: size.width.toDouble(),
+          height: size.height.toDouble(),
+          child: const Padding(
+            padding: EdgeInsets.all(15),
+            child: Center(child: CircularProgressIndicator()),
+          ),
         )
         : Container(
           decoration:
