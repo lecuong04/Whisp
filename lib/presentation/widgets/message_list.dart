@@ -373,12 +373,12 @@ class _MessageListState extends State<MessageList> {
                             widget.friendImage.isNotEmpty
                                 ? NetworkImage(widget.friendImage)
                                 : null,
-                        radius: 18,
+                        radius: 16,
                       ),
                       const SizedBox(width: 5),
                     ] else if (!isMe) ...[
                       const SizedBox(
-                        width: 25,
+                        width: 37,
                       ), // Giữ khoảng cách tương ứng khi không hiển thị avatar
                     ],
                     Flexible(
