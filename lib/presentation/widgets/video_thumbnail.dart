@@ -17,6 +17,22 @@ class VideoThumbnail extends StatefulWidget {
     required this.isTargetMessage,
   });
 
+  static Future<void> videoPlayer({
+    required BuildContext context,
+    required String url,
+  }) async {
+    final uri = Uri.parse(url);
+    await showAdaptiveDialog(
+      barrierDismissible: true,
+      context: context,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: VideoPlayerPopup(url: uri),
+          ),
+    );
+  }
+
   @override
   State<StatefulWidget> createState() => _VideoThumbnailState();
 }
@@ -67,16 +83,10 @@ class _VideoThumbnailState extends State<VideoThumbnail>
                   )
                   : null,
           child: GestureDetector(
-            onTap: () async {
-              final url = Uri.parse(widget.url);
-              await showAdaptiveDialog(
-                barrierDismissible: true,
+            onDoubleTap: () async {
+              await VideoThumbnail.videoPlayer(
                 context: context,
-                builder:
-                    (context) => Dialog(
-                      backgroundColor: Colors.transparent,
-                      child: VideoPlayerPopup(url: url),
-                    ),
+                url: widget.url,
               );
             },
             child:

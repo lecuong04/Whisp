@@ -20,7 +20,7 @@ class ChatService {
       final String bucket = switch (messageType) {
         'image' => 'pictures',
         'video' => 'videos',
-        'file' => 'chat-files',
+        'file' => 'files',
         'audio' => 'audio',
         _ => throw Exception('Loại media không hợp lệ: $messageType'),
       };
@@ -1050,6 +1050,111 @@ class ChatService {
     } catch (e) {
       print('Error deleting message for all: $e');
       throw Exception('Lỗi khi xóa tin nhắn: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListFiles(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_files",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListImages(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_images",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListVideos(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_videos",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListAudio(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_audio",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListMultimedia(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_multimedia",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
     }
   }
 }

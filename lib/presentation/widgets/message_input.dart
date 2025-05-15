@@ -1,7 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:mime/mime.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
@@ -91,7 +93,22 @@ class _MessageInputState extends State<MessageInput>
   Future<void> pickFile() async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
-      widget.onMediaSelected(File(result.files.single.path!), 'file');
+      var type =
+          (lookupMimeType(result.files.single.path!) ??
+                  "application/octet-stream")
+              .split('/')
+              .first;
+      switch (type) {
+        case 'video':
+        case 'image':
+        case 'audio':
+          {
+            widget.onMediaSelected(File(result.files.single.path!), type);
+            break;
+          }
+        default:
+          widget.onMediaSelected(File(result.files.single.path!), 'file');
+      }
     }
     removeOverlay();
   }

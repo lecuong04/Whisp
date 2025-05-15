@@ -1,16 +1,17 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/presentation/widgets/audio_player_modal.dart';
+import 'package:whisp/presentation/widgets/image_thumbnail.dart';
+import 'package:whisp/presentation/widgets/video_thumbnail.dart';
+import 'package:whisp/services/chat_service.dart';
+import 'package:whisp/utils/helpers.dart';
 
 class MessageMediaList extends StatefulWidget {
-  final List<Map<String, dynamic>> messages;
-  final String myId;
+  final String conversationId;
 
-  const MessageMediaList({
-    super.key,
-    required this.messages,
-    required this.myId,
-  });
+  const MessageMediaList({super.key, required this.conversationId});
 
   @override
   State<MessageMediaList> createState() => _MessageMediaListState();
@@ -18,64 +19,44 @@ class MessageMediaList extends StatefulWidget {
 
 class _MessageMediaListState extends State<MessageMediaList>
     with SingleTickerProviderStateMixin {
-  String _selectedFilter = 'Tất cả'; // Mặc định là "Tất cả"
-  late TabController _tabController;
+  late TabController tabController;
 
-  final List<String> _filters = ['Tất cả', 'File', 'Ảnh/Video'];
+  static final int pageSize = 24;
+
+  final List<Map<String, String>> filters = [
+    {'key': 'all', 'name': 'Tất cả'},
+    {'key': 'file', 'name': 'File'},
+    {'key': 'image', 'name': 'Ảnh'},
+    {'key': 'audio', 'name': 'Âm thanh'},
+    {'key': 'video', 'name': 'Video'},
+  ];
+  late int selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _filters.length, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
+    tabController = TabController(length: filters.length, vsync: this);
+    tabController.addListener(() {
+      if (tabController.indexIsChanging) return;
       if (mounted) {
         setState(() {
-          _selectedFilter = _filters[_tabController.index];
+          selectedIndex = tabController.index;
         });
       }
     });
   }
 
-  // Lọc danh sách tin nhắn dựa trên bộ lọc
-  List<Map<String, dynamic>> _getFilteredMessages() {
-    return widget.messages.where((message) {
-      final messageType = message['message_type'] as String;
-      final statuses = message['message_statuses'] as List<dynamic>;
-      final isHidden = statuses.any(
-        (status) =>
-            status['user_id'] == widget.myId && status['is_hidden'] == true,
-      );
-      if (isHidden) return false;
-      switch (_selectedFilter) {
-        case 'Tất cả':
-          return messageType == 'image' ||
-              messageType == 'video' ||
-              messageType == 'file';
-        case 'File':
-          return messageType == 'file';
-        case 'Ảnh/Video':
-          return messageType == 'image' || messageType == 'video';
-        default:
-          return false;
-      }
-    }).toList();
-  }
-
-  // Widget hiển thị nội dung media
-  Widget _buildMediaItem(Map<String, dynamic> message) {
-    final messageType = message['message_type'] as String;
-    final content = message['content'] as String;
-    final senderId = message['sender_id'] as String;
-    final senderName = (message['users']?['full_name'] as String?) ?? 'Unknown';
-    final sentAt = DateTime.parse(message['sent_at']).toLocal();
-    final isMe = senderId == widget.myId;
-
+  static Widget buildMediaItem(
+    String type,
+    String url,
+    DateTime sentAt,
+    BuildContext context,
+  ) {
     Widget contentWidget;
-    switch (messageType) {
+    switch (type) {
       case 'image':
         contentWidget = CachedNetworkImage(
-          imageUrl: content,
+          imageUrl: url,
           width: 60,
           height: 60,
           fit: BoxFit.cover,
@@ -91,61 +72,148 @@ class _MessageMediaListState extends State<MessageMediaList>
         break;
       case 'video':
         contentWidget = const Icon(
-          Icons.videocam,
+          Icons.video_file_outlined,
           size: 60,
           color: Colors.blue,
         );
         break;
       case 'file':
         contentWidget = const Icon(
-          Icons.insert_drive_file,
+          Icons.insert_drive_file_outlined,
+          size: 60,
+          color: Colors.blue,
+        );
+        break;
+      case 'audio':
+        contentWidget = const Icon(
+          Icons.audio_file_outlined,
           size: 60,
           color: Colors.blue,
         );
         break;
       default:
-        contentWidget = const SizedBox.shrink();
+        contentWidget = const Icon(
+          Icons.file_present,
+          size: 60,
+          color: Colors.blue,
+        );
     }
 
     return ListTile(
       leading: contentWidget,
       title: Text(
-        messageType == 'file' ? content.split('/').last : senderName,
+        getFileNameFromSupabaseStorage(url),
         style: TextStyle(
-          fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
+          fontStyle: type == 'file' ? FontStyle.normal : FontStyle.italic,
         ),
       ),
       subtitle: Text(
         '${sentAt.day}/${sentAt.month}/${sentAt.year} ${sentAt.hour}:${sentAt.minute.toString().padLeft(2, '0')}',
         style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
-      onTap: () {
-        // Để trống vì chỉ yêu cầu UI
+      onLongPress: () async {
+        switch (type) {
+          case 'file':
+            if (await canLaunchUrlString(url)) {
+              await launchUrlString(url);
+            }
+            break;
+          case 'image':
+            await ImageThumbnail.imageViewer(context: context, url: url);
+            break;
+          case 'audio':
+            await showModalBottomSheet(
+              context: context,
+              builder: (context) => AudioPlayerModal(url: url),
+            );
+            break;
+          case 'video':
+            await VideoThumbnail.videoPlayer(context: context, url: url);
+            break;
+          default:
+            break;
+        }
       },
     );
+  }
+
+  Future<List<Widget>> getMessageContents(String key) async {
+    List<Map<String, dynamic>> data = [];
+    switch (key) {
+      case 'all':
+        {
+          data = await ChatService().getListMultimedia(
+            widget.conversationId,
+            pageSize,
+            1,
+          );
+          break;
+        }
+      case 'file':
+        {
+          data = await ChatService().getListFiles(
+            widget.conversationId,
+            pageSize,
+            1,
+          );
+          break;
+        }
+      case 'image':
+        {
+          data = await ChatService().getListImages(
+            widget.conversationId,
+            pageSize,
+            1,
+          );
+          break;
+        }
+      case 'audio':
+        {
+          data = await ChatService().getListAudio(
+            widget.conversationId,
+            pageSize,
+            1,
+          );
+          break;
+        }
+      case 'video':
+        {
+          data = await ChatService().getListVideos(
+            widget.conversationId,
+            pageSize,
+            1,
+          );
+          break;
+        }
+    }
+    List<Widget> result = [];
+    for (var x in data) {
+      result.add(
+        buildMediaItem(
+          key == 'all' ? x['type'] : key,
+          x['url'],
+          DateTime.parse(x['sent_at']),
+          context,
+        ),
+      );
+    }
+    return result;
   }
 
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width:
-          MediaQuery.of(
-            context,
-          ).size.width, // Chiếm toàn bộ chiều rộng màn hình
+      width: MediaQuery.of(context).size.width,
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.of(context).pop(); // Đóng drawer với hiệu ứng trượt
+              Navigator.of(context).pop();
             },
           ),
           title: const Row(
-            children: [
-              // Icon(Icons.attachment),
-              // SizedBox(width: 10),
-              Text('Ảnh/Video, file', style: TextStyle(fontSize: 20)),
-            ],
+            children: [Text('Kho lưu trữ', style: TextStyle(fontSize: 20))],
           ),
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
@@ -155,37 +223,38 @@ class _MessageMediaListState extends State<MessageMediaList>
         body: Column(
           children: [
             TabBar(
-              controller: _tabController,
-              labelStyle: const TextStyle(
-                // fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.normal,
-                fontSize: 16,
-              ),
+              controller: tabController,
+              tabAlignment: TabAlignment.center,
+              labelStyle: const TextStyle(fontSize: 16),
+              unselectedLabelStyle: const TextStyle(fontSize: 16),
               indicatorColor: Colors.black,
               indicatorWeight: 3,
               labelColor: Colors.black,
+              isScrollable: false,
               unselectedLabelColor: Colors.grey,
-              tabs: _filters.map((filter) => Tab(text: filter)).toList(),
+              tabs: filters.map((filter) => Tab(text: filter['name'])).toList(),
             ),
             Expanded(
-              child:
-                  _getFilteredMessages().isEmpty
-                      ? const Center(
-                        child: Text(
-                          'Không có media nào',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      )
-                      : ListView.builder(
-                        itemCount: _getFilteredMessages().length,
-                        itemBuilder: (context, index) {
-                          final message = _getFilteredMessages()[index];
-                          return _buildMediaItem(message);
-                        },
-                      ),
+              child: TabBarView(
+                controller: tabController,
+                children:
+                    filters
+                        .map(
+                          (filter) => FutureBuilder(
+                            future: getMessageContents(filter['key']!),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return ListView(children: snapshot.requireData);
+                              } else {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                            },
+                          ),
+                        )
+                        .toList(),
+              ),
             ),
           ],
         ),
@@ -195,7 +264,7 @@ class _MessageMediaListState extends State<MessageMediaList>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    tabController.dispose();
     super.dispose();
   }
 }

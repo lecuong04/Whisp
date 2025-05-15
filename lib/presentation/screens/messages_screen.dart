@@ -506,7 +506,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      endDrawer: MessageMediaList(messages: allMessages, myId: myId),
+      endDrawer: MessageMediaList(conversationId: widget.conversationId),
       body: Stack(
         children: [
           Column(

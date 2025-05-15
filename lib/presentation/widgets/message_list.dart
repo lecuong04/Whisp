@@ -1,10 +1,11 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/presentation/widgets/audio_player_modal.dart';
+import 'package:whisp/presentation/widgets/image_thumbnail.dart';
 import 'package:whisp/presentation/widgets/video_thumbnail.dart';
 import 'package:whisp/utils/constants.dart';
+import 'package:whisp/utils/helpers.dart';
 
 class MessageList extends StatefulWidget {
   final List<Map<String, dynamic>> messages;
@@ -49,7 +50,7 @@ class _MessageListState extends State<MessageList> {
 
   bool isLastInSequence(int index) {
     if (index >= widget.messages.length - 1) {
-      return true; // Tin nhắn cuối cùng trong danh sách
+      return true;
     }
     final currentMessage = widget.messages[index];
     final nextMessage = widget.messages[index + 1];
@@ -70,59 +71,9 @@ class _MessageListState extends State<MessageList> {
     switch (messageType) {
       case 'image':
         {
-          contentWidget = Container(
-            decoration:
-                isTargetMessage
-                    ? BoxDecoration(
-                      border: Border.all(
-                        color: Colors.blue,
-                        width: 3, // Viền đậm cho tin nhắn mục tiêu
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    )
-                    : null,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: GestureDetector(
-                onDoubleTap: () async {
-                  await showAdaptiveDialog(
-                    barrierDismissible: true,
-                    context: context,
-                    builder:
-                        (context) => Dialog(
-                          backgroundColor: Colors.transparent,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: GestureDetector(
-                              onLongPress: () async {
-                                var url = Uri.parse(content);
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(
-                                    url,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                }
-                              },
-                              child: CachedNetworkImage(imageUrl: content),
-                            ),
-                          ),
-                        ),
-                  );
-                },
-                child: CachedNetworkImage(
-                  imageUrl: content,
-                  width: 200,
-                  fit: BoxFit.cover,
-                  placeholder:
-                      (context, url) => SizedBox.square(
-                        dimension: 128,
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
-                  cacheManager: CustomCacheManager(),
-                ),
-              ),
-            ),
+          contentWidget = ImageThumbnail(
+            isTargetMessage: isTargetMessage,
+            url: content,
           );
           break;
         }
@@ -135,12 +86,20 @@ class _MessageListState extends State<MessageList> {
           break;
         }
       case 'file':
+      case 'audio':
         {
           contentWidget = GestureDetector(
-            onTap: () async {
-              final url = Uri.parse(content);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url);
+            onDoubleTap: () async {
+              if (messageType == 'file') {
+                final url = Uri.parse(content);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              } else {
+                await showModalBottomSheet(
+                  context: context,
+                  builder: (context) => AudioPlayerModal(url: content),
+                );
               }
             },
             child: Container(
@@ -152,18 +111,22 @@ class _MessageListState extends State<MessageList> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.insert_drive_file, color: Colors.blue),
+                  Icon(
+                    messageType == 'file'
+                        ? Icons.insert_drive_file_outlined
+                        : Icons.audio_file_outlined,
+                    color: Colors.blue,
+                  ),
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
-                      content.split('/').last,
+                      getFileNameFromSupabaseStorage(content),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight:
                             isTargetMessage
                                 ? FontWeight.bold
-                                : FontWeight
-                                    .normal, // In đậm nếu là tin nhắn mục tiêu
+                                : FontWeight.normal,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -183,9 +146,7 @@ class _MessageListState extends State<MessageList> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight:
-                    isTargetMessage
-                        ? FontWeight.bold
-                        : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
+                    isTargetMessage ? FontWeight.bold : FontWeight.normal,
               ),
             );
           } else {
@@ -252,8 +213,7 @@ class _MessageListState extends State<MessageList> {
                         fontWeight:
                             isTargetMessage
                                 ? FontWeight.bold
-                                : FontWeight
-                                    .normal, // In đậm nếu là tin nhắn mục tiêu
+                                : FontWeight.normal,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -271,10 +231,7 @@ class _MessageListState extends State<MessageList> {
             content,
             style: TextStyle(
               fontSize: 16,
-              fontWeight:
-                  isTargetMessage
-                      ? FontWeight.bold
-                      : FontWeight.normal, // In đậm nếu là tin nhắn mục tiêu
+              fontWeight: isTargetMessage ? FontWeight.bold : FontWeight.normal,
             ),
           );
           break;
@@ -325,7 +282,6 @@ class _MessageListState extends State<MessageList> {
         final messageType = message['message_type'] as String;
         final showAvatar = !isMe && isLastInSequence(messageIndex);
 
-        // Kiểm tra trạng thái is_hidden cho người dùng hiện tại
         bool isHidden = false;
         if (message['message_statuses'] != null) {
           final statuses = message['message_statuses'] as List<dynamic>;
@@ -336,7 +292,6 @@ class _MessageListState extends State<MessageList> {
           isHidden = myStatus['is_hidden'] == true;
         }
 
-        // Tính trạng thái đã đọc
         bool isReadByAll = false;
         if (isMe && message['message_statuses'] != null) {
           final statuses = message['message_statuses'] as List<dynamic>;
@@ -377,9 +332,7 @@ class _MessageListState extends State<MessageList> {
                       ),
                       const SizedBox(width: 5),
                     ] else if (!isMe) ...[
-                      const SizedBox(
-                        width: 37,
-                      ), // Giữ khoảng cách tương ứng khi không hiển thị avatar
+                      const SizedBox(width: 37),
                     ],
                     Flexible(
                       child:
@@ -429,7 +382,6 @@ class _MessageListState extends State<MessageList> {
                                   SizeChangedLayoutNotification
                                 >(
                                   onNotification: (notification) {
-                                    // TODO
                                     return false;
                                   },
                                   child: SizeChangedLayoutNotifier(
