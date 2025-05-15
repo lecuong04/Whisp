@@ -7,6 +7,7 @@ import 'package:whisp/presentation/widgets/image_thumbnail.dart';
 import 'package:whisp/presentation/widgets/video_thumbnail.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/utils/helpers.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 class MessageMediaList extends StatefulWidget {
   final String conversationId;
@@ -22,7 +23,6 @@ class _MessageMediaListState extends State<MessageMediaList>
   late TabController tabController;
 
   static final int pageSize = 24;
-
   final List<Map<String, String>> filters = [
     {'key': 'all', 'name': 'Tất cả'},
     {'key': 'file', 'name': 'File'},
@@ -44,6 +44,12 @@ class _MessageMediaListState extends State<MessageMediaList>
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    tabController.dispose();
+    super.dispose();
   }
 
   static Widget buildMediaItem(
@@ -137,51 +143,56 @@ class _MessageMediaListState extends State<MessageMediaList>
     );
   }
 
-  Future<List<Widget>> getMessageContents(String key) async {
+  static Future<List<Widget>> getMessageMultimedia({
+    required String key,
+    required String conversationId,
+    required BuildContext context,
+    required int page,
+  }) async {
     List<Map<String, dynamic>> data = [];
     switch (key) {
       case 'all':
         {
           data = await ChatService().getListMultimedia(
-            widget.conversationId,
+            conversationId,
             pageSize,
-            1,
+            page,
           );
           break;
         }
       case 'file':
         {
           data = await ChatService().getListFiles(
-            widget.conversationId,
+            conversationId,
             pageSize,
-            1,
+            page,
           );
           break;
         }
       case 'image':
         {
           data = await ChatService().getListImages(
-            widget.conversationId,
+            conversationId,
             pageSize,
-            1,
+            page,
           );
           break;
         }
       case 'audio':
         {
           data = await ChatService().getListAudio(
-            widget.conversationId,
+            conversationId,
             pageSize,
-            1,
+            page,
           );
           break;
         }
       case 'video':
         {
           data = await ChatService().getListVideos(
-            widget.conversationId,
+            conversationId,
             pageSize,
-            1,
+            page,
           );
           break;
         }
@@ -238,33 +249,49 @@ class _MessageMediaListState extends State<MessageMediaList>
               child: TabBarView(
                 controller: tabController,
                 children:
-                    filters
-                        .map(
-                          (filter) => FutureBuilder(
-                            future: getMessageContents(filter['key']!),
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                return ListView(children: snapshot.requireData);
-                              } else {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                            },
-                          ),
-                        )
-                        .toList(),
+                    filters.map((filter) {
+                      final pagingController = PagingController<int, Widget>(
+                        getNextPageKey: (state) {
+                          if (state.pages == null) {
+                            return 1;
+                          } else {
+                            if (state.pages!.last.isEmpty) {
+                              return null;
+                            } else {
+                              return (state.keys?.last ?? 0) + 1;
+                            }
+                          }
+                        },
+                        fetchPage: (pageKey) async {
+                          return await getMessageMultimedia(
+                            key: filter['key']!,
+                            context: context,
+                            conversationId: widget.conversationId,
+                            page: pageKey,
+                          );
+                        },
+                      );
+                      return PagingListener(
+                        controller: pagingController,
+                        builder: (context, state, fetchNextPage) {
+                          return PagedListView(
+                            state: state,
+                            fetchNextPage: fetchNextPage,
+                            builderDelegate: PagedChildBuilderDelegate(
+                              animateTransitions: true,
+                              itemBuilder: (context, item, index) {
+                                return item as Widget;
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    }).toList(),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    tabController.dispose();
-    super.dispose();
   }
 }

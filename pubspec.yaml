@@ -39,6 +39,7 @@ dependencies:
   just_audio: ^0.10.2
   rxdart: ^0.28.0
   http: ^1.4.0
+  infinite_scroll_pagination: ^5.0.0
 
 dev_dependencies:
   flutter_test:
