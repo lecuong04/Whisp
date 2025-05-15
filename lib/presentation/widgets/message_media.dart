@@ -109,9 +109,7 @@ class _MessageMediaState extends State<MessageMedia>
       leading: contentWidget,
       title: Text(
         getFileNameFromSupabaseStorage(url),
-        style: TextStyle(
-          fontStyle: type == 'file' ? FontStyle.normal : FontStyle.italic,
-        ),
+        style: TextStyle(fontStyle: FontStyle.normal),
       ),
       subtitle: Text(
         '${sentAt.day}/${sentAt.month}/${sentAt.year} ${sentAt.hour}:${sentAt.minute.toString().padLeft(2, '0')}',
