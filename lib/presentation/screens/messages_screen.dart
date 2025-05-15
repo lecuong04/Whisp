@@ -2,9 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:whisp/custom_cache_manager.dart';
-import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
+import 'package:whisp/presentation/widgets/message_media_list.dart';
+import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/services/user_service.dart';
 import 'package:whisp/utils/constants.dart';
 import 'dart:io';
@@ -58,8 +59,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void scrollListener() {
     final maxScroll = scrollController.position.maxScrollExtent;
     final currentScroll = scrollController.position.pixels;
-    final threshold =
-        isSearchMode ? 50.0 : 200.0; // Giảm ngưỡng trong search mode
+    final threshold = isSearchMode ? 50.0 : 200.0;
     const minLoadInterval = Duration(seconds: 1);
 
     _isScrollingUp = currentScroll < _lastScrollPosition;
@@ -67,6 +67,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     final newIsAtBottom = (maxScroll - currentScroll) <= threshold;
     if (newIsAtBottom != isAtBottom) {
+      if (!mounted) return;
       setState(() {
         isAtBottom = newIsAtBottom;
         if (isAtBottom) {
@@ -100,6 +101,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+      if (!mounted) return;
       setState(() {
         isAtBottom = true;
         hasNewMessage = false;
@@ -164,9 +166,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
             if (targetIndex < 5) {
               Future.delayed(const Duration(milliseconds: 400), () {
-                if (!mounted || !scrollController.hasClients) {
-                  return;
-                }
+                if (!mounted || !scrollController.hasClients) return;
                 scrollController.jumpTo(50.0);
               });
             }
@@ -179,7 +179,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
 
       chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
-        if (!mounted) return; // Kiểm tra mounted trước khi xử lý subscription
+        if (!mounted) return;
         setState(() {
           for (var updatedMessage in updatedMessages) {
             final index = allMessages.indexWhere(
@@ -206,18 +206,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
         if (isAtBottom) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return; // Kiểm tra mounted trước khi scroll
+            if (!mounted) return;
             scrollToBottom();
           });
         } else {
-          if (!mounted) return; // Kiểm tra mounted trước khi gọi setState
+          if (!mounted) return;
           setState(() {
             hasNewMessage = true;
           });
         }
       });
     } catch (e) {
-      if (!mounted) return; // Kiểm tra mounted trước khi gọi setState
+      if (!mounted) return;
       setState(() {
         error = "Lỗi khi tải tin nhắn: $e";
         isLoading = false;
@@ -228,6 +228,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> loadMoreMessages() async {
     if (!hasMoreMessages || isLoadingMore) return;
 
+    if (!mounted) return;
     setState(() {
       isLoadingMore = true;
     });
@@ -241,6 +242,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         beforeSentAt: beforeSentAt,
       );
 
+      if (!mounted) return;
       setState(() {
         if (olderMessages.isNotEmpty) {
           final newMessages =
@@ -257,6 +259,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         isLoadingMore = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         error = "Lỗi khi tải thêm tin nhắn: $e";
         isLoadingMore = false;
@@ -270,6 +273,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> loadNewerMessages() async {
     if (!hasNewerMessages || isLoadingNewer) return;
 
+    if (!mounted) return;
     setState(() {
       isLoadingNewer = true;
     });
@@ -284,6 +288,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         limit: MESSAGE_PAGE_SIZE,
       );
 
+      if (!mounted) return;
       setState(() {
         if (newerMessages.isNotEmpty) {
           final newMessages =
@@ -318,6 +323,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         isLoadingNewer = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         error = "Lỗi khi tải tin nhắn mới hơn: $e";
         isLoadingNewer = false;
@@ -338,6 +344,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         content: messageController.text,
       );
 
+      if (!mounted) return;
       setState(() {
         allMessages.add(newMessage);
         allMessages.sort((a, b) {
@@ -366,6 +373,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         mediaFile: file,
       );
 
+      if (!mounted) return;
       setState(() {
         allMessages.add(newMessage);
         allMessages.sort((a, b) {
@@ -415,6 +423,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       try {
         if (result == 'delete_for_me') {
           await chatService.deleteMessageForMe(message['id'], myId);
+          if (!mounted) return;
           setState(() {
             allMessages[index]['message_statuses'] = [
               ...(message['message_statuses'] as List<dynamic>).map(
@@ -427,6 +436,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           });
         } else if (result == 'delete_for_all') {
           await chatService.deleteMessageForAll(message['id']);
+          if (!mounted) return;
           setState(() {
             allMessages[index]['message_statuses'] = [
               ...(message['message_statuses'] as List<dynamic>).map(
@@ -444,6 +454,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa tin nhắn: $e')));
       }
     } else {
+      if (!mounted) return;
       setState(() {
         if (selectedMessages.contains(index)) {
           selectedMessages.remove(index);
@@ -481,7 +492,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
           },
           icon: const Icon(FontAwesomeIcons.chevronLeft),
         ),
+        actions: [
+          Builder(
+            builder:
+                (context) => IconButton(
+                  onPressed: () {
+                    Scaffold.of(
+                      context,
+                    ).openEndDrawer(); // Mở drawer từ phải sang trái
+                  },
+                  icon: const Icon(FontAwesomeIcons.bars, color: Colors.black),
+                ),
+          ),
+        ],
       ),
+      endDrawer: MessageMediaList(messages: allMessages, myId: myId),
       body: Stack(
         children: [
           Column(
