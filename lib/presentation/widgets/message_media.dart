@@ -224,6 +224,8 @@ class _MessageMediaState extends State<MessageMedia>
                   (context) => const Center(child: CircularProgressIndicator()),
               newPageProgressIndicatorBuilder:
                   (context) => const SizedBox.shrink(),
+              noItemsFoundIndicatorBuilder:
+                  (context) => const SizedBox.shrink(),
               itemBuilder: (context, item, index) {
                 return item as Widget;
               },

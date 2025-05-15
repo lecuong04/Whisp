@@ -21,20 +21,11 @@ class _MessageMediaListState extends State<MessageMediaList>
     {'key': 'audio', 'name': 'Âm thanh'},
     {'key': 'video', 'name': 'Video'},
   ];
-  late int selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
     tabController = TabController(length: filters.length, vsync: this);
-    tabController.addListener(() {
-      if (tabController.indexIsChanging) return;
-      if (mounted) {
-        setState(() {
-          selectedIndex = tabController.index;
-        });
-      }
-    });
   }
 
   @override
