@@ -52,12 +52,13 @@ class _MessageMediaState extends State<MessageMedia>
     },
   );
 
-  static Widget buildMediaItem(
-    String type,
-    String url,
-    DateTime sentAt,
-    BuildContext context,
-  ) {
+  static Widget buildMediaItem({
+    required String type,
+    required String url,
+    required DateTime sentAt,
+    required String sentBy,
+    required BuildContext context,
+  }) {
     Widget contentWidget;
     switch (type) {
       case 'image':
@@ -104,16 +105,40 @@ class _MessageMediaState extends State<MessageMedia>
           color: Colors.blue,
         );
     }
-
+    final iconSize = 17.0;
     return ListTile(
       leading: contentWidget,
       title: Text(
         getFileNameFromSupabaseStorage(url),
-        style: TextStyle(fontStyle: FontStyle.normal),
+        overflow: TextOverflow.fade,
       ),
-      subtitle: Text(
-        '${sentAt.day}/${sentAt.month}/${sentAt.year} ${sentAt.hour}:${sentAt.minute.toString().padLeft(2, '0')}',
-        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            spacing: 2,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.access_time, size: iconSize),
+              Text(
+                '${sentAt.day}/${sentAt.month}/${sentAt.year.toString().substring(2)} ${sentAt.hour}:${sentAt.minute.toString().padLeft(2, '0')}',
+                style: TextStyle(fontSize: iconSize - 4, color: Colors.grey),
+              ),
+            ],
+          ),
+          Row(
+            spacing: 2,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.person, size: iconSize),
+              Text(
+                sentBy,
+                style: TextStyle(fontSize: iconSize - 4, color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
       ),
       onLongPress: () async {
         switch (type) {
@@ -197,10 +222,11 @@ class _MessageMediaState extends State<MessageMedia>
     for (var x in data) {
       result.add(
         buildMediaItem(
-          type == 'all' ? x['type'] : type,
-          x['url'],
-          DateTime.parse(x['sent_at']),
-          context,
+          type: type == 'all' ? x['type'] : type,
+          url: x['url'],
+          sentAt: DateTime.parse(x['sent_at']),
+          sentBy: x['sent_by'],
+          context: context,
         ),
       );
     }
