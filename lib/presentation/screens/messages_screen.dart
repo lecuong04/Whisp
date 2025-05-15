@@ -501,7 +501,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       context,
                     ).openEndDrawer(); // Mở drawer từ phải sang trái
                   },
-                  icon: const Icon(FontAwesomeIcons.bars, color: Colors.black),
+                  icon: const Icon(Icons.cloud_outlined, color: Colors.black),
                 ),
           ),
         ],
