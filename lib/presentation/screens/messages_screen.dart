@@ -45,6 +45,7 @@ class _MessagesScreenState extends State<MessagesScreen>
   bool isSearchMode = false;
   String? error;
   double keyboardHeight = 0;
+  bool isSending = false;
   final Set<int> selectedMessages = {};
   double lastScrollPosition = 0.0;
   bool isScrollingUp = false;
@@ -396,8 +397,13 @@ class _MessagesScreenState extends State<MessagesScreen>
         messageType: messageType,
         mediaFile: file,
       );
-
+      setState(() {
+        isSending = true;
+      });
       allMessages.add(await newMessage);
+      setState(() {
+        isSending = false;
+      });
       if (!mounted) return;
       setState(() {
         allMessages.sort((a, b) {
@@ -563,6 +569,7 @@ class _MessagesScreenState extends State<MessagesScreen>
                           targetMessageId: widget.messageId,
                         ),
               ),
+              ...(isSending ? [LinearProgressIndicator()] : []),
               MessageInput(
                 controller: messageController,
                 onSend: sendMessage,
@@ -571,7 +578,6 @@ class _MessagesScreenState extends State<MessagesScreen>
                     if (keyboardHeight == 0) {
                       keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
                     }
-                    print("Keyboard height 2: $keyboardHeight");
                     scrollController.animateTo(
                       scrollController.position.pixels +
                           MediaQuery.of(context).viewInsets.bottom,

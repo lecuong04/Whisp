@@ -60,9 +60,12 @@ class _VideoPlayerPopupState extends State<VideoPlayerPopup> {
   Widget build(BuildContext context) {
     return chewieController != null &&
             chewieController!.videoPlayerController.value.isInitialized
-        ? ClipRRect(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          child: Chewie(controller: chewieController!),
+        ? AspectRatio(
+          aspectRatio: videoController.value.aspectRatio,
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: Chewie(controller: chewieController!),
+          ),
         )
         : const Center(
           child: Column(
