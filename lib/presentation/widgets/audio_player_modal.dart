@@ -1,19 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:rxdart/rxdart.dart';
-import 'package:url_launcher/url_launcher_string.dart';
-
-class DurationState {
-  final Duration position;
-  final Duration buffered;
-  final Duration total;
-
-  DurationState({
-    required this.position,
-    required this.buffered,
-    required this.total,
-  });
-}
+import 'package:audioplayers/audioplayers.dart';
+import 'package:whisp/custom_cache_manager.dart';
 
 class AudioPlayerModal extends StatefulWidget {
   final String url;
@@ -24,35 +11,56 @@ class AudioPlayerModal extends StatefulWidget {
 }
 
 class _AudioPlayerModalState extends State<AudioPlayerModal> {
-  late Stream<DurationState> durationState;
   final AudioPlayer player = AudioPlayer();
   bool isLoaded = false;
 
-  void setupPlayer() async {
-    await player.setUrl(widget.url);
-    player.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.ready) {
-        isLoaded = true;
-        if (mounted) setState(() {});
+  Duration duration = Duration();
+  Duration position = Duration();
+
+  bool get isPlaying => player.state == PlayerState.playing;
+
+  void initStreams() {
+    player.onDurationChanged.listen((d) {
+      if (mounted) {
+        setState(() => duration = d);
+      }
+    });
+
+    player.onPositionChanged.listen((p) {
+      print("Audio Player Position: $p");
+      if (mounted && p <= duration) {
+        setState(() => position = p);
+      }
+    });
+
+    player.onPlayerComplete.listen((event) {
+      if (mounted) {
+        setState(() => position = Duration.zero);
       }
     });
   }
 
+  void setupPlayer() async {
+    var data = await CustomCacheManager().downloadFile(widget.url);
+    if (data.file.existsSync()) {
+      await player.setReleaseMode(ReleaseMode.stop);
+      await player.setPlaybackRate(1);
+      await player.setSourceDeviceFile(data.file.path);
+      duration = (await player.getDuration())!;
+      position = (await player.getCurrentPosition())!;
+      setState(() {
+        isLoaded = true;
+      });
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   void initState() {
-    setupPlayer();
     super.initState();
-    durationState =
-        Rx.combineLatest3<Duration, Duration, Duration?, DurationState>(
-          player.positionStream,
-          player.bufferedPositionStream,
-          player.durationStream,
-          (position, buffered, total) => DurationState(
-            position: position,
-            buffered: buffered,
-            total: total ?? Duration.zero,
-          ),
-        );
+    initStreams();
+    setupPlayer();
   }
 
   @override
@@ -70,6 +78,7 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
 
   @override
   Widget build(BuildContext context) {
+    const iconSize = 40.0;
     var title = widget.url
         .split('/')
         .last
@@ -88,130 +97,55 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Tooltip(
-                message: title,
-                child: Text(
-                  maxLines: 1,
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                maxLines: 1,
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+                overflow: TextOverflow.ellipsis,
               ),
-              StreamBuilder<DurationState>(
-                stream: durationState,
-                builder: (context, snapshot) {
-                  final state = snapshot.data;
-                  final position = state?.position ?? Duration.zero;
-                  final total = state?.total ?? Duration.zero;
-
-                  return Column(
+              Slider(
+                min: 0,
+                max: duration.inMilliseconds.toDouble(),
+                onChanged:
+                    (value) =>
+                        player.seek(Duration(milliseconds: value.round())),
+                value: position.inMilliseconds.toDouble(),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    formatDuration(position),
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  Row(
                     children: [
-                      Slider(
-                        min: 0.0,
-                        max: total.inMilliseconds.toDouble(),
-                        value:
-                            position.inMilliseconds
-                                .clamp(0, total.inMilliseconds)
-                                .toDouble(),
-                        onChanged: (value) {
-                          player.seek(Duration(milliseconds: value.toInt()));
-                        },
+                      IconButton(
+                        onPressed:
+                            () => player.seek(position - Duration(seconds: 10)),
+                        icon: Icon(Icons.replay_10),
+                        iconSize: iconSize,
                       ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(formatDuration(position)),
-                          StreamBuilder<PlayerState>(
-                            stream: player.playerStateStream,
-                            builder: (context, snapshot) {
-                              final inState = snapshot.data;
-                              final isPlaying = inState?.playing ?? false;
-                              final processing = inState?.processingState;
-
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.replay_10),
-                                    iconSize: 30,
-                                    onPressed: () async {
-                                      Duration tmp =
-                                          player.position -
-                                          const Duration(seconds: 10);
-                                      await player.seek(
-                                        tmp.isNegative ? Duration() : tmp,
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      (processing == ProcessingState.loading ||
-                                              processing ==
-                                                  ProcessingState.buffering)
-                                          ? Icons.pending_outlined
-                                          : processing ==
-                                                  ProcessingState.completed ||
-                                              player.position == state?.total
-                                          ? Icons.restart_alt
-                                          : (isPlaying
-                                              ? Icons.pause
-                                              : Icons.play_arrow),
-                                    ),
-                                    iconSize: 40,
-                                    onPressed: () async {
-                                      if (processing ==
-                                          ProcessingState.completed) {
-                                        await player.seek(Duration());
-                                        player.play();
-                                      } else {
-                                        if (isPlaying) {
-                                          await player.pause();
-                                        } else {
-                                          await player.play();
-                                        }
-                                      }
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.forward_10),
-                                    iconSize: 30,
-                                    onPressed: () async {
-                                      Duration tmp =
-                                          player.position +
-                                          const Duration(seconds: 10);
-                                      await player.seek(
-                                        tmp > state!.total ? state.total : tmp,
-                                      );
-                                    },
-                                  ),
-                                  SizedBox(width: 24),
-                                  IconButton(
-                                    onPressed: () async {
-                                      if (await canLaunchUrlString(
-                                        widget.url,
-                                      )) {
-                                        await launchUrlString(
-                                          widget.url,
-                                          mode: LaunchMode.externalApplication,
-                                        );
-                                      }
-                                    },
-                                    icon: const Icon(
-                                      Icons.open_in_browser_outlined,
-                                    ),
-                                    iconSize: 30,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          Text(formatDuration(total)),
-                        ],
+                      IconButton(
+                        onPressed:
+                            () => isPlaying ? player.pause() : player.resume(),
+                        icon: Icon(!isPlaying ? Icons.play_arrow : Icons.pause),
+                        iconSize: iconSize,
+                      ),
+                      IconButton(
+                        onPressed:
+                            () => player.seek(position + Duration(seconds: 10)),
+                        icon: Icon(Icons.forward_10),
+                        iconSize: iconSize,
                       ),
                     ],
-                  );
-                },
+                  ),
+                  Text(
+                    formatDuration(duration),
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
               ),
             ],
           ),
