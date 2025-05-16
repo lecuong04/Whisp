@@ -70,36 +70,48 @@ class _MessageListState extends State<MessageList> {
     Widget contentWidget;
     switch (messageType) {
       case 'image':
-        {
-          contentWidget = ImageThumbnail(
-            isTargetMessage: isTargetMessage,
-            url: content,
-          );
-          break;
-        }
       case 'video':
-        {
-          contentWidget = VideoThumbnail(
-            url: content,
-            isTargetMessage: isTargetMessage,
-          );
-          break;
-        }
       case 'file':
       case 'audio':
         {
           contentWidget = GestureDetector(
             onDoubleTap: () async {
-              if (messageType == 'file') {
-                final url = Uri.parse(content);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-              } else {
-                await showModalBottomSheet(
-                  context: context,
-                  builder: (context) => AudioPlayerModal(url: content),
-                );
+              switch (messageType) {
+                case "file":
+                  {
+                    final url = Uri.parse(content);
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(
+                        url,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                    break;
+                  }
+                case "image":
+                  {
+                    await ImageThumbnail.imageViewer(
+                      context: context,
+                      url: content,
+                    );
+                    break;
+                  }
+                case "video":
+                  {
+                    await VideoThumbnail.videoPlayer(
+                      context: context,
+                      url: content,
+                    );
+                    break;
+                  }
+                case "audio":
+                  {
+                    await showModalBottomSheet(
+                      context: context,
+                      builder: (context) => AudioPlayerModal(url: content),
+                    );
+                    break;
+                  }
               }
             },
             child: Container(
@@ -111,12 +123,13 @@ class _MessageListState extends State<MessageList> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    messageType == 'file'
-                        ? Icons.insert_drive_file_outlined
-                        : Icons.audio_file_outlined,
-                    color: Colors.blue,
-                  ),
+                  Icon(switch (messageType) {
+                    "video" => Icons.video_file_outlined,
+                    "file" => Icons.insert_drive_file_outlined,
+                    "audio" => Icons.audio_file_outlined,
+                    "image" => Icons.image_outlined,
+                    _ => Icons.question_mark,
+                  }, color: Colors.blue),
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(

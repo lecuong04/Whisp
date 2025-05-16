@@ -497,11 +497,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
             builder:
                 (context) => IconButton(
                   onPressed: () {
-                    Scaffold.of(
-                      context,
-                    ).openEndDrawer(); // Mở drawer từ phải sang trái
+                    Scaffold.of(context).openEndDrawer();
                   },
-                  icon: const Icon(Icons.cloud_outlined, color: Colors.black),
+                  icon: const Icon(Icons.storage_outlined, color: Colors.black),
                 ),
           ),
         ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/models/call_info.dart';
 import 'package:whisp/models/call_manager.dart';
 import 'package:whisp/services/call_service.dart';
@@ -256,6 +257,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               otherUser!["avatar_url"] != null
                                   ? CachedNetworkImageProvider(
                                     otherUser!["avatar_url"],
+                                    cacheManager: CustomCacheManager(),
                                   )
                                   : null,
                         ),

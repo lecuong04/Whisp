@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:whisp/custom_cache_manager.dart';
 
 class AudioPlayerModal extends StatefulWidget {
@@ -27,7 +28,6 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
     });
 
     player.onPositionChanged.listen((p) {
-      print("Audio Player Position: $p");
       if (mounted && p <= duration) {
         setState(() => position = p);
       }
@@ -78,7 +78,7 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
 
   @override
   Widget build(BuildContext context) {
-    const iconSize = 40.0;
+    const iconSize = 32.0;
     var title = widget.url
         .split('/')
         .last
@@ -138,6 +138,14 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
                             () => player.seek(position + Duration(seconds: 10)),
                         icon: Icon(Icons.forward_10),
                         iconSize: iconSize,
+                      ),
+                      IconButton(
+                        onPressed: () async {
+                          if (await canLaunchUrlString(widget.url)) {
+                            await launchUrlString(widget.url);
+                          }
+                        },
+                        icon: Icon(Icons.open_in_new),
                       ),
                     ],
                   ),

@@ -32,7 +32,13 @@ class ImageThumbnail extends StatelessWidget {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
                 },
-                child: CachedNetworkImage(imageUrl: url),
+                child: CachedNetworkImage(
+                  imageUrl: url,
+                  cacheManager: CustomCacheManager(),
+                  progressIndicatorBuilder:
+                      (context, url, progress) =>
+                          const Center(child: CircularProgressIndicator()),
+                ),
               ),
             ),
           ),
