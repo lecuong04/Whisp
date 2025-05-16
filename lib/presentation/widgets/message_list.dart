@@ -15,7 +15,7 @@ class MessageList extends StatefulWidget {
   final bool isLoadingMore;
   final bool hasMoreMessages;
   final Set<int> selectedMessages;
-  final Function(int) onMessageTap;
+  final Function(int) onMessageHold;
   final String? targetMessageId;
 
   const MessageList({
@@ -27,7 +27,7 @@ class MessageList extends StatefulWidget {
     required this.isLoadingMore,
     required this.hasMoreMessages,
     required this.selectedMessages,
-    required this.onMessageTap,
+    required this.onMessageHold,
     this.targetMessageId,
   });
 
@@ -250,7 +250,6 @@ class _MessageListState extends State<MessageList> {
           break;
         }
     }
-
     return ConstrainedBox(
       key: ValueKey(message['id']),
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -316,14 +315,8 @@ class _MessageListState extends State<MessageList> {
 
         return GestureDetector(
           onLongPress:
-              !isHidden
-                  ? () {
-                    widget.onMessageTap(messageIndex);
-                  }
-                  : null,
-          onTap: () {
-            toggleTimestamp(messageIndex);
-          },
+              !isHidden ? () => widget.onMessageHold(messageIndex) : null,
+          onTap: () => toggleTimestamp(messageIndex),
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
             child: Column(

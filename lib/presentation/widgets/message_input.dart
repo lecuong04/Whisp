@@ -8,14 +8,14 @@ import 'package:mime/mime.dart';
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
-  final VoidCallback onTextFieldTap;
+  final VoidCallback? onTextFieldTap;
   final Function(File, String) onMediaSelected;
 
   const MessageInput({
     super.key,
     required this.controller,
     required this.onSend,
-    required this.onTextFieldTap,
+    this.onTextFieldTap,
     required this.onMediaSelected,
   });
 

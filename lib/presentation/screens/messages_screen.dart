@@ -28,7 +28,8 @@ class MessagesScreen extends StatefulWidget {
   State createState() => _MessagesScreenState();
 }
 
-class _MessagesScreenState extends State<MessagesScreen> {
+class _MessagesScreenState extends State<MessagesScreen>
+    with WidgetsBindingObserver {
   String myId = UserService().id!;
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
@@ -43,17 +44,40 @@ class _MessagesScreenState extends State<MessagesScreen> {
   bool hasNewerMessages = true;
   bool isSearchMode = false;
   String? error;
+  double keyboardHeight = 0;
   final Set<int> selectedMessages = {};
-  double _lastScrollPosition = 0.0;
-  bool _isScrollingUp = false;
-  DateTime _lastLoadMoreTime = DateTime.now();
-  DateTime _lastLoadNewerTime = DateTime.now();
+  double lastScrollPosition = 0.0;
+  bool isScrollingUp = false;
+  DateTime lastLoadMoreTime = DateTime.now();
+  DateTime lastLoadNewerTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     scrollController.addListener(scrollListener);
     initializeMessages();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    scrollController.dispose();
+    messageController.dispose();
+    chatService.unsubscribeMessages();
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (keyboardHeight != 0) {
+      scrollController.animateTo(
+        scrollController.position.pixels - keyboardHeight,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      keyboardHeight = 0;
+    }
   }
 
   void scrollListener() {
@@ -62,8 +86,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final threshold = isSearchMode ? 50.0 : 200.0;
     const minLoadInterval = Duration(seconds: 1);
 
-    _isScrollingUp = currentScroll < _lastScrollPosition;
-    _lastScrollPosition = currentScroll;
+    isScrollingUp = currentScroll < lastScrollPosition;
+    lastScrollPosition = currentScroll;
 
     final newIsAtBottom = (maxScroll - currentScroll) <= threshold;
     if (newIsAtBottom != isAtBottom) {
@@ -79,18 +103,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (currentScroll <= threshold &&
         hasMoreMessages &&
         !isLoadingMore &&
-        _isScrollingUp &&
-        DateTime.now().difference(_lastLoadMoreTime) >= minLoadInterval) {
+        isScrollingUp &&
+        DateTime.now().difference(lastLoadMoreTime) >= minLoadInterval) {
       loadMoreMessages();
-      _lastLoadMoreTime = DateTime.now();
+      lastLoadMoreTime = DateTime.now();
     }
 
     if (currentScroll >= maxScroll - threshold &&
         hasNewerMessages &&
         !isLoadingNewer &&
-        DateTime.now().difference(_lastLoadNewerTime) >= minLoadInterval) {
+        DateTime.now().difference(lastLoadNewerTime) >= minLoadInterval) {
       loadNewerMessages();
-      _lastLoadNewerTime = DateTime.now();
+      lastLoadNewerTime = DateTime.now();
     }
   }
 
@@ -365,7 +389,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void sendMedia(File file, String messageType) async {
     try {
-      final newMessage = await chatService.sendMessage(
+      final newMessage = chatService.sendMessage(
         conversationId: widget.conversationId,
         senderId: myId,
         content: '',
@@ -373,9 +397,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         mediaFile: file,
       );
 
+      allMessages.add(await newMessage);
       if (!mounted) return;
       setState(() {
-        allMessages.add(newMessage);
         allMessages.sort((a, b) {
           final aTime = DateTime.parse(a['sent_at']);
           final bTime = DateTime.parse(b['sent_at']);
@@ -391,7 +415,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void onMessageTap(int index) async {
+  void onMessageHold(int index) async {
     final message = allMessages[index];
     final isMe = message['sender_id'] == myId;
 
@@ -468,6 +492,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Row(
           children: [
@@ -534,14 +559,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           isLoadingMore: isLoadingMore,
                           hasMoreMessages: hasMoreMessages,
                           selectedMessages: selectedMessages,
-                          onMessageTap: onMessageTap,
+                          onMessageHold: onMessageHold,
                           targetMessageId: widget.messageId,
                         ),
               ),
               MessageInput(
                 controller: messageController,
                 onSend: sendMessage,
-                onTextFieldTap: () {},
+                onTextFieldTap: () {
+                  Future.delayed(Duration(milliseconds: 300), () {
+                    if (keyboardHeight == 0) {
+                      keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+                    }
+                    print("Keyboard height 2: $keyboardHeight");
+                    scrollController.animateTo(
+                      scrollController.position.pixels +
+                          MediaQuery.of(context).viewInsets.bottom,
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                    );
+                  });
+                },
                 onMediaSelected: sendMedia,
               ),
             ],
@@ -558,13 +596,5 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    scrollController.dispose();
-    messageController.dispose();
-    chatService.unsubscribeMessages();
-    super.dispose();
   }
 }
