@@ -119,10 +119,10 @@ class _MessagesScreenState extends State<MessagesScreen>
     }
   }
 
-  void scrollToBottom() async {
+  void scrollToBottom() {
     if (scrollController.hasClients) {
       scrollController.animateTo(
-        scrollController.position.maxScrollExtent,
+        scrollController.position.maxScrollExtent + 30,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
