@@ -58,6 +58,24 @@ class _MessageListState extends State<MessageList> {
     return currentMessage['sender_id'] != nextMessage['sender_id'];
   }
 
+  String formatTimestamp(String sentAt) {
+    final dateTime = DateTime.parse(sentAt).toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+
+    if (messageDate == today) {
+      return '$hour:$minute';
+    } else {
+      final day = dateTime.day.toString().padLeft(2, '0');
+      final month = dateTime.month.toString().padLeft(2, '0');
+      return '$day/$month $hour:$minute';
+    }
+  }
+
   static Widget buildMessageContent(
     BuildContext context,
     Map<String, dynamic> message,
@@ -263,6 +281,7 @@ class _MessageListState extends State<MessageList> {
     final maxWidth = MediaQuery.of(context).size.width * MESSAGE_BOX_MAX_SIZE;
     final itemCount = widget.messages.length + 1;
     return ListView.builder(
+      physics: BouncingScrollPhysics(),
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(vertical: 10),
       itemCount: itemCount,
@@ -447,23 +466,5 @@ class _MessageListState extends State<MessageList> {
         );
       },
     );
-  }
-
-  String formatTimestamp(String sentAt) {
-    final dateTime = DateTime.parse(sentAt).toLocal();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-
-    if (messageDate == today) {
-      return '$hour:$minute';
-    } else {
-      final day = dateTime.day.toString().padLeft(2, '0');
-      final month = dateTime.month.toString().padLeft(2, '0');
-      return '$day/$month $hour:$minute';
-    }
   }
 }
