@@ -4,7 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
-import 'package:whisp/presentation/widgets/message_media_list.dart';
+import 'package:whisp/presentation/widgets/message_media_tab.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:whisp/services/user_service.dart';
 import 'package:whisp/utils/constants.dart';
@@ -537,7 +537,7 @@ class _MessagesScreenState extends State<MessagesScreen>
           ),
         ],
       ),
-      endDrawer: MessageMediaList(conversationId: widget.conversationId),
+      endDrawer: MessageMediaTab(conversationId: widget.conversationId),
       body: Stack(
         children: [
           Column(
