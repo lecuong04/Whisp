@@ -13,6 +13,7 @@ class MessageMediaTab extends StatefulWidget {
 class _MessageMediaTabState extends State<MessageMediaTab>
     with SingleTickerProviderStateMixin {
   late TabController tabController;
+  int selectedIndex = 0;
 
   final List<Map<String, String>> filters = [
     {'key': 'all', 'name': 'Tất cả'},
@@ -26,6 +27,11 @@ class _MessageMediaTabState extends State<MessageMediaTab>
   void initState() {
     super.initState();
     tabController = TabController(length: filters.length, vsync: this);
+    tabController.addListener(() {
+      setState(() {
+        selectedIndex = tabController.index;
+      });
+    });
   }
 
   @override
@@ -66,8 +72,8 @@ class _MessageMediaTabState extends State<MessageMediaTab>
               tabs: filters.map((filter) => Tab(text: filter['name'])).toList(),
             ),
             Expanded(
-              child: TabBarView(
-                controller: tabController,
+              child: IndexedStack(
+                index: selectedIndex,
                 children:
                     filters.map((filter) {
                       return MessageMediaList(

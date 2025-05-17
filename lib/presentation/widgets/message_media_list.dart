@@ -109,6 +109,7 @@ class _MessageMediaListState extends State<MessageMediaList>
     }
     final iconSize = 17.0;
     return ListTile(
+      key: ValueKey(sentAt),
       leading: contentWidget,
       title: Text(
         getFileNameFromSupabaseStorage(url),
