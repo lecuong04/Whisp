@@ -43,7 +43,7 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
 
   void setupPlayer() async {
     var data = await CustomCacheManager().downloadFile(widget.url);
-    if (data.file.existsSync()) {
+    if (data.file.lengthSync() > 0) {
       await player.setReleaseMode(ReleaseMode.stop);
       await player.setSourceDeviceFile(data.file.path);
       duration = (await player.getDuration())!;

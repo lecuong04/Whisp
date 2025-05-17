@@ -342,6 +342,7 @@ class ChatService {
                   'video' => 'Video',
                   'file' => 'File',
                   'call' => 'Cuộc gọi',
+                  'audio' => 'Âm thanh',
                   _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
                 };
               }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -8,10 +7,8 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/main.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
@@ -47,11 +44,6 @@ Future<void> onStart(ServiceInstance service) async {
     var res = await client.auth.setSession(e['refreshToken']);
     if (res.session == null) return;
     await service.setAsForegroundService();
-    var dir = await getApplicationCacheDirectory();
-    var avatarsDir = Directory(path.join(dir.path, "avatars"));
-    if (!avatarsDir.existsSync()) {
-      avatarsDir.createSync();
-    }
     var channel = client.channel('public:pending_messages');
     channel
         .onPostgresChanges(
@@ -61,7 +53,6 @@ Future<void> onStart(ServiceInstance service) async {
           callback: (payload) async {
             await _showNotification(
               client,
-              avatarsDir,
               notificationsPlugin,
               payload.newRecord,
             );
@@ -83,7 +74,7 @@ Future<void> onStart(ServiceInstance service) async {
     );
     (messages as List<dynamic>);
     for (var msg in messages) {
-      await _showNotification(client, avatarsDir, notificationsPlugin, msg);
+      await _showNotification(client, notificationsPlugin, msg);
     }
     do {
       await client.rpc(
@@ -101,32 +92,17 @@ Future<void> onStart(ServiceInstance service) async {
   });
 }
 
-Future<Uint8List?> _getAvatar(Directory avatarsDir, String avatarUrl) async {
-  bool isAvatarError = false;
-  File imgFile = File(path.join(avatarsDir.path, avatarUrl.split("/").last));
-  if (!imgFile.existsSync()) {
-    try {
-      var r = await http.get(Uri.parse(avatarUrl));
-      imgFile.writeAsBytesSync(
-        r.bodyBytes,
-        mode: FileMode.writeOnly,
-        flush: true,
-      );
-    } catch (_) {
-      isAvatarError = true;
-    }
+Future<Uint8List?> _getAvatar(String avatarUrl) async {
+  var info = await CustomCacheManager().downloadFile(avatarUrl);
+  if (info.file.lengthSync() > 0) {
+    return info.file.readAsBytesSync();
   } else {
-    if (imgFile.lastModifiedSync().day > 15) {
-      imgFile.deleteSync();
-      return _getAvatar(avatarsDir, avatarUrl);
-    }
+    return null;
   }
-  return isAvatarError ? null : imgFile.readAsBytesSync();
 }
 
 Future<void> _showNotification(
   SupabaseClient client,
-  Directory avatarsDir,
   FlutterLocalNotificationsPlugin notificationsPlugin,
   Map<String, dynamic> payload,
 ) async {
@@ -145,13 +121,13 @@ Future<void> _showNotification(
       await client
           .rpc('get_user', params: {'user_id': payload["sender_id"]})
           .single();
-  var senderAvatar = await _getAvatar(avatarsDir, sender["avatar_url"]);
+  var senderAvatar = await _getAvatar(sender["avatar_url"]);
   var data = payload;
   data.removeWhere((k, v) => k == "is_group");
   data["title"] = conversation['title'];
   if (conversation['is_group']) {
     data["avatar_url"] = conversation["avatar_url"];
-    var groupAvatar = await _getAvatar(avatarsDir, conversation["avatar_url"]);
+    var groupAvatar = await _getAvatar(conversation["avatar_url"]);
     notificationsPlugin.show(
       notificationId,
       '',
@@ -170,7 +146,7 @@ Future<void> _showNotification(
             groupConversation: true,
             messages: [
               Message(
-                payload['content'],
+                _buildMessageContent(payload['type'], payload["content"]),
                 DateTime.parse(payload['sent_at']),
                 Person(
                   name: sender['full_name'],
@@ -197,9 +173,7 @@ Future<void> _showNotification(
     notificationsPlugin.show(
       notificationId,
       '<b>${conversation['title']}</b>',
-      payload['type'] == 'call'
-          ? "<i>Có cuộc gọi đến...</i>"
-          : payload["content"],
+      _buildMessageContent(payload['type'], payload["content"]),
       NotificationDetails(
         android: AndroidNotificationDetails(
           notificationChannelId,
@@ -235,6 +209,16 @@ Future<void> _showNotification(
     },
   );
 }
+
+String _buildMessageContent(String type, String content) => switch (type) {
+  "text" => content,
+  "call" => "<i>Có cuộc gọi đến...</i>",
+  "image" => "<i>Hình ảnh</i>",
+  "video" => "<i>Video</i>",
+  "file" => "<i>File</i>",
+  "audio" => "<i>Âm thanh</i>",
+  _ => "",
+};
 
 Future<void> startBackgroundService() async {
   await initNotification();

@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:get_thumbnail_video/index.dart';
 import 'package:get_thumbnail_video/video_thumbnail.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:whisp/custom_cache_manager.dart';
 
 bool checkEmailValid(String email) => RegExp(
   r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
@@ -45,16 +44,6 @@ Future<File?> getThumbnail(
   int maxHeight = 0,
   int maxWidth = 0,
 }) async {
-  var thumbnailFolder = Directory(
-    join((await getApplicationCacheDirectory()).path, "video_thumbnails"),
-  );
-  if (!thumbnailFolder.existsSync()) {
-    thumbnailFolder.createSync();
-  }
-  final thumbnail = File('${thumbnailFolder.path}/${url.hashCode}.png');
-  if (thumbnail.existsSync()) {
-    return thumbnail;
-  }
   var data = await VideoThumbnail.thumbnailData(
     video: url,
     imageFormat: ImageFormat.PNG,
@@ -64,9 +53,9 @@ Future<File?> getThumbnail(
     timeMs: 0,
   );
   if (data.isNotEmpty) {
-    await thumbnail.writeAsBytes(data);
+    return await CustomCacheManager().putFile(url, data, fileExtension: 'png');
   }
-  return thumbnail;
+  return null;
 }
 
 String getFileNameFromSupabaseStorage(String url) {
