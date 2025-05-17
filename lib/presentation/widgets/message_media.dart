@@ -7,6 +7,7 @@ import 'package:whisp/presentation/widgets/audio_player_modal.dart';
 import 'package:whisp/presentation/widgets/image_thumbnail.dart';
 import 'package:whisp/presentation/widgets/video_thumbnail.dart';
 import 'package:whisp/services/chat_service.dart';
+import 'package:whisp/utils/extensions.dart';
 import 'package:whisp/utils/helpers.dart';
 
 class MessageMedia extends StatefulWidget {
@@ -57,6 +58,7 @@ class _MessageMediaState extends State<MessageMedia>
     required String url,
     required DateTime sentAt,
     required String sentBy,
+    required num size,
     required BuildContext context,
   }) {
     Widget contentWidget;
@@ -117,24 +119,37 @@ class _MessageMediaState extends State<MessageMedia>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            spacing: 2,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.access_time, size: iconSize),
               Text(
-                '${sentAt.day}/${sentAt.month}/${sentAt.year.toString().substring(2)} ${sentAt.hour}:${sentAt.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(fontSize: iconSize - 4, color: Colors.grey),
+                size.toHumanReadableFileSize(),
+                style: TextStyle(fontSize: iconSize - 3, color: Colors.grey),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                spacing: 2,
+                children: [
+                  Icon(Icons.access_time, size: iconSize),
+                  Text(
+                    '${sentAt.day}/${sentAt.month}/${sentAt.year.toString().substring(2)} ${sentAt.hour}:${sentAt.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(
+                      fontSize: iconSize - 3,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           Row(
             spacing: 2,
+            mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.person, size: iconSize),
               Text(
                 sentBy,
-                style: TextStyle(fontSize: iconSize - 4, color: Colors.grey),
+                style: TextStyle(fontSize: iconSize - 3, color: Colors.grey),
               ),
             ],
           ),
@@ -226,6 +241,7 @@ class _MessageMediaState extends State<MessageMedia>
           url: x['url'],
           sentAt: DateTime.parse(x['sent_at']),
           sentBy: x['sent_by'],
+          size: x['size'],
           context: context,
         ),
       );
