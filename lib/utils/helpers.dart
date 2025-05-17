@@ -70,8 +70,10 @@ Future<File?> getThumbnail(
 }
 
 String getFileNameFromSupabaseStorage(String url) {
-  return url
-      .split('/')
-      .last
-      .replaceFirstMapped(RegExp('^\\d+_', unicode: true), (match) => '');
+  return Uri.decodeComponent(
+    url
+        .split('/')
+        .last
+        .replaceFirstMapped(RegExp('^\\d+_', unicode: true), (match) => ''),
+  );
 }

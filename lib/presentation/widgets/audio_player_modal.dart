@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/utils/helpers.dart';
 
 class AudioPlayerModal extends StatefulWidget {
   final String url;
@@ -44,7 +45,6 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
     var data = await CustomCacheManager().downloadFile(widget.url);
     if (data.file.existsSync()) {
       await player.setReleaseMode(ReleaseMode.stop);
-      await player.setPlaybackRate(1);
       await player.setSourceDeviceFile(data.file.path);
       duration = (await player.getDuration())!;
       position = (await player.getCurrentPosition())!;
@@ -79,10 +79,6 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
   @override
   Widget build(BuildContext context) {
     const iconSize = 32.0;
-    var title = widget.url
-        .split('/')
-        .last
-        .replaceFirstMapped(RegExp('^\\d+_', unicode: true), (match) => '');
     return !isLoaded
         ? const SizedBox(
           height: 120,
@@ -97,11 +93,18 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                maxLines: 1,
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-                overflow: TextOverflow.ellipsis,
+              GestureDetector(
+                onDoubleTap: () async {
+                  if (await canLaunchUrlString(widget.url)) {
+                    await launchUrlString(widget.url);
+                  }
+                },
+                child: Text(
+                  maxLines: 1,
+                  getFileNameFromSupabaseStorage(widget.url),
+                  style: Theme.of(context).textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Slider(
                 min: 0,
@@ -138,14 +141,6 @@ class _AudioPlayerModalState extends State<AudioPlayerModal> {
                             () => player.seek(position + Duration(seconds: 10)),
                         icon: Icon(Icons.forward_10),
                         iconSize: iconSize,
-                      ),
-                      IconButton(
-                        onPressed: () async {
-                          if (await canLaunchUrlString(widget.url)) {
-                            await launchUrlString(widget.url);
-                          }
-                        },
-                        icon: Icon(Icons.open_in_new),
                       ),
                     ],
                   ),

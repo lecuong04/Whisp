@@ -27,6 +27,7 @@ class VideoThumbnail extends StatefulWidget {
       context: context,
       builder:
           (context) => Dialog(
+            insetPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 40),
             backgroundColor: Colors.transparent,
             child: VideoPlayerPopup(url: uri),
           ),

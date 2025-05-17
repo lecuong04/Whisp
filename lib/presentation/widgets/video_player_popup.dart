@@ -22,6 +22,11 @@ class _VideoPlayerPopupState extends State<VideoPlayerPopup> {
     await videoController.initialize();
     chewieController = ChewieController(
       videoPlayerController: videoController,
+      materialSeekButtonSize: 20,
+      optionsTranslation: OptionsTranslation(
+        cancelButtonText: "Hủy",
+        playbackSpeedButtonText: "Tốc độ trình chiếu",
+      ),
       additionalOptions: (context) {
         return [
           OptionItem(
@@ -34,7 +39,7 @@ class _VideoPlayerPopupState extends State<VideoPlayerPopup> {
               }
             },
             iconData: Icons.open_in_browser,
-            title: "Open in browser",
+            title: "Mở bằng trình duyệt",
           ),
         ];
       },
