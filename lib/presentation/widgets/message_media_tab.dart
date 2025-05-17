@@ -61,7 +61,7 @@ class _MessageMediaTabState extends State<MessageMediaTab>
               indicatorColor: Colors.black,
               indicatorWeight: 3,
               labelColor: Colors.black,
-              isScrollable: false,
+              isScrollable: true,
               unselectedLabelColor: Colors.grey,
               tabs: filters.map((filter) => Tab(text: filter['name'])).toList(),
             ),

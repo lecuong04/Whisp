@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:text_scroll/text_scroll.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:whisp/presentation/widgets/audio_player_modal.dart';
 import 'package:whisp/presentation/widgets/image_thumbnail.dart';
@@ -80,7 +81,6 @@ class _MessageListState extends State<MessageList> {
     BuildContext context,
     Map<String, dynamic> message,
     String? targetMessageId,
-    double maxWidth,
   ) {
     final messageType = message['message_type'] as String;
     final content = message['content'] as String;
@@ -133,38 +133,33 @@ class _MessageListState extends State<MessageList> {
                   }
               }
             },
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(switch (messageType) {
-                    "video" => Icons.video_file_outlined,
-                    "file" => Icons.insert_drive_file_outlined,
-                    "audio" => Icons.audio_file_outlined,
-                    "image" => Icons.image_outlined,
-                    _ => Icons.question_mark,
-                  }, color: Colors.blue),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      getFileNameFromSupabaseStorage(content),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight:
-                            isTargetMessage
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(switch (messageType) {
+                  "video" => Icons.video_file_outlined,
+                  "file" => Icons.insert_drive_file_outlined,
+                  "audio" => Icons.audio_file_outlined,
+                  "image" => Icons.image_outlined,
+                  _ => Icons.question_mark,
+                }, color: Colors.blue),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: TextScroll(
+                    getFileNameFromSupabaseStorage(content),
+                    mode: TextScrollMode.bouncing,
+                    velocity: Velocity(pixelsPerSecond: Offset(30, 0)),
+                    delayBefore: Duration(seconds: 4),
+                    pauseBetween: Duration(seconds: 3),
+                    pauseOnBounce: Duration(seconds: 5),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          isTargetMessage ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
           break;
@@ -220,38 +215,31 @@ class _MessageListState extends State<MessageList> {
                 icon = Icons.phone;
             }
 
-            contentWidget = Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon,
-                    color:
-                        status == 'missed' || status == "rejected"
-                            ? Colors.red
-                            : Colors.blue,
-                  ),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      displayText,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight:
-                            isTargetMessage
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            contentWidget = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  color:
+                      status == 'missed' || status == "rejected"
+                          ? Colors.red
+                          : Colors.blue,
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    displayText,
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight:
+                          isTargetMessage ? FontWeight.bold : FontWeight.normal,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           }
           break;
@@ -269,11 +257,7 @@ class _MessageListState extends State<MessageList> {
           break;
         }
     }
-    return ConstrainedBox(
-      key: ValueKey(message['id']),
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: contentWidget,
-    );
+    return contentWidget;
   }
 
   @override
@@ -311,7 +295,6 @@ class _MessageListState extends State<MessageList> {
         final message = widget.messages[messageIndex];
         final isMe = message['sender_id'] == widget.myId;
         final showTimestamp = showTimestampIndices.contains(messageIndex);
-        final messageType = message['message_type'] as String;
         final showAvatar = !isMe && isLastInSequence(messageIndex);
 
         bool isHidden = false;
@@ -361,65 +344,36 @@ class _MessageListState extends State<MessageList> {
                       const SizedBox(width: 37),
                     ],
                     Flexible(
-                      child:
-                          isHidden
-                              ? Container(
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.of(context).size.width * 0.7,
-                                ),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color:
-                                      isMe
-                                          ? Colors.blue[100]
-                                          : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
+                      child: Container(
+                        constraints: BoxConstraints(maxWidth: maxWidth),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.blue[100] : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child:
+                            isHidden
+                                ? Text(
                                   'Tin nhắn đã bị xóa',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontStyle: FontStyle.italic,
                                     fontSize: 14,
                                   ),
+                                )
+                                : buildMessageContent(
+                                  context,
+                                  message,
+                                  widget.targetMessageId,
                                 ),
-                              )
-                              : Container(
-                                padding:
-                                    messageType == "text"
-                                        ? const EdgeInsets.all(10)
-                                        : null,
-                                decoration: BoxDecoration(
-                                  color:
-                                      isMe
-                                          ? Colors.blue[100]
-                                          : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: NotificationListener<
-                                  SizeChangedLayoutNotification
-                                >(
-                                  onNotification: (notification) {
-                                    return false;
-                                  },
-                                  child: SizeChangedLayoutNotifier(
-                                    child: buildMessageContent(
-                                      context,
-                                      message,
-                                      widget.targetMessageId,
-                                      maxWidth,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                      ),
                     ),
                     if (isMe) const SizedBox(width: 10),
                   ],
