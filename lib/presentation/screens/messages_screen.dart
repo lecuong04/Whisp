@@ -579,13 +579,13 @@ class _MessagesScreenState extends State<MessagesScreen>
                   Future.delayed(Duration(milliseconds: 300), () {
                     if (keyboardHeight == 0) {
                       keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+                      scrollController.animateTo(
+                        scrollController.position.pixels +
+                            MediaQuery.of(context).viewInsets.bottom,
+                        duration: Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
                     }
-                    scrollController.animateTo(
-                      scrollController.position.pixels +
-                          MediaQuery.of(context).viewInsets.bottom,
-                      duration: Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
                   });
                 },
                 onMediaSelected: sendMedia,

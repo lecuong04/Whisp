@@ -27,6 +27,7 @@ class _MessageInputState extends State<MessageInput>
     with WidgetsBindingObserver {
   bool hasText = false;
   OverlayEntry? mediaOverlay;
+  FocusNode focusNode = FocusNode();
 
   @override
   void initState() {
@@ -260,15 +261,24 @@ class _MessageInputState extends State<MessageInput>
                 children: [
                   Expanded(
                     child: TextField(
+                      focusNode: focusNode,
                       controller: widget.controller,
                       decoration: const InputDecoration(
                         hintText: "Aa",
                         border: InputBorder.none,
                       ),
                       onTap: widget.onTextFieldTap,
+                      onTapOutside: (event) {
+                        focusNode.unfocus();
+                      },
+                      contentInsertionConfiguration:
+                          ContentInsertionConfiguration(
+                            onContentInserted: (value) {
+                              print(value.data);
+                            },
+                          ),
                     ),
                   ),
-                  const Icon(Icons.emoji_emotions_rounded, color: Colors.blue),
                 ],
               ),
             ),
