@@ -240,7 +240,7 @@ class _MessageMediaListState extends State<MessageMediaList>
         buildMediaItem(
           type: type == 'all' ? x['type'] : type,
           url: x['url'],
-          sentAt: DateTime.parse(x['sent_at']),
+          sentAt: DateTime.parse(x['sent_at']).toLocal(),
           sentBy: x['sent_by'],
           size: x['size'],
           context: context,
