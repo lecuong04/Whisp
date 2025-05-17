@@ -43,6 +43,7 @@ class _MessagesScreenState extends State<MessagesScreen>
   bool isLoadingNewer = false;
   bool hasNewerMessages = true;
   bool isSearchMode = false;
+  bool isFirstInit = true;
   String? error;
   double keyboardHeight = 0;
   bool isSending = false;
@@ -122,10 +123,11 @@ class _MessagesScreenState extends State<MessagesScreen>
   void scrollToBottom() {
     if (scrollController.hasClients) {
       scrollController.animateTo(
-        scrollController.position.maxScrollExtent + 30,
+        scrollController.position.maxScrollExtent + (isFirstInit ? 25 : 0),
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+      isFirstInit = false;
       if (!mounted) return;
       setState(() {
         isAtBottom = true;
