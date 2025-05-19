@@ -27,6 +27,8 @@ class MessageInput extends StatefulWidget {
 
 class _MessageInputState extends State<MessageInput>
     with WidgetsBindingObserver {
+  final GlobalKey multimediaKey = GlobalKey();
+  final GlobalKey sendKey = GlobalKey();
   bool hasText = false;
   OverlayEntry? mediaOverlay;
   FocusNode focusNode = FocusNode();
@@ -228,10 +230,16 @@ class _MessageInputState extends State<MessageInput>
     );
   }
 
+  static bool isOffsetInsideWidget(RenderBox box, Offset globalOffset) {
+    final Offset topLeft = box.localToGlobal(Offset.zero);
+    final Size size = box.size;
+    final Rect rect = topLeft & size;
+
+    return rect.contains(globalOffset);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final GlobalKey plusButtonKey = GlobalKey();
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       color: Colors.white,
@@ -239,8 +247,8 @@ class _MessageInputState extends State<MessageInput>
         children: [
           if (!focusNode.hasFocus) ...[
             InkWell(
-              key: plusButtonKey,
-              onTap: () => showMediaOptions(context, plusButtonKey),
+              key: multimediaKey,
+              onTap: () => showMediaOptions(context, multimediaKey),
               borderRadius: BorderRadius.circular(18),
               child: Container(
                 width: 36,
@@ -273,11 +281,21 @@ class _MessageInputState extends State<MessageInput>
                         border: InputBorder.none,
                       ),
                       onTap: widget.onTextFieldTap,
-                      onTapOutside: (event) {
-                        focusNode.unfocus();
+                      onTapOutside: (event) async {
+                        final RenderBox box =
+                            sendKey.currentContext!.findRenderObject()
+                                as RenderBox;
+                        if (!isOffsetInsideWidget(box, event.localPosition) ||
+                            (sendKey.currentContext!.widget as InkWell).onTap ==
+                                null) {
+                          focusNode.unfocus();
+                        }
                       },
                       contentInsertionConfiguration:
                           widget.contentInsertionConfiguration,
+                      keyboardType: TextInputType.multiline,
+                      minLines: 1,
+                      maxLines: 3,
                     ),
                   ),
                 ],
@@ -286,6 +304,7 @@ class _MessageInputState extends State<MessageInput>
           ),
           const SizedBox(width: 8),
           InkWell(
+            key: sendKey,
             onTap: hasText ? widget.onSend : null,
             borderRadius: BorderRadius.circular(18),
             child: Container(
