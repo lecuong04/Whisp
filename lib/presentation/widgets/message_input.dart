@@ -9,6 +9,7 @@ class MessageInput extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
   final VoidCallback? onTextFieldTap;
+  final ContentInsertionConfiguration? contentInsertionConfiguration;
   final Function(File, String) onMediaSelected;
 
   const MessageInput({
@@ -17,6 +18,7 @@ class MessageInput extends StatefulWidget {
     required this.onSend,
     this.onTextFieldTap,
     required this.onMediaSelected,
+    this.contentInsertionConfiguration,
   });
 
   @override
@@ -235,20 +237,23 @@ class _MessageInputState extends State<MessageInput>
       color: Colors.white,
       child: Row(
         children: [
-          InkWell(
-            key: plusButtonKey,
-            onTap: () => showMediaOptions(context, plusButtonKey),
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
+          if (!focusNode.hasFocus) ...[
+            InkWell(
+              key: plusButtonKey,
+              onTap: () => showMediaOptions(context, plusButtonKey),
+              borderRadius: BorderRadius.circular(18),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 22),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 22),
             ),
-          ),
+          ],
+
           const SizedBox(width: 8),
           Expanded(
             child: Container(
@@ -264,7 +269,7 @@ class _MessageInputState extends State<MessageInput>
                       focusNode: focusNode,
                       controller: widget.controller,
                       decoration: const InputDecoration(
-                        hintText: "Aa",
+                        hintText: "Nhập tin nhắn...",
                         border: InputBorder.none,
                       ),
                       onTap: widget.onTextFieldTap,
@@ -272,11 +277,7 @@ class _MessageInputState extends State<MessageInput>
                         focusNode.unfocus();
                       },
                       contentInsertionConfiguration:
-                          ContentInsertionConfiguration(
-                            onContentInserted: (value) {
-                              print(value.data);
-                            },
-                          ),
+                          widget.contentInsertionConfiguration,
                     ),
                   ),
                 ],

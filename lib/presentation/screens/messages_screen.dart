@@ -559,36 +559,43 @@ class _MessagesScreenState extends State<MessagesScreen>
                         )
                         : allMessages.isEmpty
                         ? const Center(child: Text("Chưa có tin nhắn nào"))
-                        : MessageList(
-                          messages: allMessages,
-                          myId: myId,
-                          friendImage: widget.conversationAvatar,
-                          scrollController: scrollController,
-                          isLoadingMore: isLoadingMore,
-                          hasMoreMessages: hasMoreMessages,
-                          selectedMessages: selectedMessages,
-                          onMessageHold: onMessageHold,
-                          targetMessageId: widget.messageId,
+                        : NotificationListener<SizeChangedLayoutNotification>(
+                          onNotification: (notification) {
+                            if (keyboardHeight == 0) {
+                              keyboardHeight =
+                                  MediaQuery.of(context).viewInsets.bottom;
+                              scrollController.animateTo(
+                                scrollController.position.pixels +
+                                    MediaQuery.of(context).viewInsets.bottom,
+                                duration: Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              );
+                            }
+                            return true;
+                          },
+                          child: SizeChangedLayoutNotifier(
+                            child: MessageList(
+                              messages: allMessages,
+                              myId: myId,
+                              friendImage: widget.conversationAvatar,
+                              scrollController: scrollController,
+                              isLoadingMore: isLoadingMore,
+                              hasMoreMessages: hasMoreMessages,
+                              selectedMessages: selectedMessages,
+                              onMessageHold: onMessageHold,
+                              targetMessageId: widget.messageId,
+                            ),
+                          ),
                         ),
               ),
               ...(isSending ? [LinearProgressIndicator()] : []),
               MessageInput(
                 controller: messageController,
                 onSend: sendMessage,
-                onTextFieldTap: () {
-                  Future.delayed(Duration(milliseconds: 300), () {
-                    if (keyboardHeight == 0) {
-                      keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-                      scrollController.animateTo(
-                        scrollController.position.pixels +
-                            MediaQuery.of(context).viewInsets.bottom,
-                        duration: Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
-                },
                 onMediaSelected: sendMedia,
+                contentInsertionConfiguration: ContentInsertionConfiguration(
+                  onContentInserted: (value) {},
+                ),
               ),
             ],
           ),

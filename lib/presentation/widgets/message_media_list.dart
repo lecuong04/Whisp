@@ -29,7 +29,7 @@ class _MessageMediaListState extends State<MessageMediaList>
   @override
   bool get wantKeepAlive => true;
 
-  static final int pageSize = 12;
+  static final int pageSize = 16;
 
   late final pagingController = PagingController<int, Widget>(
     getNextPageKey: (state) {

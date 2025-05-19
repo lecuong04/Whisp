@@ -12,7 +12,6 @@ class MessageMediaTab extends StatefulWidget {
 
 class _MessageMediaTabState extends State<MessageMediaTab>
     with SingleTickerProviderStateMixin {
-  late TabController tabController;
   int selectedIndex = 0;
 
   final List<Map<String, String>> filters = [
@@ -22,16 +21,15 @@ class _MessageMediaTabState extends State<MessageMediaTab>
     {'key': 'audio', 'name': 'Âm thanh'},
     {'key': 'video', 'name': 'Video'},
   ];
+  late final TabController tabController = TabController(
+    initialIndex: selectedIndex,
+    length: filters.length,
+    vsync: this,
+  );
 
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: filters.length, vsync: this);
-    tabController.addListener(() {
-      setState(() {
-        selectedIndex = tabController.index;
-      });
-    });
   }
 
   @override
@@ -70,6 +68,11 @@ class _MessageMediaTabState extends State<MessageMediaTab>
               isScrollable: true,
               unselectedLabelColor: Colors.grey,
               tabs: filters.map((filter) => Tab(text: filter['name'])).toList(),
+              onTap: (value) {
+                setState(() {
+                  selectedIndex = value;
+                });
+              },
             ),
             Expanded(
               child: IndexedStack(
