@@ -43,7 +43,6 @@ class _MessagesScreenState extends State<MessagesScreen>
   bool isLoadingNewer = false;
   bool hasNewerMessages = true;
   bool isSearchMode = false;
-  bool isFirstInit = true;
   String? error;
   double keyboardHeight = 0;
   bool isSending = false;
@@ -74,7 +73,7 @@ class _MessagesScreenState extends State<MessagesScreen>
   void didChangeMetrics() {
     if (keyboardHeight != 0) {
       scrollController.animateTo(
-        scrollController.position.pixels - keyboardHeight,
+        scrollController.position.pixels,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -88,10 +87,10 @@ class _MessagesScreenState extends State<MessagesScreen>
     final threshold = isSearchMode ? 50.0 : 200.0;
     const minLoadInterval = Duration(seconds: 1);
 
-    isScrollingUp = currentScroll < lastScrollPosition;
+    isScrollingUp = currentScroll > lastScrollPosition;
     lastScrollPosition = currentScroll;
 
-    final newIsAtBottom = (maxScroll - currentScroll) <= threshold;
+    final newIsAtBottom = (maxScroll - currentScroll) >= threshold;
     if (newIsAtBottom != isAtBottom) {
       if (!mounted) return;
       setState(() {
@@ -102,7 +101,7 @@ class _MessagesScreenState extends State<MessagesScreen>
       });
     }
 
-    if (currentScroll <= threshold &&
+    if (currentScroll >= threshold &&
         hasMoreMessages &&
         !isLoadingMore &&
         isScrollingUp &&
@@ -111,7 +110,7 @@ class _MessagesScreenState extends State<MessagesScreen>
       lastLoadMoreTime = DateTime.now();
     }
 
-    if (currentScroll >= maxScroll - threshold &&
+    if (currentScroll <= maxScroll - threshold &&
         hasNewerMessages &&
         !isLoadingNewer &&
         DateTime.now().difference(lastLoadNewerTime) >= minLoadInterval) {
@@ -123,11 +122,10 @@ class _MessagesScreenState extends State<MessagesScreen>
   void scrollToBottom() {
     if (scrollController.hasClients) {
       scrollController.animateTo(
-        scrollController.position.maxScrollExtent + (isFirstInit ? 25 : 0),
+        0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
-      isFirstInit = false;
       if (!mounted) return;
       setState(() {
         isAtBottom = true;
@@ -174,7 +172,7 @@ class _MessagesScreenState extends State<MessagesScreen>
 
       if (!mounted) return;
       setState(() {
-        allMessages = messages.reversed.toList();
+        allMessages = messages.toList();
         isLoading = false;
         hasMoreMessages = messages.length == MESSAGE_PAGE_SIZE;
         hasNewerMessages = messages.length == MESSAGE_PAGE_SIZE;
@@ -215,13 +213,13 @@ class _MessagesScreenState extends State<MessagesScreen>
             if (index != -1) {
               allMessages[index] = updatedMessage;
             } else {
-              allMessages.add(updatedMessage);
+              allMessages.insert(0, updatedMessage);
             }
           }
           allMessages.sort((a, b) {
             final aTime = DateTime.parse(a['sent_at']);
             final bTime = DateTime.parse(b['sent_at']);
-            return aTime.compareTo(bTime);
+            return bTime.compareTo(aTime);
           });
         });
 
@@ -261,7 +259,7 @@ class _MessagesScreenState extends State<MessagesScreen>
     });
 
     try {
-      final oldestMessage = allMessages.first;
+      final oldestMessage = allMessages.last;
       final beforeSentAt = oldestMessage['sent_at'];
       final olderMessages = await chatService.loadMessages(
         widget.conversationId,
@@ -278,7 +276,7 @@ class _MessagesScreenState extends State<MessagesScreen>
                   (oldMsg) => oldMsg['id'] == newMsg['id'],
                 );
               }).toList();
-          allMessages.insertAll(0, newMessages.reversed);
+          allMessages.addAll(newMessages);
           hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
         } else {
           hasMoreMessages = false;
@@ -306,7 +304,7 @@ class _MessagesScreenState extends State<MessagesScreen>
     });
 
     try {
-      final newestMessage = allMessages.last;
+      final newestMessage = allMessages.first;
       final afterSentAt = newestMessage['sent_at'];
 
       final newerMessages = await chatService.loadNewerMessages(
@@ -324,11 +322,11 @@ class _MessagesScreenState extends State<MessagesScreen>
                   (oldMsg) => oldMsg['id'] == newMsg['id'],
                 );
               }).toList();
-          allMessages.addAll(newMessages);
+          allMessages.insertAll(0, newMessages);
           allMessages.sort((a, b) {
             final aTime = DateTime.parse(a['sent_at']);
             final bTime = DateTime.parse(b['sent_at']);
-            return aTime.compareTo(bTime);
+            return bTime.compareTo(aTime);
           });
           hasNewerMessages = newerMessages.length == MESSAGE_PAGE_SIZE;
 
@@ -373,11 +371,11 @@ class _MessagesScreenState extends State<MessagesScreen>
 
       if (!mounted) return;
       setState(() {
-        allMessages.add(newMessage);
+        allMessages.insert(0, newMessage);
         allMessages.sort((a, b) {
           final aTime = DateTime.parse(a['sent_at']);
           final bTime = DateTime.parse(b['sent_at']);
-          return aTime.compareTo(bTime);
+          return bTime.compareTo(aTime);
         });
       });
 
@@ -402,7 +400,7 @@ class _MessagesScreenState extends State<MessagesScreen>
       setState(() {
         isSending = true;
       });
-      allMessages.add(await newMessage);
+      allMessages.insert(0, await newMessage);
       setState(() {
         isSending = false;
       });
@@ -411,7 +409,7 @@ class _MessagesScreenState extends State<MessagesScreen>
         allMessages.sort((a, b) {
           final aTime = DateTime.parse(a['sent_at']);
           final bTime = DateTime.parse(b['sent_at']);
-          return aTime.compareTo(bTime);
+          return bTime.compareTo(aTime);
         });
       });
 
@@ -565,8 +563,7 @@ class _MessagesScreenState extends State<MessagesScreen>
                               keyboardHeight =
                                   MediaQuery.of(context).viewInsets.bottom;
                               scrollController.animateTo(
-                                scrollController.position.pixels +
-                                    MediaQuery.of(context).viewInsets.bottom,
+                                scrollController.position.pixels,
                                 duration: Duration(milliseconds: 300),
                                 curve: Curves.easeOut,
                               );

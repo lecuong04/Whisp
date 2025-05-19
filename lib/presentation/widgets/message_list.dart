@@ -263,14 +263,15 @@ class _MessageListState extends State<MessageList> {
   @override
   Widget build(BuildContext context) {
     final maxWidth = MediaQuery.of(context).size.width * MESSAGE_BOX_MAX_SIZE;
-    final itemCount = widget.messages.length + 1;
+    final count = widget.messages.length;
     return ListView.builder(
-      physics: BouncingScrollPhysics(),
+      reverse: true,
+      physics: ClampingScrollPhysics(),
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(vertical: 10),
-      itemCount: itemCount,
+      itemCount: count + 1,
       itemBuilder: (context, index) {
-        if (index == 0) {
+        if (index == count) {
           if (widget.isLoadingMore) {
             return const Padding(
               padding: EdgeInsets.all(10),
@@ -291,15 +292,14 @@ class _MessageListState extends State<MessageList> {
           }
         }
 
-        final messageIndex = index - 1;
-        final message = widget.messages[messageIndex];
+        final message = widget.messages[index];
         final isMe = message['sender_id'] == widget.myId;
-        final showTimestamp = showTimestampIndices.contains(messageIndex);
-        final showAvatar = !isMe && isLastInSequence(messageIndex);
+        final showTimestamp = showTimestampIndices.contains(index);
+        final showAvatar = !isMe && isLastInSequence(index);
+        final statuses = message['message_statuses'] as List<dynamic>;
 
         bool isHidden = false;
-        if (message['message_statuses'] != null) {
-          final statuses = message['message_statuses'] as List<dynamic>;
+        if (statuses.isNotEmpty) {
           final myStatus = statuses.firstWhere(
             (status) => status['user_id'] == widget.myId,
             orElse: () => {'is_hidden': false},
@@ -308,18 +308,15 @@ class _MessageListState extends State<MessageList> {
         }
 
         bool isReadByAll = false;
-        if (isMe && message['message_statuses'] != null) {
-          final statuses = message['message_statuses'] as List<dynamic>;
+        if (isMe && statuses.isNotEmpty) {
           isReadByAll = statuses.every(
             (status) =>
                 status['user_id'] == widget.myId || status['is_read'] == true,
           );
         }
-
         return GestureDetector(
-          onLongPress:
-              !isHidden ? () => widget.onMessageHold(messageIndex) : null,
-          onTap: () => toggleTimestamp(messageIndex),
+          onLongPress: !isHidden ? () => widget.onMessageHold(index) : null,
+          onTap: () => toggleTimestamp(index),
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
             child: Column(
@@ -390,25 +387,25 @@ class _MessageListState extends State<MessageList> {
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),
-                if (isMe && messageIndex == widget.messages.length - 1)
+                if (isMe && index == 0)
                   Padding(
                     padding: const EdgeInsets.only(right: 10),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isReadByAll
-                              ? FontAwesomeIcons.solidCircleCheck
-                              : FontAwesomeIcons.circleCheck,
+                          !isReadByAll
+                              ? FontAwesomeIcons.circleCheck
+                              : FontAwesomeIcons.solidCircleCheck,
                           size: 14,
-                          color: isReadByAll ? Colors.blue : Colors.grey,
+                          color: !isReadByAll ? Colors.grey : Colors.blue,
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          isReadByAll ? 'Đã xem' : 'Đã gửi',
+                          !isReadByAll ? 'Đã gửi' : 'Đã xem',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isReadByAll ? Colors.blue : Colors.grey,
+                            color: !isReadByAll ? Colors.grey : Colors.blue,
                           ),
                         ),
                       ],
