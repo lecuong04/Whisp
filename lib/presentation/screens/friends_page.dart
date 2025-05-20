@@ -167,6 +167,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
       builder: (context, setState) {
         List<Widget> widgets = List.empty(growable: true);
         for (ClassifyTabItem t in tags) {
+          // hiển thị danh sách các thẻ phân loại
           widgets.add(
             ListTile(
               contentPadding: EdgeInsets.all(0),
@@ -207,7 +208,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
             ),
           );
         }
-        return AlertDialog(
+        return AlertDialog( 
           alignment: Alignment.center,
           content: SizedBox(
             width: screenSize.width * 0.8,
@@ -244,7 +245,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
     );
   }
 
-  Future<Tag?> showAddTagDialog(BuildContext context) async {
+  Future<Tag?> showAddTagDialog(BuildContext context) async { 
     final nameController = TextEditingController();
     Color selectedColor = getRandomColor();
     FocusNode focusNode = FocusNode();
