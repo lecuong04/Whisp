@@ -28,8 +28,7 @@ class MessagesScreen extends StatefulWidget {
   State createState() => _MessagesScreenState();
 }
 
-class _MessagesScreenState extends State<MessagesScreen>
-    with WidgetsBindingObserver {
+class _MessagesScreenState extends State<MessagesScreen> {
   String myId = UserService().id!;
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
@@ -44,7 +43,6 @@ class _MessagesScreenState extends State<MessagesScreen>
   bool hasNewerMessages = true;
   bool isSearchMode = false;
   String? error;
-  double keyboardHeight = 0;
   bool isSending = false;
   final Set<int> selectedMessages = {};
   double lastScrollPosition = 0.0;
@@ -55,30 +53,16 @@ class _MessagesScreenState extends State<MessagesScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     scrollController.addListener(scrollListener);
     initializeMessages();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     scrollController.dispose();
     messageController.dispose();
     chatService.unsubscribeMessages();
     super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    if (keyboardHeight != 0) {
-      scrollController.animateTo(
-        scrollController.position.pixels,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-      keyboardHeight = 0;
-    }
   }
 
   void scrollListener() {
@@ -557,32 +541,16 @@ class _MessagesScreenState extends State<MessagesScreen>
                         )
                         : allMessages.isEmpty
                         ? const Center(child: Text("Chưa có tin nhắn nào"))
-                        : NotificationListener<SizeChangedLayoutNotification>(
-                          onNotification: (notification) {
-                            if (keyboardHeight == 0) {
-                              keyboardHeight =
-                                  MediaQuery.of(context).viewInsets.bottom;
-                              scrollController.animateTo(
-                                scrollController.position.pixels,
-                                duration: Duration(milliseconds: 300),
-                                curve: Curves.easeOut,
-                              );
-                            }
-                            return true;
-                          },
-                          child: SizeChangedLayoutNotifier(
-                            child: MessageList(
-                              messages: allMessages,
-                              myId: myId,
-                              friendImage: widget.conversationAvatar,
-                              scrollController: scrollController,
-                              isLoadingMore: isLoadingMore,
-                              hasMoreMessages: hasMoreMessages,
-                              selectedMessages: selectedMessages,
-                              onMessageHold: onMessageHold,
-                              targetMessageId: widget.messageId,
-                            ),
-                          ),
+                        : MessageList(
+                          messages: allMessages,
+                          myId: myId,
+                          friendImage: widget.conversationAvatar,
+                          scrollController: scrollController,
+                          isLoadingMore: isLoadingMore,
+                          hasMoreMessages: hasMoreMessages,
+                          selectedMessages: selectedMessages,
+                          onMessageHold: onMessageHold,
+                          targetMessageId: widget.messageId,
                         ),
               ),
               ...(isSending ? [LinearProgressIndicator()] : []),
