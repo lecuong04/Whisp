@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mime/mime.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:whisp/presentation/widgets/audio_recorder_modal.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
@@ -29,6 +32,7 @@ class _MessageInputState extends State<MessageInput>
     with WidgetsBindingObserver {
   final GlobalKey multimediaKey = GlobalKey();
   final GlobalKey sendKey = GlobalKey();
+  final GlobalKey mainKey = GlobalKey();
   bool hasText = false;
   OverlayEntry? mediaOverlay;
   FocusNode focusNode = FocusNode();
@@ -126,15 +130,32 @@ class _MessageInputState extends State<MessageInput>
     removeOverlay();
   }
 
+  Future<void> recordAudio() async {
+    removeOverlay();
+    if (await Permission.microphone.isDenied) {
+      await Permission.microphone.request();
+    }
+    if (await Permission.microphone.isGranted) {
+      Uint8List? result = await showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: AudioRecorderModal(),
+          );
+        },
+      );
+      if (result != null) {}
+    }
+  }
+
   void showMediaOptions(BuildContext context, GlobalKey key) {
     if (mediaOverlay != null) return;
 
-    final RenderBox button =
-        key.currentContext!.findRenderObject() as RenderBox;
-    final position = button.localToGlobal(Offset.zero);
     final screenWidth = MediaQuery.of(context).size.width;
     final modalWidth = screenWidth * 0.6;
-    const modalHeight = 160.0;
+
+    RenderBox box = mainKey.currentContext!.findRenderObject() as RenderBox;
 
     mediaOverlay = OverlayEntry(
       builder: (context) {
@@ -151,8 +172,8 @@ class _MessageInputState extends State<MessageInput>
               ),
             ),
             Positioned(
-              left: 12,
-              top: position.dy - modalHeight - 20,
+              left: 8,
+              bottom: box.size.height * 1.1,
               width: modalWidth,
               child: Material(
                 elevation: 4,
@@ -179,8 +200,14 @@ class _MessageInputState extends State<MessageInput>
                       showDivider: true,
                     ),
                     buildOptionRow(
+                      title: 'Ghi âm',
+                      icon: Icons.mic,
+                      onTap: recordAudio,
+                      showDivider: true,
+                    ),
+                    buildOptionRow(
                       title: 'Chọn video',
-                      icon: Icons.videocam,
+                      icon: Icons.video_file_outlined,
                       onTap: pickVideo,
                       showDivider: true,
                     ),
@@ -241,6 +268,7 @@ class _MessageInputState extends State<MessageInput>
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: mainKey,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       color: Colors.white,
       child: Row(
@@ -280,7 +308,12 @@ class _MessageInputState extends State<MessageInput>
                         hintText: "Nhập tin nhắn...",
                         border: InputBorder.none,
                       ),
-                      onTap: widget.onTextFieldTap,
+                      onTap: () {
+                        if (widget.onTextFieldTap != null) {
+                          widget.onTextFieldTap!();
+                        }
+                        setState(() {});
+                      },
                       onTapOutside: (event) async {
                         final RenderBox box =
                             sendKey.currentContext!.findRenderObject()
@@ -289,6 +322,7 @@ class _MessageInputState extends State<MessageInput>
                             (sendKey.currentContext!.widget as InkWell).onTap ==
                                 null) {
                           focusNode.unfocus();
+                          setState(() {});
                         }
                       },
                       contentInsertionConfiguration:
