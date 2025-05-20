@@ -1,12 +1,10 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mime/mime.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:whisp/presentation/widgets/audio_recorder_modal.dart';
+import 'package:record/record.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
@@ -33,9 +31,11 @@ class _MessageInputState extends State<MessageInput>
   final GlobalKey multimediaKey = GlobalKey();
   final GlobalKey sendKey = GlobalKey();
   final GlobalKey mainKey = GlobalKey();
+
+  FocusNode focusNode = FocusNode();
   bool hasText = false;
   OverlayEntry? mediaOverlay;
-  FocusNode focusNode = FocusNode();
+  AudioRecorder? recorder;
 
   @override
   void initState() {
@@ -130,25 +130,6 @@ class _MessageInputState extends State<MessageInput>
     removeOverlay();
   }
 
-  Future<void> recordAudio() async {
-    removeOverlay();
-    if (await Permission.microphone.isDenied) {
-      await Permission.microphone.request();
-    }
-    if (await Permission.microphone.isGranted) {
-      Uint8List? result = await showModalBottomSheet(
-        context: context,
-        builder: (context) {
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            child: AudioRecorderModal(),
-          );
-        },
-      );
-      if (result != null) {}
-    }
-  }
-
   void showMediaOptions(BuildContext context, GlobalKey key) {
     if (mediaOverlay != null) return;
 
@@ -197,12 +178,6 @@ class _MessageInputState extends State<MessageInput>
                       title: 'Chọn audio',
                       icon: Icons.audio_file_outlined,
                       onTap: pickAudio,
-                      showDivider: true,
-                    ),
-                    buildOptionRow(
-                      title: 'Ghi âm',
-                      icon: Icons.mic,
-                      onTap: recordAudio,
                       showDivider: true,
                     ),
                     buildOptionRow(
