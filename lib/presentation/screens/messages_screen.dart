@@ -49,6 +49,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   bool isScrollingUp = false;
   DateTime lastLoadMoreTime = DateTime.now();
   DateTime lastLoadNewerTime = DateTime.now();
+  bool _justInitializedSearch = false;
 
   @override
   void initState() {
@@ -68,13 +69,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void scrollListener() {
     final maxScroll = scrollController.position.maxScrollExtent;
     final currentScroll = scrollController.position.pixels;
-    final threshold = isSearchMode ? 50.0 : 200.0;
+    const endThreshold =
+        10.0; // Ngưỡng nhỏ để xác định khi ở gần cuối danh sách
     const minLoadInterval = Duration(seconds: 1);
 
     isScrollingUp = currentScroll > lastScrollPosition;
     lastScrollPosition = currentScroll;
 
-    final newIsAtBottom = (maxScroll - currentScroll) >= threshold;
+    // Kiểm tra xem có ở gần cuối danh sách hay không
+    final isNearEnd = currentScroll >= maxScroll - endThreshold;
+
+    // Cập nhật trạng thái isAtBottom
+    final newIsAtBottom = currentScroll <= 200.0; // Giữ ngưỡng cho isAtBottom
     if (newIsAtBottom != isAtBottom) {
       if (!mounted) return;
       setState(() {
@@ -85,16 +91,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
     }
 
-    if (currentScroll >= threshold &&
+    // Chỉ gọi loadMoreMessages khi:
+    // - Đã cuộn đến gần cuối danh sách (isNearEnd)
+    // - Có tin nhắn cũ hơn để tải (hasMoreMessages)
+    // - Không đang tải (isLoadingMore = false)
+    // - Đang kéo lên (isScrollingUp)
+    // - Không vừa khởi tạo tìm kiếm (_justInitializedSearch = false)
+    // - Đã qua khoảng thời gian tối thiểu (minLoadInterval)
+    if (isNearEnd &&
         hasMoreMessages &&
         !isLoadingMore &&
         isScrollingUp &&
+        !_justInitializedSearch &&
         DateTime.now().difference(lastLoadMoreTime) >= minLoadInterval) {
       loadMoreMessages();
       lastLoadMoreTime = DateTime.now();
     }
 
-    if (currentScroll <= maxScroll - threshold &&
+    // Tải tin nhắn mới hơn khi cuộn xuống gần đầu danh sách
+    if (currentScroll <= 200.0 &&
         hasNewerMessages &&
         !isLoadingNewer &&
         DateTime.now().difference(lastLoadNewerTime) >= minLoadInterval) {
@@ -133,15 +148,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
         result = await chatService.loadMessagesAroundMessageId(
           widget.conversationId,
           widget.messageId!,
-          limit: MESSAGE_PAGE_SIZE,
+          limit: 20,
         );
         isSearchMode = true;
+        _justInitializedSearch = true;
       } else {
         result = await chatService.loadMessages(
           widget.conversationId,
           limit: MESSAGE_PAGE_SIZE,
         );
         isSearchMode = false;
+        _justInitializedSearch = false;
       }
 
       List<Map<String, dynamic>> messages;
@@ -158,8 +175,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       setState(() {
         allMessages = messages.toList();
         isLoading = false;
-        hasMoreMessages = messages.length == MESSAGE_PAGE_SIZE;
-        hasNewerMessages = messages.length == MESSAGE_PAGE_SIZE;
+        hasMoreMessages =
+            messages.length == 20 || messages.length == MESSAGE_PAGE_SIZE;
+        hasNewerMessages =
+            messages.length == 20 || messages.length == MESSAGE_PAGE_SIZE;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -172,19 +191,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
             );
-
-            if (targetIndex < 5) {
-              Future.delayed(const Duration(milliseconds: 400), () {
-                if (!mounted || !scrollController.hasClients) return;
-                scrollController.jumpTo(50.0);
-              });
-            }
           } else {
             scrollToBottom();
           }
         } else {
           scrollToBottom();
         }
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!mounted) return;
+          setState(() {
+            _justInitializedSearch = false;
+          });
+        });
       });
 
       chatService.subscribeToMessages(widget.conversationId, (updatedMessages) {
