@@ -7,7 +7,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/models/call_manager.dart';
-// import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/reset_password_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
@@ -51,7 +50,6 @@ class WhispApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorObservers: <NavigatorObserver>[routeObserver],
       navigatorKey: navigatorKey,
-      // theme: AppTheme.lightTheme,
       routes: {
         '/sign_up': (context) => SignupScreen(),
         '/login': (context) => LoginScreen(),

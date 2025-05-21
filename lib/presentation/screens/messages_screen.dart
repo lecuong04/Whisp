@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:whisp/custom_cache_manager.dart';
+import 'package:whisp/presentation/widgets/message_audio.dart';
 import 'package:whisp/presentation/widgets/message_list.dart';
 import 'package:whisp/presentation/widgets/message_input.dart';
 import 'package:whisp/presentation/widgets/message_media_tab.dart';
@@ -42,14 +43,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
   bool isLoadingNewer = false;
   bool hasNewerMessages = true;
   bool isSearchMode = false;
-  String? error;
   bool isSending = false;
   final Set<int> selectedMessages = {};
   double lastScrollPosition = 0.0;
   bool isScrollingUp = false;
   DateTime lastLoadMoreTime = DateTime.now();
   DateTime lastLoadNewerTime = DateTime.now();
-  bool _justInitializedSearch = false;
+  bool justInitializedSearch = false;
+
+  String? error;
+  double? inputHeight;
 
   @override
   void initState() {
@@ -102,7 +105,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         hasMoreMessages &&
         !isLoadingMore &&
         isScrollingUp &&
-        !_justInitializedSearch &&
+        !justInitializedSearch &&
         DateTime.now().difference(lastLoadMoreTime) >= minLoadInterval) {
       loadMoreMessages();
       lastLoadMoreTime = DateTime.now();
@@ -151,14 +154,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
           limit: 20,
         );
         isSearchMode = true;
-        _justInitializedSearch = true;
+        justInitializedSearch = true;
       } else {
         result = await chatService.loadMessages(
           widget.conversationId,
           limit: MESSAGE_PAGE_SIZE,
         );
         isSearchMode = false;
-        _justInitializedSearch = false;
+        justInitializedSearch = false;
       }
 
       List<Map<String, dynamic>> messages;
@@ -200,7 +203,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         Future.delayed(const Duration(milliseconds: 500), () {
           if (!mounted) return;
           setState(() {
-            _justInitializedSearch = false;
+            justInitializedSearch = false;
           });
         });
       });
@@ -272,12 +275,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (!mounted) return;
       setState(() {
         if (olderMessages.isNotEmpty) {
-          final newMessages =
-              olderMessages.where((newMsg) {
-                return !allMessages.any(
-                  (oldMsg) => oldMsg['id'] == newMsg['id'],
-                );
-              }).toList();
+          final newMessages = olderMessages.where((newMsg) {
+            return !allMessages.any((oldMsg) => oldMsg['id'] == newMsg['id']);
+          }).toList();
           allMessages.addAll(newMessages);
           hasMoreMessages = olderMessages.length == MESSAGE_PAGE_SIZE;
         } else {
@@ -318,12 +318,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (!mounted) return;
       setState(() {
         if (newerMessages.isNotEmpty) {
-          final newMessages =
-              newerMessages.where((newMsg) {
-                return !allMessages.any(
-                  (oldMsg) => oldMsg['id'] == newMsg['id'],
-                );
-              }).toList();
+          final newMessages = newerMessages.where((newMsg) {
+            return !allMessages.any((oldMsg) => oldMsg['id'] == newMsg['id']);
+          }).toList();
           allMessages.insertAll(0, newMessages);
           allMessages.sort((a, b) {
             final aTime = DateTime.parse(a['sent_at']);
@@ -429,26 +426,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     final result = await showModalBottomSheet<String>(
       context: context,
-      builder:
-          (context) => Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.delete),
-                  title: const Text('Xóa đối với bạn'),
-                  onTap: () => Navigator.pop(context, 'delete_for_me'),
-                ),
-                if (isMe)
-                  ListTile(
-                    leading: const Icon(Icons.delete_forever),
-                    title: const Text('Xóa đối với mọi người'),
-                    onTap: () => Navigator.pop(context, 'delete_for_all'),
-                  ),
-              ],
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Xóa đối với bạn'),
+              onTap: () => Navigator.pop(context, 'delete_for_me'),
             ),
-          ),
+            if (isMe)
+              ListTile(
+                leading: const Icon(Icons.delete_forever),
+                title: const Text('Xóa đối với mọi người'),
+                onTap: () => Navigator.pop(context, 'delete_for_all'),
+              ),
+          ],
+        ),
+      ),
     );
 
     if (result != null) {
@@ -459,10 +455,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           setState(() {
             allMessages[index]['message_statuses'] = [
               ...(message['message_statuses'] as List<dynamic>).map(
-                (status) =>
-                    status['user_id'] == myId
-                        ? {...status, 'is_hidden': true}
-                        : status,
+                (status) => status['user_id'] == myId
+                    ? {...status, 'is_hidden': true}
+                    : status,
               ),
             ];
           });
@@ -505,13 +500,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage:
-                  widget.conversationAvatar.isNotEmpty
-                      ? CachedNetworkImageProvider(
-                        widget.conversationAvatar,
-                        cacheManager: CustomCacheManager(),
-                      )
-                      : null,
+              backgroundImage: widget.conversationAvatar.isNotEmpty
+                  ? CachedNetworkImageProvider(
+                      widget.conversationAvatar,
+                      cacheManager: CustomCacheManager(),
+                    )
+                  : null,
               radius: 20,
             ),
             const SizedBox(width: 10),
@@ -527,13 +521,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ),
         actions: [
           Builder(
-            builder:
-                (context) => IconButton(
-                  onPressed: () {
-                    Scaffold.of(context).openEndDrawer();
-                  },
-                  icon: const Icon(Icons.storage_outlined, color: Colors.black),
-                ),
+            builder: (context) => IconButton(
+              onPressed: () {
+                Scaffold.of(context).openEndDrawer();
+              },
+              icon: const Icon(Icons.storage_outlined, color: Colors.black),
+            ),
           ),
         ],
       ),
@@ -543,43 +536,56 @@ class _MessagesScreenState extends State<MessagesScreen> {
           Column(
             children: [
               Expanded(
-                child:
-                    isLoading && allMessages.isEmpty
-                        ? const Center(child: CircularProgressIndicator())
-                        : error != null
-                        ? Center(
-                          child: Text(
-                            "Lỗi: $error",
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 16,
-                            ),
-                            textAlign: TextAlign.center,
+                child: isLoading && allMessages.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : error != null
+                    ? Center(
+                        child: Text(
+                          "Lỗi: $error",
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 16,
                           ),
-                        )
-                        : allMessages.isEmpty
-                        ? const Center(child: Text("Chưa có tin nhắn nào"))
-                        : MessageList(
-                          messages: allMessages,
-                          myId: myId,
-                          friendImage: widget.conversationAvatar,
-                          scrollController: scrollController,
-                          isLoadingMore: isLoadingMore,
-                          hasMoreMessages: hasMoreMessages,
-                          selectedMessages: selectedMessages,
-                          onMessageHold: onMessageHold,
-                          targetMessageId: widget.messageId,
+                          textAlign: TextAlign.center,
                         ),
+                      )
+                    : allMessages.isEmpty
+                    ? const Center(child: Text("Chưa có tin nhắn nào"))
+                    : MessageList(
+                        messages: allMessages,
+                        myId: myId,
+                        friendImage: widget.conversationAvatar,
+                        scrollController: scrollController,
+                        isLoadingMore: isLoadingMore,
+                        hasMoreMessages: hasMoreMessages,
+                        selectedMessages: selectedMessages,
+                        onMessageHold: onMessageHold,
+                        targetMessageId: widget.messageId,
+                      ),
               ),
               ...(isSending ? [LinearProgressIndicator()] : []),
-              MessageInput(
-                controller: messageController,
-                onSend: sendMessage,
-                onMediaSelected: sendMedia,
-                contentInsertionConfiguration: ContentInsertionConfiguration(
-                  onContentInserted: (value) {},
-                ),
-              ),
+              inputHeight == null
+                  ? MessageInput(
+                      controller: messageController,
+                      onSend: sendMessage,
+                      onMediaSelected: sendMedia,
+                      onAudioRecorderClick: (height) {
+                        inputHeight = height;
+                        setState(() {});
+                      },
+                      contentInsertionConfiguration:
+                          ContentInsertionConfiguration(
+                            onContentInserted: (value) {},
+                          ),
+                    )
+                  : MessageAudio(
+                      inputHeight: inputHeight!,
+                      onMediaSelected: sendMedia,
+                      onDeleteAudio: () {
+                        inputHeight = null;
+                        setState(() {});
+                      },
+                    ),
             ],
           ),
           if (hasNewMessage)
