@@ -667,20 +667,7 @@ class ChatService {
 
       final targetSentAt = targetMessage['sent_at'];
 
-      // Truy vấn các tin nhắn trước messageId
-      final messagesBefore = await _supabase
-          .from('messages')
-          .select('''
-          id, conversation_id, sender_id, content, sent_at, message_type,
-          users!sender_id(id, full_name, avatar_url, status),
-          message_statuses(user_id, is_read, read_at, is_hidden)
-        ''')
-          .eq('conversation_id', conversationId)
-          .lte('sent_at', targetSentAt)
-          .order('sent_at', ascending: false)
-          .limit(limit ~/ 2); // Lấy nửa số tin nhắn trước
-
-      // Lấy tin nhắn từ messageId trở đi
+      // Truy vấn các tin nhắn từ messageId trở đi
       final messagesFromTarget = await _supabase
           .from('messages')
           .select('''
@@ -691,23 +678,11 @@ class ChatService {
           .eq('conversation_id', conversationId)
           .gte('sent_at', targetSentAt)
           .order('sent_at', ascending: true)
-          .limit(limit ~/ 2 + 1); // Lấy nửa số tin nhắn sau, cộng thêm 1
+          .limit(limit);
 
-      // Kết hợp và sắp xếp lại danh sách tin nhắn
-      final allMessages =
-          [
-            ...messagesBefore.reversed,
-            ...messagesFromTarget,
-          ].where((msg) => msg['id'] != null).toList();
-
-      // Loại bỏ trùng lặp
-      final uniqueMessages = <String, Map<String, dynamic>>{};
-      for (var msg in allMessages) {
-        uniqueMessages[msg['id']] = msg;
-      }
-
+      // Sắp xếp tin nhắn theo thứ tự giảm dần (mới nhất trước)
       final sortedMessages =
-          uniqueMessages.values.toList()..sort(
+          messagesFromTarget..sort(
             (a, b) => DateTime.parse(
               b['sent_at'],
             ).compareTo(DateTime.parse(a['sent_at'])),
@@ -718,11 +693,8 @@ class ChatService {
         (msg) => msg['id'] == messageId,
       );
 
-      // Đảm bảo số lượng tin nhắn không vượt quá limit
-      final result = sortedMessages.take(limit).toList();
-
       // Xử lý thông tin cuộc gọi nếu có
-      for (var message in result) {
+      for (var message in sortedMessages) {
         if (message['message_type'] == 'call') {
           final callId = message['content'];
           final callInfo =
@@ -736,10 +708,10 @@ class ChatService {
       }
 
       print(
-        'Loaded ${result.length} messages around messageId $messageId for conversation $conversationId, targetIndex: $targetIndex',
+        'Loaded ${sortedMessages.length} messages from messageId $messageId for conversation $conversationId, targetIndex: $targetIndex',
       );
 
-      return {'messages': result, 'targetIndex': targetIndex};
+      return {'messages': sortedMessages, 'targetIndex': targetIndex};
     } catch (e) {
       print('Error loading messages around messageId $messageId: $e');
       throw Exception('Lỗi khi tải tin nhắn: $e');
