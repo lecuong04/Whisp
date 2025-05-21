@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mime/mime.dart';
-import 'package:record/record.dart';
+import 'package:waved_audio_player/waved_audio_player.dart';
+import 'package:waveform_recorder/waveform_recorder.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
@@ -32,16 +35,23 @@ class _MessageInputState extends State<MessageInput>
   final GlobalKey sendKey = GlobalKey();
   final GlobalKey mainKey = GlobalKey();
 
+  late Size mainSize;
+
   FocusNode focusNode = FocusNode();
+  Duration currentDuration = Duration();
   bool hasText = false;
+  String? audioPath;
   OverlayEntry? mediaOverlay;
-  AudioRecorder? recorder;
+  WaveformRecorderController? waveController;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(updateTextState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      mainSize = (mainKey.currentContext!.findRenderObject() as RenderBox).size;
+    });
   }
 
   @override
@@ -49,6 +59,7 @@ class _MessageInputState extends State<MessageInput>
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(updateTextState);
     removeOverlay();
+    waveController?.dispose();
     super.dispose();
   }
 
@@ -136,8 +147,6 @@ class _MessageInputState extends State<MessageInput>
     final screenWidth = MediaQuery.of(context).size.width;
     final modalWidth = screenWidth * 0.6;
 
-    RenderBox box = mainKey.currentContext!.findRenderObject() as RenderBox;
-
     mediaOverlay = OverlayEntry(
       builder: (context) {
         return Stack(
@@ -154,7 +163,7 @@ class _MessageInputState extends State<MessageInput>
             ),
             Positioned(
               left: 8,
-              bottom: box.size.height * 1.1,
+              bottom: mainSize.height * 1.1,
               width: modalWidth,
               child: Material(
                 elevation: 4,
@@ -245,89 +254,206 @@ class _MessageInputState extends State<MessageInput>
     return Container(
       key: mainKey,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      color: Colors.white,
-      child: Row(
-        children: [
-          if (!focusNode.hasFocus) ...[
-            InkWell(
-              key: multimediaKey,
-              onTap: () => showMediaOptions(context, multimediaKey),
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.add, color: Colors.white, size: 22),
-              ),
-            ),
-          ],
-
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Row(
+      child:
+          waveController == null
+              ? Row(
+                spacing: 8,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      focusNode: focusNode,
-                      controller: widget.controller,
-                      decoration: const InputDecoration(
-                        hintText: "Nhập tin nhắn...",
-                        border: InputBorder.none,
+                  if (!focusNode.hasFocus) ...[
+                    InkWell(
+                      key: multimediaKey,
+                      onTap: () => showMediaOptions(context, multimediaKey),
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
-                      onTap: () {
-                        if (widget.onTextFieldTap != null) {
-                          widget.onTextFieldTap!();
-                        }
-                        setState(() {});
-                      },
-                      onTapOutside: (event) async {
-                        final RenderBox box =
-                            sendKey.currentContext!.findRenderObject()
-                                as RenderBox;
-                        if (!isOffsetInsideWidget(box, event.localPosition) ||
-                            (sendKey.currentContext!.widget as InkWell).onTap ==
-                                null) {
-                          focusNode.unfocus();
-                          setState(() {});
-                        }
-                      },
-                      contentInsertionConfiguration:
-                          widget.contentInsertionConfiguration,
-                      keyboardType: TextInputType.multiline,
-                      minLines: 1,
-                      maxLines: 3,
+                    ),
+                  ],
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              focusNode: focusNode,
+                              controller: widget.controller,
+                              decoration: const InputDecoration(
+                                hintText: "Nhập tin nhắn...",
+                                border: InputBorder.none,
+                              ),
+                              onTap: () {
+                                if (widget.onTextFieldTap != null) {
+                                  widget.onTextFieldTap!();
+                                }
+                                setState(() {});
+                              },
+                              onTapOutside: (event) async {
+                                final RenderBox box =
+                                    sendKey.currentContext!.findRenderObject()
+                                        as RenderBox;
+                                if (!isOffsetInsideWidget(
+                                      box,
+                                      event.localPosition,
+                                    ) ||
+                                    (sendKey.currentContext!.widget as InkWell)
+                                            .onTap ==
+                                        null) {
+                                  focusNode.unfocus();
+                                  setState(() {});
+                                }
+                              },
+                              contentInsertionConfiguration:
+                                  widget.contentInsertionConfiguration,
+                              keyboardType: TextInputType.multiline,
+                              minLines: 1,
+                              maxLines: 3,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              waveController = WaveformRecorderController(
+                                interval: Duration(milliseconds: 100),
+                                config: RecordConfig(encoder: AudioEncoder.wav),
+                              );
+                              await waveController!.startRecording();
+                              if (waveController!.isRecording) setState(() {});
+                            },
+                            child: Icon(Icons.mic_outlined),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    key: sendKey,
+                    onTap: hasText ? widget.onSend : null,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: hasText ? Colors.blueAccent : Colors.grey[400],
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.send,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
+              )
+              : Row(
+                spacing: 8,
+                children: [
+                  if (waveController!.isRecording) ...[
+                    InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.stop,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      onTap: () async {
+                        await waveController!.stopRecording();
+                        setState(() {});
+                      },
+                    ),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: WaveformRecorder(
+                          height: 48,
+                          controller: waveController!,
+                          onRecordingStopped: () {
+                            audioPath = waveController!.file?.path;
+                          },
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    Expanded(
+                      child: WavedAudioPlayer(
+                        source: DeviceFileSource(audioPath!),
+                        buttonSize: 48,
+                        iconBackgoundColor: Colors.transparent,
+                      ),
+                    ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      onTap: () async {
+                        waveController = null;
+                        File(audioPath!).deleteSync();
+                        setState(() {});
+                      },
+                    ),
+                    InkWell(
+                      onTap: () async {
+                        var f = File(audioPath!);
+                        await widget.onMediaSelected(f, 'audio');
+                        f.deleteSync();
+                        waveController = null;
+                        setState(() {});
+                      },
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.send,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            key: sendKey,
-            onTap: hasText ? widget.onSend : null,
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: hasText ? Colors.blueAccent : Colors.grey[400],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.send, color: Colors.white, size: 20),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
