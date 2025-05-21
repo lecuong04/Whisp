@@ -564,6 +564,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       ),
               ),
               ...(isSending ? [LinearProgressIndicator()] : []),
+              Divider(height: 1),
               inputHeight == null
                   ? MessageInput(
                       controller: messageController,
