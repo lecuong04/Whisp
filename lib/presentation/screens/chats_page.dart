@@ -73,10 +73,9 @@ class _ChatsState extends State<Chats> {
         isLoading = false;
       });
 
-      final isOnline =
-          !(await Connectivity().checkConnectivity()).contains(
-            ConnectivityResult.none,
-          );
+      final isOnline = !(await Connectivity().checkConnectivity()).contains(
+        ConnectivityResult.none,
+      );
       if (!isOnline) {
         ScaffoldMessenger.of(
           context,
@@ -112,13 +111,12 @@ class _ChatsState extends State<Chats> {
 
   void updateChatReadStatus(String conversationId) {
     setState(() {
-      chats =
-          chats.map((chat) {
-            if (chat['conversation_id'] == conversationId) {
-              return {...chat, 'is_read': true};
-            }
-            return chat;
-          }).toList();
+      chats = chats.map((chat) {
+        if (chat['conversation_id'] == conversationId) {
+          return {...chat, 'is_read': true};
+        }
+        return chat;
+      }).toList();
       print('Updated local is_read for $conversationId: $chats');
     });
 
@@ -194,166 +192,181 @@ class _ChatsState extends State<Chats> {
       children: <Widget>[
         const Divider(height: 8),
         Expanded(
-          child:
-              chats.isEmpty
-                  ? Stack(
-                    children: [
-                      RefreshIndicator(
-                        onRefresh: () async {
-                          await loadChats();
-                        },
-                        child: ListView(),
-                      ),
-                      const Center(
-                        child: Text(
-                          "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
-                          style: TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  )
-                  : RefreshIndicator(
-                    child: ListView.builder(
-                      scrollDirection: Axis.vertical,
-                      padding: const EdgeInsets.only(bottom: 10),
-                      itemCount: chats.length,
-                      itemBuilder: (context, index) {
-                        final chat = chats[index];
-                        final conversationId =
-                            chat['conversation_id'] as String;
-                        final friendId = chat['friend_id'] as String?;
-                        final alias =
-                            chat['friend_full_name'] as String? ?? 'Unknown';
-                        final avatarUrl =
-                            chat['friend_avatar_url'] as String? ?? '';
-                        final lastMessage =
-                            chat['last_message'] as String? ??
-                            'Chưa có tin nhắn';
-                        final lastMessageTime =
-                            chat['last_message_time'] as DateTime?;
-                        final isOnline = chat['friend_status'] == 'online';
-                        final isSeen = chat['is_read'] as bool? ?? true;
-
-                        // Bỏ qua chat nếu friendId hoặc lastMessageTime là null
-                        if (friendId == null || lastMessageTime == null) {
-                          print(
-                            'Skipping chat with null friend_id or last_message_time: $conversationId',
-                          );
-                          return const SizedBox.shrink();
-                        }
-
-                        print(
-                          'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
-                        );
-                        return Column(
-                          children: [
-                            Slidable(
-                              key: ValueKey(conversationId),
-                              endActionPane: ActionPane(
-                                motion: const DrawerMotion(),
-                                extentRatio: 0.4,
-                                children: [
-                                  SlidableAction(
-                                    onPressed: (_) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Xem thêm'),
-                                        ),
-                                      );
-                                    },
-                                    backgroundColor: Colors.black45,
-                                    foregroundColor: Colors.white,
-                                    icon: FontAwesomeIcons.ellipsis,
-                                  ),
-                                  SlidableAction(
-                                    onPressed: (_) async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder:
-                                            (context) => AlertDialog(
-                                              title: const Text('Xác nhận xóa'),
-                                              content: const Text(
-                                                'Bạn có chắc muốn xóa cuộc trò chuyện này?',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                        false,
-                                                      ),
-                                                  child: const Text('Hủy'),
-                                                ),
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                        true,
-                                                      ),
-                                                  child: const Text('Xóa'),
-                                                ),
-                                              ],
-                                            ),
-                                      );
-                                      if (confirm == true) {
-                                        deleteChat(conversationId);
-                                      }
-                                    },
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.delete,
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: ChatTitle(
-                                  avatarUrl,
-                                  alias,
-                                  lastMessageTime,
-                                  isSeen,
-                                  isOnline,
-                                  lastMessage,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) => MessagesScreen(
-                                              conversationId: conversationId,
-                                              conversationName: alias,
-                                              conversationAvatar: avatarUrl,
-                                            ),
-                                      ),
-                                    ).then((result) {
-                                      if (result != null &&
-                                          result['conversation_id'] != null) {
-                                        updateChatReadStatus(
-                                          result['conversation_id'],
-                                        );
-                                      }
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(
-                              width: double.infinity,
-                              child: Divider(height: 8, thickness: 1),
-                            ),
-                          ],
-                        );
+          child: chats.isEmpty
+              ? Stack(
+                  children: [
+                    RefreshIndicator(
+                      onRefresh: () async {
+                        await loadChats();
                       },
+                      child: ListView(),
                     ),
-                    onRefresh: () async {
-                      await loadChats();
+                    const Center(
+                      child: Text(
+                        "Không có đoạn chat nào.\nHãy bắt đầu một cuộc trò chuyện mới!",
+                        style: TextStyle(fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                )
+              : RefreshIndicator(
+                  child: ListView.builder(
+                    scrollDirection: Axis.vertical,
+                    padding: const EdgeInsets.only(bottom: 10),
+                    itemCount: chats.length,
+                    itemBuilder: (context, index) {
+                      final chat = chats[index];
+                      final conversationId = chat['conversation_id'] as String;
+                      final friendId = chat['friend_id'] as String?;
+                      final alias =
+                          chat['friend_full_name'] as String? ?? 'Unknown';
+                      final avatarUrl =
+                          chat['friend_avatar_url'] as String? ?? '';
+                      final lastMessage =
+                          chat['last_message'] as String? ?? 'Chưa có tin nhắn';
+                      final lastMessageTime =
+                          chat['last_message_time'] as DateTime?;
+                      final isOnline = chat['friend_status'] == 'online';
+                      final isSeen = chat['is_read'] as bool? ?? true;
+
+                      // Bỏ qua chat nếu friendId hoặc lastMessageTime là null
+                      if (friendId == null || lastMessageTime == null) {
+                        print(
+                          'Skipping chat with null friend_id or last_message_time: $conversationId',
+                        );
+                        return const SizedBox.shrink();
+                      }
+
+                      print(
+                        'Chat: $conversationId, FriendId: $friendId, Alias: $alias, LastMessage: $lastMessage, LastMessageTime: $lastMessageTime, IsOnline: $isOnline, IsSeen: $isSeen',
+                      );
+                      return Column(
+                        children: [
+                          Slidable(
+                            key: ValueKey(conversationId),
+                            endActionPane: ActionPane(
+                              motion: const DrawerMotion(),
+                              extentRatio: 0.4,
+                              children: [
+                                SlidableAction(
+                                  onPressed: (context) async {
+                                    await showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return SimpleDialog(
+                                          contentPadding: EdgeInsets.all(10),
+                                          title: Row(
+                                            spacing: 10,
+                                            children: [
+                                              CircleAvatar(
+                                                backgroundImage:
+                                                    avatarUrl.isNotEmpty
+                                                    ? NetworkImage(avatarUrl)
+                                                    : null,
+                                              ),
+                                              Text(alias),
+                                            ],
+                                          ),
+                                          children: [
+                                            ElevatedButton(
+                                              onPressed: () async {
+                                                await showModalBottomSheet(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    return Container();
+                                                  },
+                                                );
+                                              },
+                                              child: Text("Tắt thông báo"),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                  backgroundColor: Colors.black45,
+                                  foregroundColor: Colors.white,
+                                  icon: FontAwesomeIcons.ellipsis,
+                                ),
+                                SlidableAction(
+                                  onPressed: (_) async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Xác nhận xóa'),
+                                        content: const Text(
+                                          'Bạn có chắc muốn xóa cuộc trò chuyện này?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Hủy'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Xóa'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      deleteChat(conversationId);
+                                    }
+                                  },
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  icon: Icons.delete,
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: ChatTitle(
+                                avatarUrl,
+                                alias,
+                                lastMessageTime,
+                                isSeen,
+                                isOnline,
+                                lastMessage,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MessagesScreen(
+                                        conversationId: conversationId,
+                                        conversationName: alias,
+                                        conversationAvatar: avatarUrl,
+                                      ),
+                                    ),
+                                  ).then((result) {
+                                    if (result != null &&
+                                        result['conversation_id'] != null) {
+                                      updateChatReadStatus(
+                                        result['conversation_id'],
+                                      );
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(
+                            width: double.infinity,
+                            child: Divider(height: 8, thickness: 1),
+                          ),
+                        ],
+                      );
                     },
                   ),
+                  onRefresh: () async {
+                    await loadChats();
+                  },
+                ),
         ),
       ],
     );
