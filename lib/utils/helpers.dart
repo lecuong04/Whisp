@@ -73,3 +73,8 @@ String formatDuration(Duration duration) {
   final seconds = twoDigits(duration.inSeconds.remainder(60));
   return '$minutes:$seconds';
 }
+
+Duration hoursToDuration(double hours) {
+  final totalSeconds = (hours * 3600).round();
+  return Duration(seconds: totalSeconds);
+}

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -15,6 +16,13 @@ class Chats extends StatefulWidget {
 }
 
 class _ChatsState extends State<Chats> {
+  static Map<int, String> muteDuration = {
+    1: "Trong 1 giờ",
+    4: "Trong 4 giờ",
+    12: "Trong 12 giờ",
+    -1: "Cho đến khi mở lại",
+  };
+
   String? myId;
   String? myFullName;
   final ChatService chatService = ChatService();
@@ -151,6 +159,173 @@ class _ChatsState extends State<Chats> {
     super.dispose();
   }
 
+  static Future<bool> muteBottomModal(
+    BuildContext context,
+    String conversationId,
+  ) async {
+    return await showModalBottomSheet(
+          context: context,
+          useSafeArea: true,
+          builder: (context) {
+            return Padding(
+              padding: const EdgeInsets.only(
+                top: 20,
+                left: 20,
+                bottom: 10,
+                right: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Tắt thông báo tin nhắn mới',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 20),
+                  ...muteDuration.entries.map(
+                    (option) => Column(
+                      children: [
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.only(
+                            left: 0.0,
+                            right: 0.0,
+                          ),
+                          title: Text(
+                            option.value,
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          onTap: () async {
+                            await ChatService().setMuteConversation(
+                              conversationId,
+                              option.key.toDouble(),
+                            );
+                            Navigator.pop(context, true);
+                          },
+                        ),
+                        Divider(thickness: 1, height: 3, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.only(left: 0.0, right: 0.0),
+                    title: Text("Tùy chỉnh", style: TextStyle(fontSize: 16)),
+                    onTap: () async {
+                      final now = DateTime.now();
+                      var date = await showDatePicker(
+                        context: context,
+                        initialDate: now,
+                        firstDate: now,
+                        lastDate: DateTime(now.year + 1),
+                      );
+                      if (date != null) {
+                        var time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (time != null) {
+                          var dateTime = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            time.hour,
+                            time.minute,
+                          );
+                          await ChatService().setMuteConversation(
+                            conversationId,
+                            dateTime.difference(DateTime.now()).inMinutes /
+                                60.0,
+                          );
+                          Navigator.pop(context, true);
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<void> actionDialog({
+    required String avatarUrl,
+    required String alias,
+    required String conversationId,
+  }) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return SimpleDialog(
+              contentPadding: EdgeInsets.all(10),
+              title: Row(
+                spacing: 10,
+                children: [
+                  CircleAvatar(
+                    backgroundImage: avatarUrl.isNotEmpty
+                        ? CachedNetworkImageProvider(avatarUrl)
+                        : null,
+                  ),
+                  Text(alias),
+                ],
+              ),
+              children: [
+                FutureBuilder(
+                  future: ChatService().isConversationMute(conversationId),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data == null) {
+                      return const ElevatedButton(
+                        onPressed: null,
+                        child: Stack(
+                          alignment: AlignmentDirectional.center,
+                          children: [
+                            Text("Tắt thông báo"),
+                            CircularProgressIndicator(
+                              padding: EdgeInsets.all(6),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(this.context);
+                        bool isChanged = false;
+                        if (!snapshot.data!) {
+                          isChanged = await muteBottomModal(
+                            this.context,
+                            conversationId,
+                          );
+                        } else {
+                          await ChatService().setMuteConversation(
+                            conversationId,
+                            0,
+                          );
+                          isChanged = true;
+                        }
+                        if (isChanged) {
+                          await loadChats();
+                          this.setState(() {});
+                        }
+                      },
+                      child: Text(
+                        !snapshot.data! ? "Tắt thông báo" : "Bật thông báo",
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -229,6 +404,7 @@ class _ChatsState extends State<Chats> {
                           chat['last_message_time'] as DateTime?;
                       final isOnline = chat['friend_status'] == 'online';
                       final isSeen = chat['is_read'] as bool? ?? true;
+                      final isMute = chat['is_mute'] as bool? ?? false;
 
                       // Bỏ qua chat nếu friendId hoặc lastMessageTime là null
                       if (friendId == null || lastMessageTime == null) {
@@ -251,38 +427,10 @@ class _ChatsState extends State<Chats> {
                               children: [
                                 SlidableAction(
                                   onPressed: (context) async {
-                                    await showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return SimpleDialog(
-                                          contentPadding: EdgeInsets.all(10),
-                                          title: Row(
-                                            spacing: 10,
-                                            children: [
-                                              CircleAvatar(
-                                                backgroundImage:
-                                                    avatarUrl.isNotEmpty
-                                                    ? NetworkImage(avatarUrl)
-                                                    : null,
-                                              ),
-                                              Text(alias),
-                                            ],
-                                          ),
-                                          children: [
-                                            ElevatedButton(
-                                              onPressed: () async {
-                                                await showModalBottomSheet(
-                                                  context: context,
-                                                  builder: (context) {
-                                                    return Container();
-                                                  },
-                                                );
-                                              },
-                                              child: Text("Tắt thông báo"),
-                                            ),
-                                          ],
-                                        );
-                                      },
+                                    await actionDialog(
+                                      avatarUrl: avatarUrl,
+                                      alias: alias,
+                                      conversationId: conversationId,
                                     );
                                   },
                                   backgroundColor: Colors.black45,
@@ -332,6 +480,7 @@ class _ChatsState extends State<Chats> {
                                 lastMessageTime,
                                 isSeen,
                                 isOnline,
+                                isMute,
                                 lastMessage,
                                 onTap: () {
                                   Navigator.push(

@@ -70,19 +70,17 @@ class _CustomSearchState extends State<CustomSearch> {
             ],
           );
         },
-        suggestionsBuilder: (
-          BuildContext context,
-          SearchController controller,
-        ) {
-          int p = widget.page;
-          switch (p) {
-            case 0:
-              return searchMessages(controller.text);
-            case 1:
-              return searchFriends(controller.text);
-          }
-          return [];
-        },
+        suggestionsBuilder:
+            (BuildContext context, SearchController controller) {
+              int p = widget.page;
+              switch (p) {
+                case 0:
+                  return searchMessages(controller.text);
+                case 1:
+                  return searchFriends(controller.text);
+              }
+              return [];
+            },
       ),
     );
   }
@@ -113,18 +111,19 @@ class _CustomSearchState extends State<CustomSearch> {
           DateTime.parse(m["sent_at"].toString()),
           true,
           m["is_online"],
+          (await ChatService().isConversationMute(m["conversation_id"])) ??
+              false,
           m["content"],
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder:
-                    (context) => MessagesScreen(
-                      conversationId: m["conversation_id"],
-                      conversationName: m["conversation_name"],
-                      conversationAvatar: m["avatar_url"],
-                      messageId: m["message_id"],
-                    ),
+                builder: (context) => MessagesScreen(
+                  conversationId: m["conversation_id"],
+                  conversationName: m["conversation_name"],
+                  conversationAvatar: m["avatar_url"],
+                  messageId: m["message_id"],
+                ),
               ),
             );
           },

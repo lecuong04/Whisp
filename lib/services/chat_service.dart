@@ -61,21 +61,20 @@ class ChatService {
         );
       }
 
-      final messageResponse =
-          await _supabase
-              .from('messages')
-              .insert({
-                'conversation_id': conversationId,
-                'sender_id': senderId,
-                'content': finalContent,
-                'message_type': messageType,
-              })
-              .select('''
+      final messageResponse = await _supabase
+          .from('messages')
+          .insert({
+            'conversation_id': conversationId,
+            'sender_id': senderId,
+            'content': finalContent,
+            'message_type': messageType,
+          })
+          .select('''
             id, conversation_id, sender_id, content, sent_at, message_type,
             users!sender_id(id, full_name, avatar_url, status),
             message_statuses(user_id, is_read, read_at)
           ''')
-              .single();
+          .single();
 
       final messageId = messageResponse['id'];
       print('Sent message: $messageId');
@@ -117,24 +116,39 @@ class ChatService {
         final conversationId = chat['conversation_id'];
         print('Processing conversation: $conversationId');
 
-        final friendResponse =
-            await _supabase
-                .from('conversation_participants')
-                .select(
-                  'user_id, users!inner(id, full_name, avatar_url, status)',
-                )
-                .eq('conversation_id', conversationId)
-                .neq('user_id', userId)
-                .eq('is_deleted', false)
-                .limit(1)
-                .maybeSingle();
+        late final Map<String, dynamic>? friendResponse;
+        late final Map<String, dynamic>? lastMessage;
+        late final bool? isMute;
+
+        final sFriendResponse = _supabase
+            .from('conversation_participants')
+            .select("user_id, users!inner(id, full_name, avatar_url, status)")
+            .eq('conversation_id', conversationId)
+            .neq('user_id', userId)
+            .eq('is_deleted', false)
+            .limit(1)
+            .maybeSingle();
+
+        final sLastMessage = _supabase
+            .from('messages')
+            .select('id, content, sent_at, message_type')
+            .eq('conversation_id', conversationId)
+            .order('sent_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        await Future.wait([
+          (() async => friendResponse = await sFriendResponse)(),
+          (() async => lastMessage = await sLastMessage)(),
+          (() async => isMute = await isConversationMute(conversationId))(),
+        ]);
 
         if (friendResponse == null) {
           print('No friend found for conversation: $conversationId, skipping');
           continue;
         }
 
-        final friend = friendResponse['users'] as Map<String, dynamic>?;
+        final friend = friendResponse!['users'] as Map<String, dynamic>?;
         if (friend == null || friend['id'] == null) {
           print(
             'Invalid friend data for conversation: $conversationId, skipping',
@@ -142,47 +156,37 @@ class ChatService {
           continue;
         }
 
-        final lastMessage =
-            await _supabase
-                .from('messages')
-                .select('id, content, sent_at, message_type')
-                .eq('conversation_id', conversationId)
-                .order('sent_at', ascending: false)
-                .limit(1)
-                .maybeSingle();
-
         bool isRead = true;
         String displayMessage = 'Chưa có tin nhắn';
         bool isHidden = false;
         DateTime? lastMessageTime;
         if (lastMessage != null) {
-          final lastMessageStatus =
-              await _supabase
-                  .from('message_statuses')
-                  .select('is_read, is_hidden')
-                  .eq('message_id', lastMessage['id'])
-                  .eq('user_id', userId)
-                  .maybeSingle();
+          final lastMessageStatus = await _supabase
+              .from('message_statuses')
+              .select('is_read, is_hidden')
+              .eq('message_id', lastMessage!['id'])
+              .eq('user_id', userId)
+              .maybeSingle();
           isRead = lastMessageStatus?['is_read'] ?? true;
           isHidden = lastMessageStatus?['is_hidden'] ?? false;
-          lastMessageTime = DateTime.parse(lastMessage['sent_at']).toLocal();
+          lastMessageTime = DateTime.parse(lastMessage!['sent_at']).toLocal();
 
           if (isHidden) {
             displayMessage = 'Tin nhắn đã bị xóa';
           } else {
-            final messageType = lastMessage['message_type'] as String;
+            final messageType = lastMessage!['message_type'] as String;
             displayMessage = switch (messageType) {
               'image' => 'Hình ảnh',
               'video' => 'Video',
               'file' => 'File',
               'call' => 'Cuộc gọi',
               'audio' => 'Âm thanh',
-              _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
+              _ => lastMessage!['content'] ?? 'Chưa có tin nhắn',
             };
           }
 
           print(
-            'Last message for $conversationId: $displayMessage, sent_at: ${lastMessage['sent_at']}, is_read: $isRead, is_hidden: $isHidden',
+            'Last message for $conversationId: $displayMessage, sent_at: ${lastMessage!['sent_at']}, is_read: $isRead, is_hidden: $isHidden',
           );
         } else {
           print('No messages for $conversationId, skipping');
@@ -199,6 +203,7 @@ class ChatService {
           'last_message_time': lastMessageTime,
           'is_read': isRead,
           'is_group': chat['conversations']['is_group'],
+          'is_mute': isMute,
         });
       }
 
@@ -243,12 +248,11 @@ class ChatService {
         return null;
       }
 
-      final response =
-          await _supabase
-              .from('users')
-              .select('id, full_name, avatar_url, status')
-              .eq('id', userId)
-              .maybeSingle();
+      final response = await _supabase
+          .from('users')
+          .select('id, full_name, avatar_url, status')
+          .eq('id', userId)
+          .maybeSingle();
 
       return response;
     } catch (e) {
@@ -273,62 +277,68 @@ class ChatService {
               final newMessage = payload.newRecord;
               final conversationId = newMessage['conversation_id'] as String;
 
-              final conversation =
-                  await _supabase
-                      .from('conversations')
-                      .select('is_group')
-                      .eq('id', conversationId)
-                      .single();
+              late final Map<String, dynamic> conversation;
+              late final Map<String, dynamic>? lastMessage;
+              late final Map<String, dynamic>? friendResponse;
+              late final bool? isMute;
+
+              final sConversation = _supabase
+                  .from('conversations')
+                  .select('is_group')
+                  .eq('id', conversationId)
+                  .single();
+
+              final sLastMessage = _supabase
+                  .from('messages')
+                  .select('id, content, sent_at, message_type')
+                  .eq('conversation_id', conversationId)
+                  .order('sent_at', ascending: false)
+                  .limit(1)
+                  .maybeSingle();
+
+              final sFriendResponse = _supabase
+                  .from('conversation_participants')
+                  .select(
+                    "user_id, users!inner(id, full_name, avatar_url, status)",
+                  )
+                  .eq('conversation_id', conversationId)
+                  .neq('user_id', userId)
+                  .eq('is_deleted', false)
+                  .limit(1)
+                  .maybeSingle();
+              await Future.wait([
+                (() async => conversation = await sConversation)(),
+                (() async => lastMessage = await sLastMessage)(),
+                (() async => friendResponse = await sFriendResponse)(),
+                (() async =>
+                    isMute = await isConversationMute(conversationId))(),
+              ]);
 
               if (conversation['is_group'] == true) {
                 print('Skipping group conversation: $conversationId');
                 return;
               }
-
-              final lastMessage =
-                  await _supabase
-                      .from('messages')
-                      .select('id, content, sent_at, message_type')
-                      .eq('conversation_id', conversationId)
-                      .order('sent_at', ascending: false)
-                      .limit(1)
-                      .maybeSingle();
-
               if (lastMessage == null) {
                 print('No last message found for conversation $conversationId');
                 return;
               }
-
-              final friendResponse =
-                  await _supabase
-                      .from('conversation_participants')
-                      .select(
-                        'user_id, users!inner(id, full_name, avatar_url, status)',
-                      )
-                      .eq('conversation_id', conversationId)
-                      .neq('user_id', userId)
-                      .eq('is_deleted', false)
-                      .limit(1)
-                      .maybeSingle();
-
               if (friendResponse == null) {
                 print('No friend found for conversation: $conversationId');
                 return;
               }
 
-              final friend = friendResponse['users'] as Map<String, dynamic>?;
+              final friend = friendResponse!['users'] as Map<String, dynamic>?;
               if (friend == null || friend['id'] == null) {
                 print('Invalid friend data for conversation: $conversationId');
                 return;
               }
 
-              final lastMessageStatus =
-                  await _supabase
-                      .from('message_statuses')
-                      .select('is_read, is_hidden')
-                      .eq('message_id', lastMessage['id'])
-                      .eq('user_id', userId)
-                      .maybeSingle();
+              final lastMessageStatus = await _supabase
+                  .from('message_statuses')
+                  .select('is_read, is_hidden')
+                  .eq('message_id', lastMessage!['id'])
+                  .eq('user_id', userId)
+                  .maybeSingle();
               final isRead = lastMessageStatus?['is_read'] ?? true;
               final isHidden = lastMessageStatus?['is_hidden'] ?? false;
 
@@ -336,14 +346,14 @@ class ChatService {
               if (isHidden) {
                 displayMessage = 'Tin nhắn đã bị xóa';
               } else {
-                final messageType = lastMessage['message_type'] as String;
+                final messageType = lastMessage!['message_type'] as String;
                 displayMessage = switch (messageType) {
                   'image' => 'Hình ảnh',
                   'video' => 'Video',
                   'file' => 'File',
                   'call' => 'Cuộc gọi',
                   'audio' => 'Âm thanh',
-                  _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
+                  _ => lastMessage!['content'] ?? 'Chưa có tin nhắn',
                 };
               }
 
@@ -354,10 +364,12 @@ class ChatService {
                 'friend_avatar_url': friend['avatar_url'] as String? ?? '',
                 'friend_status': friend['status'] as String? ?? 'offline',
                 'last_message': displayMessage,
-                'last_message_time':
-                    DateTime.parse(lastMessage['sent_at']).toLocal(),
+                'last_message_time': DateTime.parse(
+                  lastMessage!['sent_at'],
+                ).toLocal(),
                 'is_read': isRead,
                 'is_group': false,
+                'is_mute': isMute,
               };
 
               final currentChats = await loadChatsByUserId(userId);
@@ -399,59 +411,66 @@ class ChatService {
               final updatedStatus = payload.newRecord;
               final messageId = updatedStatus['message_id'] as String;
 
-              final message =
-                  await _supabase
-                      .from('messages')
-                      .select('conversation_id, content, sent_at, message_type')
-                      .eq('id', messageId)
-                      .single();
+              final message = await _supabase
+                  .from('messages')
+                  .select('conversation_id, content, sent_at, message_type')
+                  .eq('id', messageId)
+                  .single();
 
               final conversationId = message['conversation_id'] as String;
 
-              final friendResponse =
-                  await _supabase
-                      .from('conversation_participants')
-                      .select(
-                        'user_id, users!inner(id, full_name, avatar_url, status)',
-                      )
-                      .eq('conversation_id', conversationId)
-                      .neq('user_id', userId)
-                      .eq('is_deleted', false)
-                      .limit(1)
-                      .maybeSingle();
+              late final Map<String, dynamic>? friendResponse;
+              late final Map<String, dynamic>? lastMessage;
+              late final bool? isMute;
+
+              final sFriendResponse = _supabase
+                  .from('conversation_participants')
+                  .select(
+                    'user_id, users!inner(id, full_name, avatar_url, status)',
+                  )
+                  .eq('conversation_id', conversationId)
+                  .neq('user_id', userId)
+                  .eq('is_deleted', false)
+                  .limit(1)
+                  .maybeSingle();
+
+              final sLastMessage = _supabase
+                  .from('messages')
+                  .select('id, content, sent_at, message_type')
+                  .eq('conversation_id', conversationId)
+                  .order('sent_at', ascending: false)
+                  .limit(1)
+                  .maybeSingle();
+
+              await Future.wait([
+                (() async => friendResponse = await sFriendResponse)(),
+                (() async => lastMessage = await sLastMessage)(),
+                (() async =>
+                    isMute = await isConversationMute(conversationId))(),
+              ]);
 
               if (friendResponse == null) {
                 print('No friend found for conversation: $conversationId');
                 return;
               }
 
-              final friend = friendResponse['users'] as Map<String, dynamic>?;
+              final friend = friendResponse!['users'] as Map<String, dynamic>?;
               if (friend == null || friend['id'] == null) {
                 print('Invalid friend data for conversation: $conversationId');
                 return;
               }
-
-              final lastMessage =
-                  await _supabase
-                      .from('messages')
-                      .select('id, content, sent_at, message_type')
-                      .eq('conversation_id', conversationId)
-                      .order('sent_at', ascending: false)
-                      .limit(1)
-                      .maybeSingle();
 
               if (lastMessage == null) {
                 print('No last message found for conversation $conversationId');
                 return;
               }
 
-              final lastMessageStatus =
-                  await _supabase
-                      .from('message_statuses')
-                      .select('is_read, is_hidden')
-                      .eq('message_id', lastMessage['id'])
-                      .eq('user_id', userId)
-                      .maybeSingle();
+              final lastMessageStatus = await _supabase
+                  .from('message_statuses')
+                  .select('is_read, is_hidden')
+                  .eq('message_id', lastMessage!['id'])
+                  .eq('user_id', userId)
+                  .maybeSingle();
               final isRead = lastMessageStatus?['is_read'] ?? true;
               final isHiddenStatus = lastMessageStatus?['is_hidden'] ?? false;
 
@@ -459,13 +478,13 @@ class ChatService {
               if (isHiddenStatus) {
                 displayMessage = 'Tin nhắn đã bị xóa';
               } else {
-                final messageType = lastMessage['message_type'] as String;
+                final messageType = lastMessage!['message_type'] as String;
                 displayMessage = switch (messageType) {
                   'image' => 'Hình ảnh',
                   'video' => 'Video',
                   'file' => 'File',
                   'call' => 'Cuộc gọi',
-                  _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
+                  _ => lastMessage!['content'] ?? 'Chưa có tin nhắn',
                 };
               }
 
@@ -476,10 +495,12 @@ class ChatService {
                 'friend_avatar_url': friend['avatar_url'] as String? ?? '',
                 'friend_status': friend['status'] as String? ?? 'offline',
                 'last_message': displayMessage,
-                'last_message_time':
-                    DateTime.parse(lastMessage['sent_at']).toLocal(),
+                'last_message_time': DateTime.parse(
+                  lastMessage!['sent_at'],
+                ).toLocal(),
                 'is_read': isRead,
                 'is_group': false,
+                'is_mute': isMute,
               };
 
               final currentChats = await loadChatsByUserId(userId);
@@ -516,27 +537,26 @@ class ChatService {
               final user = payload.newRecord;
 
               final currentChats = await loadChatsByUserId(userId);
-              final updatedChats =
-                  currentChats.map((chat) {
-                    if (chat['friend_id'] == user['id']) {
-                      return {
-                        ...chat,
-                        'friend_full_name':
-                            user['full_name'] as String? ??
-                            chat['friend_full_name'] as String? ??
-                            'Unknown',
-                        'friend_avatar_url':
-                            user['avatar_url'] as String? ??
-                            chat['friend_avatar_url'] as String? ??
-                            '',
-                        'friend_status':
-                            user['status'] as String? ??
-                            chat['friend_status'] as String? ??
-                            'offline',
-                      };
-                    }
-                    return chat;
-                  }).toList();
+              final updatedChats = currentChats.map((chat) {
+                if (chat['friend_id'] == user['id']) {
+                  return {
+                    ...chat,
+                    'friend_full_name':
+                        user['full_name'] as String? ??
+                        chat['friend_full_name'] as String? ??
+                        'Unknown',
+                    'friend_avatar_url':
+                        user['avatar_url'] as String? ??
+                        chat['friend_avatar_url'] as String? ??
+                        '',
+                    'friend_status':
+                        user['status'] as String? ??
+                        chat['friend_status'] as String? ??
+                        'offline',
+                  };
+                }
+                return chat;
+              }).toList();
 
               if (updatedChats.isNotEmpty) {
                 onUpdate(updatedChats);
@@ -589,13 +609,12 @@ class ChatService {
         throw Exception('Không có kết nối mạng');
       }
 
-      final participant =
-          await _supabase
-              .from('conversation_participants')
-              .select('deleted_at')
-              .eq('conversation_id', conversationId)
-              .eq('user_id', _supabase.auth.currentUser!.id)
-              .maybeSingle();
+      final participant = await _supabase
+          .from('conversation_participants')
+          .select('deleted_at')
+          .eq('conversation_id', conversationId)
+          .eq('user_id', _supabase.auth.currentUser!.id)
+          .maybeSingle();
 
       var query = _supabase
           .from('messages')
@@ -621,12 +640,11 @@ class ChatService {
       for (var message in messages) {
         if (message['message_type'] == 'call') {
           final callId = message['content'];
-          final callInfo =
-              await _supabase
-                  .from('call_requests')
-                  .select('is_video_call, status, created_at, ended_at')
-                  .eq('id', callId)
-                  .maybeSingle();
+          final callInfo = await _supabase
+              .from('call_requests')
+              .select('is_video_call, status, created_at, ended_at')
+              .eq('id', callId)
+              .maybeSingle();
           message['call_info'] = callInfo;
         }
       }
@@ -653,13 +671,12 @@ class ChatService {
       }
 
       // Lấy thông tin của tin nhắn với messageId để lấy sent_at
-      final targetMessage =
-          await _supabase
-              .from('messages')
-              .select('sent_at')
-              .eq('id', messageId)
-              .eq('conversation_id', conversationId)
-              .single();
+      final targetMessage = await _supabase
+          .from('messages')
+          .select('sent_at')
+          .eq('id', messageId)
+          .eq('conversation_id', conversationId)
+          .single();
 
       if (targetMessage.isEmpty) {
         throw Exception('Không tìm thấy tin nhắn với ID: $messageId');
@@ -681,12 +698,12 @@ class ChatService {
           .limit(limit);
 
       // Sắp xếp tin nhắn theo thứ tự giảm dần (mới nhất trước)
-      final sortedMessages =
-          messagesFromTarget..sort(
-            (a, b) => DateTime.parse(
-              b['sent_at'],
-            ).compareTo(DateTime.parse(a['sent_at'])),
-          );
+      final sortedMessages = messagesFromTarget
+        ..sort(
+          (a, b) => DateTime.parse(
+            b['sent_at'],
+          ).compareTo(DateTime.parse(a['sent_at'])),
+        );
 
       // Tìm index của messageId
       final targetIndex = sortedMessages.indexWhere(
@@ -697,12 +714,11 @@ class ChatService {
       for (var message in sortedMessages) {
         if (message['message_type'] == 'call') {
           final callId = message['content'];
-          final callInfo =
-              await _supabase
-                  .from('call_requests')
-                  .select('is_video_call, status, created_at, ended_at')
-                  .eq('id', callId)
-                  .maybeSingle();
+          final callInfo = await _supabase
+              .from('call_requests')
+              .select('is_video_call, status, created_at, ended_at')
+              .eq('id', callId)
+              .maybeSingle();
           message['call_info'] = callInfo;
         }
       }
@@ -728,13 +744,12 @@ class ChatService {
         throw Exception('Không có kết nối mạng');
       }
 
-      final participant =
-          await _supabase
-              .from('conversation_participants')
-              .select('deleted_at')
-              .eq('conversation_id', conversationId)
-              .eq('user_id', _supabase.auth.currentUser!.id)
-              .maybeSingle();
+      final participant = await _supabase
+          .from('conversation_participants')
+          .select('deleted_at')
+          .eq('conversation_id', conversationId)
+          .eq('user_id', _supabase.auth.currentUser!.id)
+          .maybeSingle();
 
       var query = _supabase
           .from('messages')
@@ -757,12 +772,11 @@ class ChatService {
       for (var message in messages) {
         if (message['message_type'] == 'call') {
           final callId = message['content'];
-          final callInfo =
-              await _supabase
-                  .from('call_requests')
-                  .select('is_video_call, status, created_at, ended_at')
-                  .eq('id', callId)
-                  .maybeSingle();
+          final callInfo = await _supabase
+              .from('call_requests')
+              .select('is_video_call, status, created_at, ended_at')
+              .eq('id', callId)
+              .maybeSingle();
           message['call_info'] = callInfo;
         }
       }
@@ -798,11 +812,10 @@ class ChatService {
           .eq('user_id', _supabase.auth.currentUser!.id)
           .inFilter('message_id', messageIds.map((m) => m['id']).toList());
 
-      final unreadMessageIds =
-          statuses
-              .where((status) => status['is_read'] == false)
-              .map((status) => status['message_id'])
-              .toList();
+      final unreadMessageIds = statuses
+          .where((status) => status['is_read'] == false)
+          .map((status) => status['message_id'])
+          .toList();
 
       if (unreadMessageIds.isNotEmpty) {
         await _supabase
@@ -848,25 +861,23 @@ class ChatService {
           callback: (payload) async {
             final newMessage = payload.newRecord;
 
-            final message =
-                await _supabase
-                    .from('messages')
-                    .select('''
+            final message = await _supabase
+                .from('messages')
+                .select('''
                   id, conversation_id, sender_id, content, sent_at, message_type,
                   users!sender_id(id, full_name, avatar_url, status),
                   message_statuses(user_id, is_read, read_at, is_hidden)
                 ''')
-                    .eq('id', newMessage['id'])
-                    .single();
+                .eq('id', newMessage['id'])
+                .single();
 
             if (message['message_type'] == 'call') {
               final callId = message['content'];
-              final callInfo =
-                  await _supabase
-                      .from('call_requests')
-                      .select('is_video_call, status, created_at, ended_at')
-                      .eq('id', callId)
-                      .maybeSingle();
+              final callInfo = await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
               message['call_info'] = callInfo;
             }
             onUpdate([message]);
@@ -886,26 +897,24 @@ class ChatService {
               final updatedStatus = payload.newRecord;
               final messageId = updatedStatus['message_id'] as String;
 
-              final message =
-                  await _supabase
-                      .from('messages')
-                      .select('''
+              final message = await _supabase
+                  .from('messages')
+                  .select('''
                       id, conversation_id, sender_id, content, sent_at, message_type,
                       users!sender_id(id, full_name, avatar_url, status),
                       message_statuses(user_id, is_read, read_at, is_hidden)
                     ''')
-                      .eq('id', messageId)
-                      .eq('conversation_id', conversationId)
-                      .single();
+                  .eq('id', messageId)
+                  .eq('conversation_id', conversationId)
+                  .single();
 
               if (message['message_type'] == 'call') {
                 final callId = message['content'];
-                final callInfo =
-                    await _supabase
-                        .from('call_requests')
-                        .select('is_video_call, status, created_at, ended_at')
-                        .eq('id', callId)
-                        .maybeSingle();
+                final callInfo = await _supabase
+                    .from('call_requests')
+                    .select('is_video_call, status, created_at, ended_at')
+                    .eq('id', callId)
+                    .maybeSingle();
                 message['call_info'] = callInfo;
               }
               onUpdate([message]);
@@ -1129,6 +1138,40 @@ class ChatService {
     } catch (e) {
       print(e);
       return [];
+    }
+  }
+
+  Future<void> setMuteConversation(
+    String conversationId,
+    double duration,
+  ) async {
+    try {
+      await _supabase.rpc(
+        "set_mute_conversation",
+        params: {
+          'conversation': conversationId,
+          'self_id': _supabase.auth.currentUser!.id,
+          'duration': duration,
+        },
+      );
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<bool?> isConversationMute(String conversationId) async {
+    try {
+      var data = await _supabase.rpc(
+        "is_conversation_mute",
+        params: {
+          'conversation': conversationId,
+          'self_id': _supabase.auth.currentUser!.id,
+        },
+      );
+      return data;
+    } catch (e) {
+      print(e);
+      return null;
     }
   }
 }
