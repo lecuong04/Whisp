@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:get_thumbnail_video/index.dart';
@@ -77,4 +78,18 @@ String formatDuration(Duration duration) {
 Duration hoursToDuration(double hours) {
   final totalSeconds = (hours * 3600).round();
   return Duration(seconds: totalSeconds);
+}
+
+void runAtSpecificTime(DateTime targetTime, Function callback) {
+  final now = DateTime.now();
+  final delay = targetTime.difference(now);
+
+  if (delay.isNegative) {
+    print('Thời gian đã qua rồi!');
+    return;
+  }
+
+  Timer(delay, () {
+    callback();
+  });
 }

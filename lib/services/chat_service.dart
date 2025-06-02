@@ -1141,12 +1141,12 @@ class ChatService {
     }
   }
 
-  Future<void> setMuteConversation(
+  Future<DateTime?> setMuteConversation(
     String conversationId,
     double duration,
   ) async {
     try {
-      await _supabase.rpc(
+      var data = await _supabase.rpc(
         "set_mute_conversation",
         params: {
           'conversation': conversationId,
@@ -1154,8 +1154,10 @@ class ChatService {
           'duration': duration,
         },
       );
+      return DateTime.parse(data.toString()).toLocal();
     } catch (e) {
       print(e);
+      return null;
     }
   }
 

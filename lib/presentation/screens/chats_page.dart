@@ -7,6 +7,7 @@ import 'package:whisp/presentation/screens/messages_screen.dart';
 import 'package:whisp/presentation/widgets/chat_title.dart';
 import 'package:whisp/services/chat_service.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:whisp/utils/helpers.dart';
 
 class Chats extends StatefulWidget {
   const Chats({super.key});
@@ -159,10 +160,7 @@ class _ChatsState extends State<Chats> {
     super.dispose();
   }
 
-  static Future<bool> muteBottomModal(
-    BuildContext context,
-    String conversationId,
-  ) async {
+  Future<bool> muteBottomModal(String conversationId) async {
     return await showModalBottomSheet(
           context: context,
           useSafeArea: true,
@@ -196,10 +194,22 @@ class _ChatsState extends State<Chats> {
                             style: TextStyle(fontSize: 16),
                           ),
                           onTap: () async {
-                            await ChatService().setMuteConversation(
-                              conversationId,
-                              option.key.toDouble(),
-                            );
+                            var result = await ChatService()
+                                .setMuteConversation(
+                                  conversationId,
+                                  option.key.toDouble(),
+                                );
+                            if (result != null) {
+                              runAtSpecificTime(
+                                result.add(Duration(seconds: 30)),
+                                () async {
+                                  await loadChats();
+                                  if (mounted) {
+                                    setState(() {});
+                                  }
+                                },
+                              );
+                            }
                             Navigator.pop(context, true);
                           },
                         ),
@@ -232,11 +242,22 @@ class _ChatsState extends State<Chats> {
                             time.hour,
                             time.minute,
                           );
-                          await ChatService().setMuteConversation(
+                          var result = await ChatService().setMuteConversation(
                             conversationId,
                             dateTime.difference(DateTime.now()).inMinutes /
                                 60.0,
                           );
+                          if (result != null) {
+                            runAtSpecificTime(
+                              result.add(Duration(seconds: 30)),
+                              () async {
+                                await loadChats();
+                                if (mounted) {
+                                  setState(() {});
+                                }
+                              },
+                            );
+                          }
                           Navigator.pop(context, true);
                         }
                       }
@@ -296,10 +317,7 @@ class _ChatsState extends State<Chats> {
                         Navigator.pop(this.context);
                         bool isChanged = false;
                         if (!snapshot.data!) {
-                          isChanged = await muteBottomModal(
-                            this.context,
-                            conversationId,
-                          );
+                          isChanged = await muteBottomModal(conversationId);
                         } else {
                           await ChatService().setMuteConversation(
                             conversationId,
