@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:whisp/models/friend.dart';
 import 'package:whisp/models/tag.dart';
 import 'package:whisp/presentation/widgets/friend_title.dart';
@@ -34,8 +35,9 @@ class _FriendListState extends State<FriendList> {
   void initState() {
     friends = widget.friends;
     if (widget.tagId != null && widget.tagId!.isNotEmpty) {
-      friends =
-          widget.friends.where((x) => x.tags.contains(widget.tagId)).toList();
+      friends = widget.friends
+          .where((x) => x.tags.contains(widget.tagId))
+          .toList();
     } else {
       friends = widget.friends;
     }
@@ -48,10 +50,9 @@ class _FriendListState extends State<FriendList> {
     Map<String, List<Friend>> grouped = {};
     for (Friend user in friends) {
       String lastString = user.fullName.split(" ").last;
-      String lastChar =
-          (lastString.isEmpty)
-              ? ""
-              : removeDiacritics(lastString.substring(0, 1)).toUpperCase();
+      String lastChar = (lastString.isEmpty)
+          ? ""
+          : removeDiacritics(lastString.substring(0, 1)).toUpperCase();
       if (RegExp("[a-z]|[A-Z]").hasMatch(lastChar)) {
         if (grouped[lastChar] == null) {
           grouped[lastChar] = List.empty(growable: true);
@@ -81,62 +82,60 @@ class _FriendListState extends State<FriendList> {
             onLongPress: () {
               showDialog(
                 context: context,
-                builder:
-                    (context) => SimpleDialog(
-                      contentPadding: EdgeInsets.all(10),
-                      title: Row(
-                        spacing: 10,
-                        children: [
-                          CircleAvatar(
-                            backgroundImage:
-                                f.avatarUrl.isNotEmpty
-                                    ? NetworkImage(f.avatarUrl)
-                                    : null,
-                          ),
-                          Text(f.fullName),
-                        ],
+                builder: (context) => SimpleDialog(
+                  contentPadding: EdgeInsets.all(10),
+                  title: Row(
+                    spacing: 10,
+                    children: [
+                      CircleAvatar(
+                        backgroundImage: f.avatarUrl.isNotEmpty
+                            ? CachedNetworkImageProvider(f.avatarUrl)
+                            : null,
                       ),
-                      children: [
-                        ElevatedButton(
-                          onPressed: () async {
-                            await showEditTagsDialog(
-                              context,
-                              widget.tags ?? List.empty(),
-                              f.tags,
-                              (data) async {
-                                data = Map.fromEntries(
-                                  data.entries.where(
-                                    (x) => !(f.tags.contains(x.key) && x.value),
-                                  ),
-                                );
-                                var fSer = FriendService();
-                                for (var x in data.entries) {
-                                  if (x.value) {
-                                    await fSer.addFriendTag(f.id, x.key);
-                                    f.tags.add(x.key);
-                                  } else {
-                                    await fSer.removeFriendTag(f.id, x.key);
-                                    f.tags.remove(x.key);
-                                  }
-                                }
-                                if (widget.onFriendTagsChanged != null) {
-                                  widget.onFriendTagsChanged!();
-                                }
-                              },
+                      Text(f.fullName),
+                    ],
+                  ),
+                  children: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        await showEditTagsDialog(
+                          context,
+                          widget.tags ?? List.empty(),
+                          f.tags,
+                          (data) async {
+                            data = Map.fromEntries(
+                              data.entries.where(
+                                (x) => !(f.tags.contains(x.key) && x.value),
+                              ),
                             );
-                          },
-                          child: Text("Danh sách phân loại"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (await f.remove()) {
-                              Navigator.pop(context);
+                            var fSer = FriendService();
+                            for (var x in data.entries) {
+                              if (x.value) {
+                                await fSer.addFriendTag(f.id, x.key);
+                                f.tags.add(x.key);
+                              } else {
+                                await fSer.removeFriendTag(f.id, x.key);
+                                f.tags.remove(x.key);
+                              }
+                            }
+                            if (widget.onFriendTagsChanged != null) {
+                              widget.onFriendTagsChanged!();
                             }
                           },
-                          child: Text("Hủy kết bạn"),
-                        ),
-                      ],
+                        );
+                      },
+                      child: Text("Danh sách phân loại"),
                     ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (await f.remove()) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Text("Hủy kết bạn"),
+                    ),
+                  ],
+                ),
               );
             },
           ),

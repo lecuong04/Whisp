@@ -1,9 +1,13 @@
+import 'dart:io';
+import 'dart:math';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:whisp/custom_cache_manager.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -42,6 +46,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (shouldLogout == true) {
       FlutterBackgroundService().invoke("stopBackground");
       await Supabase.instance.client.auth.signOut();
+      await CustomCacheManager().emptyCache();
 
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       ScaffoldMessenger.of(
@@ -89,16 +94,72 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     await storage
         .from('avatars')
         .upload(avatarPath, file, fileOptions: const FileOptions(upsert: true));
-
-    final url = storage.from('avatars').getPublicUrl(avatarPath);
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      await CustomCacheManager().removeFile(avatarUrl!);
+    }
+    final url =
+        "${storage.from('avatars').getPublicUrl(avatarPath)}?r=${Random().nextInt(512)}";
 
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(data: {'avatar_url': url}),
     );
-
     setState(() {
       avatarUrl = url;
     });
+  }
+
+  Future<void> handleUpdatePassword() async {
+    final currentContext = context;
+
+    showModalBottomSheet(
+      context: currentContext,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return PasswordUpdateModal(
+          onSave: (currentPassword, newPassword, confirmPassword) async {
+            if (newPassword != confirmPassword) {
+              ScaffoldMessenger.of(currentContext).showSnackBar(
+                const SnackBar(content: Text('Mật khẩu xác nhận không khớp')),
+              );
+              return;
+            }
+
+            try {
+              // Vì Supabase không hỗ trợ xác minh mật khẩu cũ trực tiếp, bạn cần xác thực lại:
+              final email = user!.email!;
+              final res = await Supabase.instance.client.auth
+                  .signInWithPassword(email: email, password: currentPassword);
+
+              if (res.user == null) {
+                ScaffoldMessenger.of(currentContext).showSnackBar(
+                  const SnackBar(content: Text('Mật khẩu hiện tại không đúng')),
+                );
+                return;
+              }
+
+              // Cập nhật mật khẩu
+              await Supabase.instance.client.auth.updateUser(
+                UserAttributes(password: newPassword),
+              );
+
+              if (mounted) {
+                Navigator.pop(context); // đóng bottom sheet
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cập nhật mật khẩu thành công')),
+                );
+              }
+            } catch (e) {
+              ScaffoldMessenger.of(
+                currentContext,
+              ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+            }
+          },
+        );
+      },
+    );
   }
 
   Future<void> handleUpdateInfo() async {
@@ -178,13 +239,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 radius: 50,
                 backgroundImage:
                     avatarUrl != null && avatarUrl!.isNotEmpty
-                        ? NetworkImage(avatarUrl!)
+                        ? CachedNetworkImageProvider(
+                          avatarUrl!,
+                          cacheManager: CustomCacheManager(),
+                        )
                         : null,
                 child: Align(
                   alignment: Alignment.bottomRight,
                   child: CircleAvatar(
                     backgroundColor: Colors.white,
-                    radius: 16,
+                    radius: 12.5,
                     child: Icon(Icons.camera_alt, size: 18, color: Colors.grey),
                   ),
                 ),
@@ -209,18 +273,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             const SizedBox(height: 24),
 
             // Thông tin cá nhân
-            _buildInfoTile(
+            buildInfoTile(
               Icons.person_outline_rounded,
               'Họ và tên',
               fullName ?? 'Cập nhật ngay',
             ),
-            _buildInfoTile(
+            buildInfoTile(
               Icons.person,
               'Username',
               username ?? 'Cập nhật ngay',
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
             // Nút chỉnh sửa
             ElevatedButton.icon(
@@ -229,6 +293,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               },
               icon: Icon(Icons.edit),
               label: Text('Chỉnh sửa thông tin'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 48),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            ElevatedButton.icon(
+              onPressed: () => handleUpdatePassword(),
+              icon: Icon(Icons.lock),
+              label: Text('Cập nhật mật khẩu'),
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 48),
               ),
@@ -251,7 +326,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String value) {
+  Widget buildInfoTile(IconData icon, String label, String value) {
     return Column(
       children: [
         ListTile(
@@ -282,20 +357,20 @@ class EditProfileModal extends StatefulWidget {
 }
 
 class _EditProfileModalState extends State<EditProfileModal> {
-  late TextEditingController _usernameController;
-  late TextEditingController _fullNameController;
+  late TextEditingController usernameController;
+  late TextEditingController fullNameController;
 
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController(text: widget.username);
-    _fullNameController = TextEditingController(text: widget.fullName);
+    usernameController = TextEditingController(text: widget.username);
+    fullNameController = TextEditingController(text: widget.fullName);
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _fullNameController.dispose();
+    usernameController.dispose();
+    fullNameController.dispose();
     super.dispose();
   }
 
@@ -317,23 +392,101 @@ class _EditProfileModalState extends State<EditProfileModal> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _fullNameController,
+            controller: fullNameController,
             decoration: const InputDecoration(labelText: 'Họ và tên'),
             keyboardType: TextInputType.text, // Sửa thành text thay vì phone
           ),
           TextField(
-            controller: _usernameController,
+            controller: usernameController,
             decoration: InputDecoration(labelText: 'Username'),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               widget.onSave({
-                'full_name': _fullNameController.text,
-                'username': _usernameController.text,
+                'full_name': fullNameController.text,
+                'username': usernameController.text,
               });
             },
             child: Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PasswordUpdateModal extends StatefulWidget {
+  final Function(
+    String currentPassword,
+    String newPassword,
+    String confirmPassword,
+  )
+  onSave;
+
+  const PasswordUpdateModal({super.key, required this.onSave});
+
+  @override
+  State<PasswordUpdateModal> createState() => _PasswordUpdateModalState();
+}
+
+class _PasswordUpdateModalState extends State<PasswordUpdateModal> {
+  final currentPasswordController = TextEditingController();
+  final newPasswordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Cập nhật mật khẩu',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: currentPasswordController,
+            decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại'),
+            obscureText: true,
+          ),
+          TextField(
+            controller: newPasswordController,
+            decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+            obscureText: true,
+          ),
+          TextField(
+            controller: confirmPasswordController,
+            decoration: const InputDecoration(
+              labelText: 'Xác nhận mật khẩu mới',
+            ),
+            obscureText: true,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              widget.onSave(
+                currentPasswordController.text,
+                newPasswordController.text,
+                confirmPasswordController.text,
+              );
+            },
+            child: const Text('Cập nhật'),
           ),
         ],
       ),

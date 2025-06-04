@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
-  bool _isPasswordVisible = false;
+  bool isPasswordVisible = false;
 
   Future<void> handleSubmit() async {
     final email = emailController.text.trim();
@@ -112,16 +112,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 CustomTextField(
                   controller: passwordController,
                   hintText: "Mật khẩu",
-                  obscureText: !_isPasswordVisible,
+                  obscureText: !isPasswordVisible,
                   prefixIcon: Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
+                        isPasswordVisible = !isPasswordVisible;
                       });
                     },
                     icon:
-                        !_isPasswordVisible
+                        !isPasswordVisible
                             ? Icon(Icons.visibility)
                             : Icon(Icons.visibility_off),
                   ),

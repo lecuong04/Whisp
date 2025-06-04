@@ -5,7 +5,6 @@ import 'dart:io';
 
 class ChatService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  // final DatabaseService _dbService = DatabaseService.instance; // Comment giữ lại từ SQLite
 
   Future<bool> _isOnline() async {
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -21,7 +20,8 @@ class ChatService {
       final String bucket = switch (messageType) {
         'image' => 'pictures',
         'video' => 'videos',
-        'file' => 'chat-files',
+        'file' => 'files',
+        'audio' => 'audio',
         _ => throw Exception('Loại media không hợp lệ: $messageType'),
       };
 
@@ -61,29 +61,23 @@ class ChatService {
         );
       }
 
-      final messageResponse =
-          await _supabase
-              .from('messages')
-              .insert({
-                'conversation_id': conversationId,
-                'sender_id': senderId,
-                'content': finalContent,
-                'message_type': messageType,
-              })
-              .select('''
+      final messageResponse = await _supabase
+          .from('messages')
+          .insert({
+            'conversation_id': conversationId,
+            'sender_id': senderId,
+            'content': finalContent,
+            'message_type': messageType,
+          })
+          .select('''
             id, conversation_id, sender_id, content, sent_at, message_type,
             users!sender_id(id, full_name, avatar_url, status),
             message_statuses(user_id, is_read, read_at)
           ''')
-              .single();
+          .single();
 
       final messageId = messageResponse['id'];
       print('Sent message: $messageId');
-
-      // await _dbService.saveMessages(conversationId, [messageResponse]); // Comment giữ lại từ SQLite
-      // if (messageResponse['users'] != null) { // Comment giữ lại từ SQLite
-      //   await _dbService.saveUser(messageResponse['users']); // Comment giữ lại từ SQLite
-      // } // Comment giữ lại từ SQLite
 
       return messageResponse;
     } catch (e) {
@@ -94,10 +88,8 @@ class ChatService {
 
   Future<List<Map<String, dynamic>>> loadChatsByUserId(String userId) async {
     try {
-      // final localChats = await _dbService.loadChats(userId); // Comment giữ lại từ SQLite
       if (!(await _isOnline())) {
         print('Offline: Returning local chats for user $userId');
-        // return localChats; // Comment giữ lại từ SQLite
         throw Exception('Không có kết nối mạng');
       }
 
@@ -124,77 +116,94 @@ class ChatService {
         final conversationId = chat['conversation_id'];
         print('Processing conversation: $conversationId');
 
-        final friendResponse =
-            await _supabase
-                .from('conversation_participants')
-                .select(
-                  'user_id, users!inner(id, full_name, avatar_url, status)',
-                )
-                .eq('conversation_id', conversationId)
-                .neq('user_id', userId)
-                .eq('is_deleted', false)
-                .limit(1)
-                .maybeSingle();
+        late final Map<String, dynamic>? friendResponse;
+        late final Map<String, dynamic>? lastMessage;
+        late final bool? isMute;
+
+        final sFriendResponse = _supabase
+            .from('conversation_participants')
+            .select("user_id, users!inner(id, full_name, avatar_url, status)")
+            .eq('conversation_id', conversationId)
+            .neq('user_id', userId)
+            .eq('is_deleted', false)
+            .limit(1)
+            .maybeSingle();
+
+        final sLastMessage = _supabase
+            .from('messages')
+            .select('id, content, sent_at, message_type')
+            .eq('conversation_id', conversationId)
+            .order('sent_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        await Future.wait([
+          (() async => friendResponse = await sFriendResponse)(),
+          (() async => lastMessage = await sLastMessage)(),
+          (() async => isMute = await isConversationMute(conversationId))(),
+        ]);
 
         if (friendResponse == null) {
-          print('No friend found for conversation: $conversationId');
+          print('No friend found for conversation: $conversationId, skipping');
           continue;
         }
 
-        final friend = friendResponse['users'] as Map<String, dynamic>;
-        // await _dbService.saveUser(friend); // Comment giữ lại từ SQLite
-
-        final lastMessage =
-            await _supabase
-                .from('messages')
-                .select('id, content, sent_at, message_type')
-                .eq('conversation_id', conversationId)
-                .order('sent_at', ascending: false)
-                .limit(1)
-                .maybeSingle();
+        final friend = friendResponse!['users'] as Map<String, dynamic>?;
+        if (friend == null || friend['id'] == null) {
+          print(
+            'Invalid friend data for conversation: $conversationId, skipping',
+          );
+          continue;
+        }
 
         bool isRead = true;
         String displayMessage = 'Chưa có tin nhắn';
+        bool isHidden = false;
+        DateTime? lastMessageTime;
         if (lastMessage != null) {
-          final lastMessageStatus =
-              await _supabase
-                  .from('message_statuses')
-                  .select('is_read')
-                  .eq('message_id', lastMessage['id'])
-                  .eq('user_id', userId)
-                  .maybeSingle();
+          final lastMessageStatus = await _supabase
+              .from('message_statuses')
+              .select('is_read, is_hidden')
+              .eq('message_id', lastMessage!['id'])
+              .eq('user_id', userId)
+              .maybeSingle();
           isRead = lastMessageStatus?['is_read'] ?? true;
+          isHidden = lastMessageStatus?['is_hidden'] ?? false;
+          lastMessageTime = DateTime.parse(lastMessage!['sent_at']).toLocal();
 
-          final messageType = lastMessage['message_type'] as String;
-          displayMessage = switch (messageType) {
-            'image' => 'Hình ảnh',
-            'video' => 'Video',
-            'file' => 'File',
-            'call' => 'Cuộc gọi',
-            _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
-          };
+          if (isHidden) {
+            displayMessage = 'Tin nhắn đã bị xóa';
+          } else {
+            final messageType = lastMessage!['message_type'] as String;
+            displayMessage = switch (messageType) {
+              'image' => 'Hình ảnh',
+              'video' => 'Video',
+              'file' => 'File',
+              'call' => 'Cuộc gọi',
+              'audio' => 'Âm thanh',
+              _ => lastMessage!['content'] ?? 'Chưa có tin nhắn',
+            };
+          }
 
           print(
-            'Last message for $conversationId: $displayMessage, sent_at: ${lastMessage['sent_at']}, is_read: $isRead',
+            'Last message for $conversationId: $displayMessage, sent_at: ${lastMessage!['sent_at']}, is_read: $isRead, is_hidden: $isHidden',
           );
         } else {
-          print('No messages for $conversationId');
+          print('No messages for $conversationId, skipping');
           continue;
         }
-
-        final lastMessageTime =
-            DateTime.parse(lastMessage['sent_at']).toLocal();
 
         processedChats.add({
           'conversation_id': conversationId,
           'friend_id': friend['id'],
-          'friend_full_name': friend['full_name'] ?? 'Unknown',
-          'friend_avatar_url': friend['avatar_url'] ?? '',
-          'friend_status': friend['status'] ?? 'offline',
+          'friend_full_name': friend['full_name'] as String? ?? 'Unknown',
+          'friend_avatar_url': friend['avatar_url'] as String? ?? '',
+          'friend_status': friend['status'] as String? ?? 'offline',
           'last_message': displayMessage,
           'last_message_time': lastMessageTime,
           'is_read': isRead,
           'is_group': chat['conversations']['is_group'],
+          'is_mute': isMute,
         });
       }
 
@@ -203,18 +212,9 @@ class ChatService {
       );
       print('Processed chats: $processedChats');
 
-      // if (processedChats.isNotEmpty) {
-      //   await _dbService.saveChats(userId, processedChats); // Comment giữ lại từ SQLite
-      // }
-
       return processedChats;
     } catch (e) {
       print('Error loading chats: $e');
-      // final localChats = await _dbService.loadChats(userId); // Comment giữ lại từ SQLite
-      // print(
-      //   'Offline: Returning ${localChats.length} local chats for user $userId',
-      // ); // Comment giữ lại từ SQLite
-      // return localChats; // Comment giữ lại từ SQLite
       throw Exception('Lỗi khi tải danh sách chat: $e');
     }
   }
@@ -234,11 +234,6 @@ class ChatService {
           .eq('conversation_id', conversationId)
           .eq('user_id', userId);
 
-      // await _dbService.deleteMessages(conversationId); // Comment giữ lại từ SQLite
-      // await _dbService.deleteChats(userId); // Comment giữ lại từ SQLite
-      // final updatedChats = await loadChatsByUserId(userId); // Comment giữ lại từ SQLite
-      // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
-
       print('Marked conversation $conversationId as deleted for user $userId');
     } catch (e) {
       print('Error marking conversation as deleted: $e');
@@ -248,32 +243,20 @@ class ChatService {
 
   Future<Map<String, dynamic>?> getUserInfo(String userId) async {
     try {
-      // final localUser = await _dbService.loadUser(userId); // Comment giữ lại từ SQLite
-      // if (localUser != null) { // Comment giữ lại từ SQLite
-      //   return localUser; // Comment giữ lại từ SQLite
-      // } // Comment giữ lại từ SQLite
-
       if (!(await _isOnline())) {
         print('Offline: No local user data for userId $userId');
         return null;
       }
 
-      final response =
-          await _supabase
-              .from('users')
-              .select('id, full_name, avatar_url, status')
-              .eq('id', userId)
-              .maybeSingle();
-
-      // if (response != null) { // Comment giữ lại từ SQLite
-      //   await _dbService.saveUser(response); // Comment giữ lại từ SQLite
-      // } // Comment giữ lại từ SQLite
+      final response = await _supabase
+          .from('users')
+          .select('id, full_name, avatar_url, status')
+          .eq('id', userId)
+          .maybeSingle();
 
       return response;
     } catch (e) {
       print('Error fetching user info: $e');
-      // final localUser = await _dbService.loadUser(userId); // Comment giữ lại từ SQLite
-      // return localUser; // Comment giữ lại từ SQLite
       throw Exception('Lỗi khi tải thông tin người dùng: $e');
     }
   }
@@ -294,81 +277,99 @@ class ChatService {
               final newMessage = payload.newRecord;
               final conversationId = newMessage['conversation_id'] as String;
 
-              final conversation =
-                  await _supabase
-                      .from('conversations')
-                      .select('is_group')
-                      .eq('id', conversationId)
-                      .single();
+              late final Map<String, dynamic> conversation;
+              late final Map<String, dynamic>? lastMessage;
+              late final Map<String, dynamic>? friendResponse;
+              late final bool? isMute;
+
+              final sConversation = _supabase
+                  .from('conversations')
+                  .select('is_group')
+                  .eq('id', conversationId)
+                  .single();
+
+              final sLastMessage = _supabase
+                  .from('messages')
+                  .select('id, content, sent_at, message_type')
+                  .eq('conversation_id', conversationId)
+                  .order('sent_at', ascending: false)
+                  .limit(1)
+                  .maybeSingle();
+
+              final sFriendResponse = _supabase
+                  .from('conversation_participants')
+                  .select(
+                    "user_id, users!inner(id, full_name, avatar_url, status)",
+                  )
+                  .eq('conversation_id', conversationId)
+                  .neq('user_id', userId)
+                  .eq('is_deleted', false)
+                  .limit(1)
+                  .maybeSingle();
+              await Future.wait([
+                (() async => conversation = await sConversation)(),
+                (() async => lastMessage = await sLastMessage)(),
+                (() async => friendResponse = await sFriendResponse)(),
+                (() async =>
+                    isMute = await isConversationMute(conversationId))(),
+              ]);
 
               if (conversation['is_group'] == true) {
                 print('Skipping group conversation: $conversationId');
                 return;
               }
-
-              final lastMessage =
-                  await _supabase
-                      .from('messages')
-                      .select('id, content, sent_at, message_type')
-                      .eq('conversation_id', conversationId)
-                      .order('sent_at', ascending: false)
-                      .limit(1)
-                      .maybeSingle();
-
               if (lastMessage == null) {
                 print('No last message found for conversation $conversationId');
                 return;
               }
-
-              final friendResponse =
-                  await _supabase
-                      .from('conversation_participants')
-                      .select(
-                        'user_id, users!inner(id, full_name, avatar_url, status)',
-                      )
-                      .eq('conversation_id', conversationId)
-                      .neq('user_id', userId)
-                      .eq('is_deleted', false)
-                      .limit(1)
-                      .maybeSingle();
-
               if (friendResponse == null) {
-                print('No friend found for conversation $conversationId');
+                print('No friend found for conversation: $conversationId');
                 return;
               }
 
-              final friend = friendResponse['users'] as Map<String, dynamic>;
-              // await _dbService.saveUser(friend); // Comment giữ lại từ SQLite
+              final friend = friendResponse!['users'] as Map<String, dynamic>?;
+              if (friend == null || friend['id'] == null) {
+                print('Invalid friend data for conversation: $conversationId');
+                return;
+              }
 
-              final lastMessageStatus =
-                  await _supabase
-                      .from('message_statuses')
-                      .select('is_read')
-                      .eq('message_id', lastMessage['id'])
-                      .eq('user_id', userId)
-                      .maybeSingle();
+              final lastMessageStatus = await _supabase
+                  .from('message_statuses')
+                  .select('is_read, is_hidden')
+                  .eq('message_id', lastMessage!['id'])
+                  .eq('user_id', userId)
+                  .maybeSingle();
               final isRead = lastMessageStatus?['is_read'] ?? true;
+              final isHidden = lastMessageStatus?['is_hidden'] ?? false;
 
-              final messageType = lastMessage['message_type'] as String;
-              final displayMessage = switch (messageType) {
-                'image' => 'Hình ảnh',
-                'video' => 'Video',
-                'file' => 'File',
-                'call' => 'Cuộc gọi',
-                _ => lastMessage['content'] ?? 'Chưa có tin nhắn',
-              };
+              String displayMessage = 'Chưa có tin nhắn';
+              if (isHidden) {
+                displayMessage = 'Tin nhắn đã bị xóa';
+              } else {
+                final messageType = lastMessage!['message_type'] as String;
+                displayMessage = switch (messageType) {
+                  'image' => 'Hình ảnh',
+                  'video' => 'Video',
+                  'file' => 'File',
+                  'call' => 'Cuộc gọi',
+                  'audio' => 'Âm thanh',
+                  _ => lastMessage!['content'] ?? 'Chưa có tin nhắn',
+                };
+              }
 
               final updatedChat = {
                 'conversation_id': conversationId,
                 'friend_id': friend['id'],
-                'friend_full_name': friend['full_name'] ?? 'Unknown',
-                'friend_avatar_url': friend['avatar_url'] ?? '',
-                'friend_status': friend['status'] ?? 'offline',
+                'friend_full_name': friend['full_name'] as String? ?? 'Unknown',
+                'friend_avatar_url': friend['avatar_url'] as String? ?? '',
+                'friend_status': friend['status'] as String? ?? 'offline',
                 'last_message': displayMessage,
-                'last_message_time':
-                    DateTime.parse(lastMessage['sent_at']).toLocal(),
+                'last_message_time': DateTime.parse(
+                  lastMessage!['sent_at'],
+                ).toLocal(),
                 'is_read': isRead,
                 'is_group': false,
+                'is_mute': isMute,
               };
 
               final currentChats = await loadChatsByUserId(userId);
@@ -388,7 +389,6 @@ class ChatService {
                     b['last_message_time'].compareTo(a['last_message_time']),
               );
 
-              // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
               if (updatedChats.isNotEmpty) {
                 onUpdate(updatedChats);
               }
@@ -401,30 +401,125 @@ class ChatService {
           event: PostgresChangeEvent.update,
           schema: 'public',
           table: 'message_statuses',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
           callback: (payload) async {
             try {
-              final messageId = payload.newRecord['message_id'] as String;
-              final isRead = payload.newRecord['is_read'] as bool;
+              final updatedStatus = payload.newRecord;
+              final messageId = updatedStatus['message_id'] as String;
 
-              final message =
-                  await _supabase
-                      .from('messages')
-                      .select('conversation_id')
-                      .eq('id', messageId)
-                      .single();
+              final message = await _supabase
+                  .from('messages')
+                  .select('conversation_id, content, sent_at, message_type')
+                  .eq('id', messageId)
+                  .single();
 
               final conversationId = message['conversation_id'] as String;
 
-              final currentChats = await loadChatsByUserId(userId);
-              final updatedChats =
-                  currentChats.map((chat) {
-                    if (chat['conversation_id'] == conversationId) {
-                      return {...chat, 'is_read': isRead};
-                    }
-                    return chat;
-                  }).toList();
+              late final Map<String, dynamic>? friendResponse;
+              late final Map<String, dynamic>? lastMessage;
+              late final bool? isMute;
 
-              // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
+              final sFriendResponse = _supabase
+                  .from('conversation_participants')
+                  .select(
+                    'user_id, users!inner(id, full_name, avatar_url, status)',
+                  )
+                  .eq('conversation_id', conversationId)
+                  .neq('user_id', userId)
+                  .eq('is_deleted', false)
+                  .limit(1)
+                  .maybeSingle();
+
+              final sLastMessage = _supabase
+                  .from('messages')
+                  .select('id, content, sent_at, message_type')
+                  .eq('conversation_id', conversationId)
+                  .order('sent_at', ascending: false)
+                  .limit(1)
+                  .maybeSingle();
+
+              await Future.wait([
+                (() async => friendResponse = await sFriendResponse)(),
+                (() async => lastMessage = await sLastMessage)(),
+                (() async =>
+                    isMute = await isConversationMute(conversationId))(),
+              ]);
+
+              if (friendResponse == null) {
+                print('No friend found for conversation: $conversationId');
+                return;
+              }
+
+              final friend = friendResponse!['users'] as Map<String, dynamic>?;
+              if (friend == null || friend['id'] == null) {
+                print('Invalid friend data for conversation: $conversationId');
+                return;
+              }
+
+              if (lastMessage == null) {
+                print('No last message found for conversation $conversationId');
+                return;
+              }
+
+              final lastMessageStatus = await _supabase
+                  .from('message_statuses')
+                  .select('is_read, is_hidden')
+                  .eq('message_id', lastMessage!['id'])
+                  .eq('user_id', userId)
+                  .maybeSingle();
+              final isRead = lastMessageStatus?['is_read'] ?? true;
+              final isHiddenStatus = lastMessageStatus?['is_hidden'] ?? false;
+
+              String displayMessage = 'Chưa có tin nhắn';
+              if (isHiddenStatus) {
+                displayMessage = 'Tin nhắn đã bị xóa';
+              } else {
+                final messageType = lastMessage!['message_type'] as String;
+                displayMessage = switch (messageType) {
+                  'image' => 'Hình ảnh',
+                  'video' => 'Video',
+                  'file' => 'File',
+                  'call' => 'Cuộc gọi',
+                  _ => lastMessage!['content'] ?? 'Chưa có tin nhắn',
+                };
+              }
+
+              final updatedChat = {
+                'conversation_id': conversationId,
+                'friend_id': friend['id'],
+                'friend_full_name': friend['full_name'] as String? ?? 'Unknown',
+                'friend_avatar_url': friend['avatar_url'] as String? ?? '',
+                'friend_status': friend['status'] as String? ?? 'offline',
+                'last_message': displayMessage,
+                'last_message_time': DateTime.parse(
+                  lastMessage!['sent_at'],
+                ).toLocal(),
+                'is_read': isRead,
+                'is_group': false,
+                'is_mute': isMute,
+              };
+
+              final currentChats = await loadChatsByUserId(userId);
+              final updatedChats = [...currentChats];
+              final chatIndex = updatedChats.indexWhere(
+                (chat) => chat['conversation_id'] == conversationId,
+              );
+
+              if (chatIndex >= 0) {
+                updatedChats[chatIndex] = updatedChat;
+              } else {
+                updatedChats.add(updatedChat);
+              }
+
+              updatedChats.sort(
+                (a, b) =>
+                    b['last_message_time'].compareTo(a['last_message_time']),
+              );
+
               if (updatedChats.isNotEmpty) {
                 onUpdate(updatedChats);
               }
@@ -440,26 +535,29 @@ class ChatService {
           callback: (payload) async {
             try {
               final user = payload.newRecord;
-              // await _dbService.saveUser(user); // Comment giữ lại từ SQLite
 
               final currentChats = await loadChatsByUserId(userId);
-              final updatedChats =
-                  currentChats.map((chat) {
-                    if (chat['friend_id'] == user['id']) {
-                      return {
-                        ...chat,
-                        'friend_full_name':
-                            user['full_name'] ?? chat['friend_full_name'],
-                        'friend_avatar_url':
-                            user['avatar_url'] ?? chat['friend_avatar_url'],
-                        'friend_status':
-                            user['status'] ?? chat['friend_status'],
-                      };
-                    }
-                    return chat;
-                  }).toList();
+              final updatedChats = currentChats.map((chat) {
+                if (chat['friend_id'] == user['id']) {
+                  return {
+                    ...chat,
+                    'friend_full_name':
+                        user['full_name'] as String? ??
+                        chat['friend_full_name'] as String? ??
+                        'Unknown',
+                    'friend_avatar_url':
+                        user['avatar_url'] as String? ??
+                        chat['friend_avatar_url'] as String? ??
+                        '',
+                    'friend_status':
+                        user['status'] as String? ??
+                        chat['friend_status'] as String? ??
+                        'offline',
+                  };
+                }
+                return chat;
+              }).toList();
 
-              // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
               if (updatedChats.isNotEmpty) {
                 onUpdate(updatedChats);
               }
@@ -508,32 +606,22 @@ class ChatService {
   }) async {
     try {
       if (!(await _isOnline())) {
-        // final localMessages = await _dbService.loadMessages( // Comment giữ lại từ SQLite
-        //   conversationId, // Comment giữ lại từ SQLite
-        //   limit: limit, // Comment giữ lại từ SQLite
-        //   beforeSentAt: beforeSentAt, // Comment giữ lại từ SQLite
-        // ); // Comment giữ lại từ SQLite
-        // print( // Comment giữ lại từ SQLite
-        //   'Offline: Returning ${localMessages.length} local messages for conversation $conversationId', // Comment giữ lại từ SQLite
-        // ); // Comment giữ lại từ SQLite
-        // return localMessages; // Comment giữ lại từ SQLite
         throw Exception('Không có kết nối mạng');
       }
 
-      final participant =
-          await _supabase
-              .from('conversation_participants')
-              .select('deleted_at')
-              .eq('conversation_id', conversationId)
-              .eq('user_id', _supabase.auth.currentUser!.id)
-              .maybeSingle();
+      final participant = await _supabase
+          .from('conversation_participants')
+          .select('deleted_at')
+          .eq('conversation_id', conversationId)
+          .eq('user_id', _supabase.auth.currentUser!.id)
+          .maybeSingle();
 
       var query = _supabase
           .from('messages')
           .select('''
             id, conversation_id, sender_id, content, sent_at, message_type,
             users!sender_id(id, full_name, avatar_url, status),
-            message_statuses(user_id, is_read, read_at)
+            message_statuses(user_id, is_read, read_at, is_hidden)
           ''')
           .eq('conversation_id', conversationId);
 
@@ -549,16 +637,14 @@ class ChatService {
           .order('sent_at', ascending: false)
           .limit(limit);
 
-      // Fetch call request details for messages with message_type = 'call'
       for (var message in messages) {
         if (message['message_type'] == 'call') {
           final callId = message['content'];
-          final callInfo =
-              await _supabase
-                  .from('call_requests')
-                  .select('is_video_call, status, created_at, ended_at')
-                  .eq('id', callId)
-                  .maybeSingle();
+          final callInfo = await _supabase
+              .from('call_requests')
+              .select('is_video_call, status, created_at, ended_at')
+              .eq('id', callId)
+              .maybeSingle();
           message['call_info'] = callInfo;
         }
       }
@@ -567,28 +653,142 @@ class ChatService {
         'Loaded ${messages.length} messages from Supabase for conversation $conversationId${beforeSentAt != null ? ' before $beforeSentAt' : ''}',
       );
 
-      // if (messages.isNotEmpty) { // Comment giữ lại từ SQLite
-      //   await _dbService.saveMessages(conversationId, messages); // Comment giữ lại từ SQLite
-      //   for (var message in messages) { // Comment giữ lại từ SQLite
-      //     if (message['users'] != null) { // Comment giữ lại từ SQLite
-      //       await _dbService.saveUser(message['users']); // Comment giữ lại từ SQLite
-      //     } // Comment giữ lại từ SQLite
-      //   } // Comment giữ lại từ SQLite
-      // } // Comment giữ lại từ SQLite
-
       return messages;
     } catch (e) {
       print('Error loading messages: $e');
-      // final localMessages = await _dbService.loadMessages( // Comment giữ lại từ SQLite
-      //   conversationId, // Comment giữ lại từ SQLite
-      //   limit: limit, // Comment giữ lại từ SQLite
-      //   beforeSentAt: beforeSentAt, // Comment giữ lại từ SQLite
-      // ); // Comment giữ lại từ SQLite
-      // print( // Comment giữ lại từ SQLite
-      //   'Error/Offline: Returning ${localMessages.length} local messages for conversation $conversationId', // Comment giữ lại từ SQLite
-      // ); // Comment giữ lại từ SQLite
-      // return localMessages; // Comment giữ lại từ SQLite
       throw Exception('Lỗi khi tải tin nhắn: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> loadMessagesAroundMessageId(
+    String conversationId,
+    String messageId, {
+    int limit = 20,
+  }) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      // Lấy thông tin của tin nhắn với messageId để lấy sent_at
+      final targetMessage = await _supabase
+          .from('messages')
+          .select('sent_at')
+          .eq('id', messageId)
+          .eq('conversation_id', conversationId)
+          .single();
+
+      if (targetMessage.isEmpty) {
+        throw Exception('Không tìm thấy tin nhắn với ID: $messageId');
+      }
+
+      final targetSentAt = targetMessage['sent_at'];
+
+      // Truy vấn các tin nhắn từ messageId trở đi
+      final messagesFromTarget = await _supabase
+          .from('messages')
+          .select('''
+          id, conversation_id, sender_id, content, sent_at, message_type,
+          users!sender_id(id, full_name, avatar_url, status),
+          message_statuses(user_id, is_read, read_at, is_hidden)
+        ''')
+          .eq('conversation_id', conversationId)
+          .gte('sent_at', targetSentAt)
+          .order('sent_at', ascending: true)
+          .limit(limit);
+
+      // Sắp xếp tin nhắn theo thứ tự giảm dần (mới nhất trước)
+      final sortedMessages = messagesFromTarget
+        ..sort(
+          (a, b) => DateTime.parse(
+            b['sent_at'],
+          ).compareTo(DateTime.parse(a['sent_at'])),
+        );
+
+      // Tìm index của messageId
+      final targetIndex = sortedMessages.indexWhere(
+        (msg) => msg['id'] == messageId,
+      );
+
+      // Xử lý thông tin cuộc gọi nếu có
+      for (var message in sortedMessages) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo = await _supabase
+              .from('call_requests')
+              .select('is_video_call, status, created_at, ended_at')
+              .eq('id', callId)
+              .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
+
+      print(
+        'Loaded ${sortedMessages.length} messages from messageId $messageId for conversation $conversationId, targetIndex: $targetIndex',
+      );
+
+      return {'messages': sortedMessages, 'targetIndex': targetIndex};
+    } catch (e) {
+      print('Error loading messages around messageId $messageId: $e');
+      throw Exception('Lỗi khi tải tin nhắn: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadNewerMessages(
+    String conversationId, {
+    required String afterSentAt,
+    int limit = MESSAGE_PAGE_SIZE,
+  }) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      final participant = await _supabase
+          .from('conversation_participants')
+          .select('deleted_at')
+          .eq('conversation_id', conversationId)
+          .eq('user_id', _supabase.auth.currentUser!.id)
+          .maybeSingle();
+
+      var query = _supabase
+          .from('messages')
+          .select('''
+          id, conversation_id, sender_id, content, sent_at, message_type,
+          users!sender_id(id, full_name, avatar_url, status),
+          message_statuses(user_id, is_read, read_at, is_hidden)
+        ''')
+          .eq('conversation_id', conversationId)
+          .gt('sent_at', afterSentAt);
+
+      if (participant != null && participant['deleted_at'] != null) {
+        query = query.gt('sent_at', participant['deleted_at']);
+      }
+
+      final messages = await query
+          .order('sent_at', ascending: true)
+          .limit(limit);
+
+      for (var message in messages) {
+        if (message['message_type'] == 'call') {
+          final callId = message['content'];
+          final callInfo = await _supabase
+              .from('call_requests')
+              .select('is_video_call, status, created_at, ended_at')
+              .eq('id', callId)
+              .maybeSingle();
+          message['call_info'] = callInfo;
+        }
+      }
+
+      print(
+        'Loaded ${messages.length} newer messages for conversation $conversationId after $afterSentAt',
+      );
+
+      return messages;
+    } catch (e) {
+      print('Error loading newer messages: $e');
+      throw Exception('Lỗi khi tải tin nhắn mới hơn: $e');
     }
   }
 
@@ -612,11 +812,10 @@ class ChatService {
           .eq('user_id', _supabase.auth.currentUser!.id)
           .inFilter('message_id', messageIds.map((m) => m['id']).toList());
 
-      final unreadMessageIds =
-          statuses
-              .where((status) => status['is_read'] == false)
-              .map((status) => status['message_id'])
-              .toList();
+      final unreadMessageIds = statuses
+          .where((status) => status['is_read'] == false)
+          .map((status) => status['message_id'])
+          .toList();
 
       if (unreadMessageIds.isNotEmpty) {
         await _supabase
@@ -630,9 +829,6 @@ class ChatService {
         print(
           'Marked ${unreadMessageIds.length} messages as read for conversation $conversationId',
         );
-
-        // final messages = await loadMessages(conversationId); // Comment giữ lại từ SQLite
-        // await _dbService.saveMessages(conversationId, messages); // Comment giữ lại từ SQLite
       }
     } catch (e) {
       print('Error marking messages as read: $e');
@@ -665,34 +861,66 @@ class ChatService {
           callback: (payload) async {
             final newMessage = payload.newRecord;
 
-            final message =
-                await _supabase
-                    .from('messages')
-                    .select('''
+            final message = await _supabase
+                .from('messages')
+                .select('''
                   id, conversation_id, sender_id, content, sent_at, message_type,
                   users!sender_id(id, full_name, avatar_url, status),
-                  message_statuses(user_id, is_read, read_at)
+                  message_statuses(user_id, is_read, read_at, is_hidden)
                 ''')
-                    .eq('id', newMessage['id'])
-                    .single();
+                .eq('id', newMessage['id'])
+                .single();
 
             if (message['message_type'] == 'call') {
               final callId = message['content'];
-              final callInfo =
-                  await _supabase
-                      .from('call_requests')
-                      .select('is_video_call, status, created_at, ended_at')
-                      .eq('id', callId)
-                      .maybeSingle();
+              final callInfo = await _supabase
+                  .from('call_requests')
+                  .select('is_video_call, status, created_at, ended_at')
+                  .eq('id', callId)
+                  .maybeSingle();
               message['call_info'] = callInfo;
             }
-
-            // await _dbService.saveMessages(conversationId, [message]); // Comment giữ lại từ SQLite
-            // if (message['users'] != null) { // Comment giữ lại từ SQLite
-            //   await _dbService.saveUser(message['users']); // Comment giữ lại từ SQLite
-            // } // Comment giữ lại từ SQLite
-
             onUpdate([message]);
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'message_statuses',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: _supabase.auth.currentUser!.id,
+          ),
+          callback: (payload) async {
+            try {
+              final updatedStatus = payload.newRecord;
+              final messageId = updatedStatus['message_id'] as String;
+
+              final message = await _supabase
+                  .from('messages')
+                  .select('''
+                      id, conversation_id, sender_id, content, sent_at, message_type,
+                      users!sender_id(id, full_name, avatar_url, status),
+                      message_statuses(user_id, is_read, read_at, is_hidden)
+                    ''')
+                  .eq('id', messageId)
+                  .eq('conversation_id', conversationId)
+                  .single();
+
+              if (message['message_type'] == 'call') {
+                final callId = message['content'];
+                final callInfo = await _supabase
+                    .from('call_requests')
+                    .select('is_video_call, status, created_at, ended_at')
+                    .eq('id', callId)
+                    .maybeSingle();
+                message['call_info'] = callInfo;
+              }
+              onUpdate([message]);
+            } catch (e) {
+              print('Error processing message_statuses update event: $e');
+            }
           },
         )
         .subscribe((status, [error]) {
@@ -721,14 +949,6 @@ class ChatService {
     String conversationId,
   ) async {
     try {
-      // final chats = await loadChatsByUserId(userId); // Comment giữ lại từ SQLite
-      // final updatedChats = chats.map((chat) { // Comment giữ lại từ SQLite
-      //   if (chat['conversation_id'] == conversationId) { // Comment giữ lại từ SQLite
-      //     return {...chat, 'is_read': true}; // Comment giữ lại từ SQLite
-      //   } // Comment giữ lại từ SQLite
-      //   return chat; // Comment giữ lại từ SQLite
-      // }).toList(); // Comment giữ lại từ SQLite
-      // await _dbService.saveChats(userId, updatedChats); // Comment giữ lại từ SQLite
       print('Updated is_read for conversation $conversationId');
     } catch (e) {
       print('Error updating chat read status: $e');
@@ -763,6 +983,197 @@ class ChatService {
     } catch (e) {
       print(e);
       return <String, dynamic>{};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> findMessages(String search) async {
+    try {
+      return await _supabase.rpc(
+        "find_messages",
+        params: {
+          "search": search,
+          "user_query": _supabase.auth.currentUser!.id,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<void> deleteMessageForMe(String messageId, String userId) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      await _supabase
+          .from('message_statuses')
+          .update({'is_hidden': true})
+          .eq('message_id', messageId)
+          .eq('user_id', userId);
+      print('Deleted message $messageId for user $userId');
+    } catch (e) {
+      print('Error deleting message for user: $e');
+      throw Exception('Lỗi khi xóa tin nhắn: $e');
+    }
+  }
+
+  Future<void> deleteMessageForAll(String messageId) async {
+    try {
+      if (!(await _isOnline())) {
+        throw Exception('Không có kết nối mạng');
+      }
+
+      await _supabase
+          .from('message_statuses')
+          .update({'is_hidden': true})
+          .eq('message_id', messageId);
+      print('Deleted message $messageId for all users');
+    } catch (e) {
+      print('Error deleting message for all: $e');
+      throw Exception('Lỗi khi xóa tin nhắn: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListFiles(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_files",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListImages(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_images",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListVideos(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_videos",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListAudio(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_audio",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getListMultimedia(
+    String conversationId,
+    int amount,
+    int page,
+  ) async {
+    try {
+      return _supabase.rpc(
+        "list_multimedia",
+        params: {
+          'conversation': conversationId,
+          'user_query': _supabase.auth.currentUser!.id,
+          'amount': amount,
+          'page': page,
+        },
+      );
+    } catch (e) {
+      print(e);
+      return [];
+    }
+  }
+
+  Future<DateTime?> setMuteConversation(
+    String conversationId,
+    double duration,
+  ) async {
+    try {
+      var data = await _supabase.rpc(
+        "set_mute_conversation",
+        params: {
+          'conversation': conversationId,
+          'self_id': _supabase.auth.currentUser!.id,
+          'duration': duration,
+        },
+      );
+      return DateTime.parse(data.toString()).toLocal();
+    } catch (e) {
+      print(e);
+      return null;
+    }
+  }
+
+  Future<bool?> isConversationMute(String conversationId) async {
+    try {
+      var data = await _supabase.rpc(
+        "is_conversation_mute",
+        params: {
+          'conversation': conversationId,
+          'self_id': _supabase.auth.currentUser!.id,
+        },
+      );
+      return data;
+    } catch (e) {
+      print(e);
+      return null;
     }
   }
 }

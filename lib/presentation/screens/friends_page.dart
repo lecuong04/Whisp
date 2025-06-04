@@ -46,7 +46,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
       var friends = await FriendService().listFriends();
       if (friends.isEmpty) return;
       this.friends = Future.value(friends);
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 

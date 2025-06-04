@@ -62,7 +62,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final res = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
-        data: {'username': username, 'full_name': fullName},
+        data: {'username': normalizeUsername(username), 'full_name': fullName},
       );
 
       if (res.user != null) {

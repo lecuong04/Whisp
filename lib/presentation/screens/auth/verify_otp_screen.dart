@@ -111,7 +111,7 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 SizedBox(height: 30),
-                _buildOTPFields(),
+                buildOTPFields(),
                 SizedBox(height: 20),
                 CustomTextField(
                   controller: passwordController,
@@ -142,7 +142,7 @@ class _VerifyOTPScreenState extends State<VerifyOTPScreen> {
   }
 
   // Tạo UI cho nhập OTP với 6 ô riêng biệt
-  Widget _buildOTPFields() {
+  Widget buildOTPFields() {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 10),
       child: Row(

@@ -1,20 +1,27 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:mime/mime.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
-  final VoidCallback onTextFieldTap;
+  final VoidCallback? onTextFieldTap;
+  final ContentInsertionConfiguration? contentInsertionConfiguration;
   final Function(File, String) onMediaSelected;
+  final Function(double) onAudioRecorderClick;
 
   const MessageInput({
     super.key,
     required this.controller,
     required this.onSend,
-    required this.onTextFieldTap,
+    this.onTextFieldTap,
     required this.onMediaSelected,
+    this.contentInsertionConfiguration,
+    required this.onAudioRecorderClick,
   });
 
   @override
@@ -23,25 +30,39 @@ class MessageInput extends StatefulWidget {
 
 class _MessageInputState extends State<MessageInput>
     with WidgetsBindingObserver {
+  final GlobalKey multimediaKey = GlobalKey();
+  final GlobalKey sendKey = GlobalKey();
+  final GlobalKey mainKey = GlobalKey();
+  final GlobalKey inputKey = GlobalKey();
+
+  late Size mainSize;
+  late Size inputSize;
+
+  FocusNode focusNode = FocusNode();
   bool hasText = false;
-  OverlayEntry? _mediaOverlay;
+  OverlayEntry? mediaOverlay;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    widget.controller.addListener(_updateTextState);
+    widget.controller.addListener(updateTextState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      mainSize = (mainKey.currentContext!.findRenderObject() as RenderBox).size;
+      inputSize =
+          (inputKey.currentContext!.findRenderObject() as RenderBox).size;
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.controller.removeListener(_updateTextState);
-    _removeOverlay();
+    widget.controller.removeListener(updateTextState);
+    removeOverlay();
     super.dispose();
   }
 
-  void _updateTextState() {
+  void updateTextState() {
     setState(() {
       hasText = widget.controller.text.trim().isNotEmpty;
     });
@@ -51,62 +72,81 @@ class _MessageInputState extends State<MessageInput>
   void didChangeMetrics() {
     super.didChangeMetrics();
     final bottomInset = View.of(context).viewInsets.bottom;
-    if (bottomInset == 0 && _mediaOverlay != null) {
-      _removeOverlay();
+    if (bottomInset == 0 && mediaOverlay != null) {
+      removeOverlay();
     }
   }
 
-  void _removeOverlay() {
-    _mediaOverlay?.remove();
-    _mediaOverlay = null;
+  void removeOverlay() {
+    mediaOverlay?.remove();
+    mediaOverlay = null;
   }
 
-  Future<void> _pickImage() async {
+  Future<void> pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       widget.onMediaSelected(File(pickedFile.path), 'image');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  Future<void> _captureImage() async {
+  Future<void> captureImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
     if (pickedFile != null) {
       widget.onMediaSelected(File(pickedFile.path), 'image');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  Future<void> _pickVideo() async {
+  Future<void> pickVideo() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
     if (pickedFile != null) {
       widget.onMediaSelected(File(pickedFile.path), 'video');
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  Future<void> _pickFile() async {
+  Future<void> pickFile() async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
-      widget.onMediaSelected(File(result.files.single.path!), 'file');
+      var type =
+          (lookupMimeType(result.files.single.path!) ??
+                  "application/octet-stream")
+              .split('/')
+              .first;
+      switch (type) {
+        case 'video':
+        case 'image':
+        case 'audio':
+          {
+            widget.onMediaSelected(File(result.files.single.path!), type);
+            break;
+          }
+        default:
+          widget.onMediaSelected(File(result.files.single.path!), 'file');
+      }
     }
-    _removeOverlay();
+    removeOverlay();
   }
 
-  void _showMediaOptions(BuildContext context, GlobalKey key) {
-    if (_mediaOverlay != null) return;
+  Future<void> pickAudio() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+    if (result != null && result.files.single.path != null) {
+      widget.onMediaSelected(File(result.files.single.path!), 'audio');
+    }
+    removeOverlay();
+  }
 
-    final RenderBox button =
-        key.currentContext!.findRenderObject() as RenderBox;
-    final position = button.localToGlobal(Offset.zero);
+  void showMediaOptions(BuildContext context, GlobalKey key) {
+    if (mediaOverlay != null) return;
+
     final screenWidth = MediaQuery.of(context).size.width;
     final modalWidth = screenWidth * 0.6;
-    const modalHeight = 160.0;
 
-    _mediaOverlay = OverlayEntry(
+    mediaOverlay = OverlayEntry(
       builder: (context) {
         return Stack(
           children: [
@@ -114,15 +154,15 @@ class _MessageInputState extends State<MessageInput>
               child: GestureDetector(
                 onTap: () {
                   FocusScope.of(context).unfocus();
-                  _removeOverlay();
+                  removeOverlay();
                 },
                 behavior: HitTestBehavior.translucent,
                 child: Container(),
               ),
             ),
             Positioned(
-              left: 0,
-              top: position.dy - modalHeight - 8,
+              left: 8,
+              bottom: mainSize.height * 1.1,
               width: modalWidth,
               child: Material(
                 elevation: 4,
@@ -130,28 +170,34 @@ class _MessageInputState extends State<MessageInput>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chụp ảnh',
                       icon: Icons.camera_alt,
-                      onTap: _captureImage,
+                      onTap: captureImage,
                       showDivider: true,
                     ),
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chọn ảnh',
                       icon: Icons.image,
-                      onTap: _pickImage,
+                      onTap: pickImage,
                       showDivider: true,
                     ),
-                    _buildOptionRow(
+                    buildOptionRow(
+                      title: 'Chọn audio',
+                      icon: Icons.audio_file_outlined,
+                      onTap: pickAudio,
+                      showDivider: true,
+                    ),
+                    buildOptionRow(
                       title: 'Chọn video',
-                      icon: Icons.videocam,
-                      onTap: _pickVideo,
+                      icon: Icons.video_file_outlined,
+                      onTap: pickVideo,
                       showDivider: true,
                     ),
-                    _buildOptionRow(
+                    buildOptionRow(
                       title: 'Chọn file',
                       icon: Icons.attach_file,
-                      onTap: _pickFile,
+                      onTap: pickFile,
                       showDivider: false,
                     ),
                   ],
@@ -163,10 +209,10 @@ class _MessageInputState extends State<MessageInput>
       },
     );
 
-    Overlay.of(context).insert(_mediaOverlay!);
+    Overlay.of(context).insert(mediaOverlay!);
   }
 
-  Widget _buildOptionRow({
+  Widget buildOptionRow({
     required String title,
     required IconData icon,
     required VoidCallback onTap,
@@ -176,6 +222,7 @@ class _MessageInputState extends State<MessageInput>
       children: [
         GestureDetector(
           onTap: onTap,
+          behavior: HitTestBehavior.opaque,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
             child: Row(
@@ -193,31 +240,40 @@ class _MessageInputState extends State<MessageInput>
     );
   }
 
+  static bool isOffsetInsideWidget(RenderBox box, Offset globalOffset) {
+    final Offset topLeft = box.localToGlobal(Offset.zero);
+    final Size size = box.size;
+    final Rect rect = topLeft & size;
+
+    return rect.contains(globalOffset);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final GlobalKey plusButtonKey = GlobalKey();
-
     return Container(
+      key: mainKey,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      color: Colors.white,
       child: Row(
+        spacing: 8,
         children: [
-          InkWell(
-            key: plusButtonKey,
-            onTap: () => _showMediaOptions(context, plusButtonKey),
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
+          if (!focusNode.hasFocus) ...[
+            InkWell(
+              key: multimediaKey,
+              onTap: () => showMediaOptions(context, multimediaKey),
+              borderRadius: BorderRadius.circular(18),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 22),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 22),
             ),
-          ),
-          const SizedBox(width: 8),
+          ],
           Expanded(
+            key: inputKey,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
@@ -228,21 +284,46 @@ class _MessageInputState extends State<MessageInput>
                 children: [
                   Expanded(
                     child: TextField(
+                      focusNode: focusNode,
                       controller: widget.controller,
                       decoration: const InputDecoration(
-                        hintText: "Aa",
+                        hintText: "Nhập tin nhắn...",
                         border: InputBorder.none,
                       ),
-                      onTap: widget.onTextFieldTap,
+                      onTap: () {
+                        if (widget.onTextFieldTap != null) {
+                          widget.onTextFieldTap!();
+                        }
+                        setState(() {});
+                      },
+                      onTapOutside: (event) async {
+                        final RenderBox box =
+                            sendKey.currentContext!.findRenderObject()
+                                as RenderBox;
+                        if (!isOffsetInsideWidget(box, event.localPosition) ||
+                            (sendKey.currentContext!.widget as InkWell).onTap ==
+                                null) {
+                          focusNode.unfocus();
+                          setState(() {});
+                        }
+                      },
+                      contentInsertionConfiguration:
+                          widget.contentInsertionConfiguration,
+                      keyboardType: TextInputType.multiline,
+                      minLines: 1,
+                      maxLines: 3,
                     ),
                   ),
-                  const Icon(Icons.emoji_emotions_rounded, color: Colors.blue),
+                  GestureDetector(
+                    onTap: () => widget.onAudioRecorderClick(inputSize.height),
+                    child: Icon(Icons.mic_outlined, color: Colors.blue),
+                  ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
           InkWell(
+            key: sendKey,
             onTap: hasText ? widget.onSend : null,
             borderRadius: BorderRadius.circular(18),
             child: Container(

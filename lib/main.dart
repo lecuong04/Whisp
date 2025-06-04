@@ -4,9 +4,9 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:whisp/models/call_manager.dart';
-// import 'package:whisp/config/theme/app_theme.dart';
 import 'package:whisp/presentation/screens/auth/login_screen.dart';
 import 'package:whisp/presentation/screens/auth/reset_password_screen.dart';
 import 'package:whisp/presentation/screens/auth/signup_screen.dart';
@@ -26,6 +26,12 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
+  if (await Permission.microphone.isDenied) {
+    await Permission.microphone.request();
+  }
   await dotenv.load(fileName: ".env");
   await Supabase.initialize(
     url: 'https://${dotenv.env['SUPABASE_PROJECT_ID']}.supabase.co',
@@ -44,7 +50,6 @@ class WhispApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorObservers: <NavigatorObserver>[routeObserver],
       navigatorKey: navigatorKey,
-      // theme: AppTheme.lightTheme,
       routes: {
         '/sign_up': (context) => SignupScreen(),
         '/login': (context) => LoginScreen(),
@@ -80,7 +85,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with RouteAware {
   int selectedIndex = 0;
   late SearchController searchController;
-  CallManager callManager = CallManager.instance;
+  CallManager callManager = CallManager();
 
   final List<Widget> pages = [
     const Chats(),
@@ -126,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void didPopNext() async {
     await Future.delayed(Duration(seconds: 1));
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -257,9 +262,9 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                 MaterialPageRoute(
                   builder:
                       (context) => MessagesScreen(
-                        chatId: uri.queryParameters["conversation_id"]!,
-                        contactName: uri.queryParameters["title"]!,
-                        contactImage: uri.queryParameters["avatar_url"]!,
+                        conversationId: uri.queryParameters["conversation_id"]!,
+                        conversationName: uri.queryParameters["title"]!,
+                        conversationAvatar: uri.queryParameters["avatar_url"]!,
                       ),
                 ),
               );

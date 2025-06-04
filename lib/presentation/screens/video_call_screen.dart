@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:whisp/custom_cache_manager.dart';
 import 'package:whisp/models/call_info.dart';
 import 'package:whisp/models/call_manager.dart';
 import 'package:whisp/services/call_service.dart';
@@ -26,7 +28,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   Timer? turnExpiry;
   late CallInfo callInfo;
 
-  CallManager callManager = CallManager.instance;
+  CallManager callManager = CallManager();
   bool isServiceInitialized = false;
   bool isClosed = false;
   Map<String, dynamic>? otherUser;
@@ -43,6 +45,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     } else {
       callInfo = widget.callInfo!;
     }
+    CallService().updateCallWhenClick(callInfo.id);
     if (callInfo.callerId != UserService().id) {
       otherUser = await UserService().getUser(callInfo.callerId);
     } else {
@@ -58,17 +61,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Lỗi khởi tạo kết nối!')));
-        dispose();
         Navigator.pop(context);
       }
     }
     callManager.service!.addListener(onServiceUpdate);
     setState(() {
-      isServiceInitialized = true;
+      if (callManager.service != null) {
+        isServiceInitialized = true;
+      } else {
+        Navigator.pop(context);
+      }
     });
     var now = DateTime.now().toUtc();
     if (callInfo.status != 'pending' && callInfo.status != 'accepted') {
-      dispose();
       Navigator.pop(context);
       return;
     }
@@ -77,9 +82,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           .add(Duration(seconds: callInfo.timeout))
           .difference(now),
       () async {
-        if (!callManager.service!.isConnectionEstablished) {
+        if (callManager.service != null &&
+            !callManager.service!.isConnectionEstablished) {
           CallService().endCall(callInfo.id);
-          dispose();
           Navigator.pop(context);
         }
       },
@@ -118,7 +123,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     try {
       await callManager.service!.hangUp();
     } catch (e) {
-      //print("Error during hangup: $e");
+      print("Error during hangup: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -128,7 +133,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   Future<void> performStartCall() async {
-    if (!isServiceInitialized || !callManager.service!.isInitialized) {
+    if (!isServiceInitialized ||
+        (callManager.service != null && !callManager.service!.isInitialized)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dịch vụ chưa sẵn sàng, vui lòng đợi...')),
       );
@@ -151,7 +157,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         );
       }
     } catch (e) {
-      //print("Error starting call: $e");
+      print("Error starting call: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -173,7 +179,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         title: Text(otherUser!["full_name"]),
         automaticallyImplyLeading: false,
         leading:
-            callManager.service!.isConnectionEstablished
+            service.isConnectionEstablished
                 ? IconButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -188,21 +194,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  // Video từ xa
-                  Positioned.fill(
-                    child: Container(
-                      margin: const EdgeInsets.all(4.0),
-                      decoration: const BoxDecoration(color: Colors.black),
-                      child: RTCVideoView(
-                        service.remoteRenderer,
-                        mirror: false,
-                        filterQuality: FilterQuality.medium,
-                        objectFit:
-                            RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                  if (callInfo.isVideoCall) ...[
+                    // Video từ xa
+                    Positioned.fill(
+                      child: Container(
+                        margin: const EdgeInsets.all(4.0),
+                        decoration: const BoxDecoration(color: Colors.black),
+                        child: RTCVideoView(
+                          service.remoteRenderer,
+                          mirror: false,
+                          filterQuality: FilterQuality.medium,
+                          objectFit:
+                              RTCVideoViewObjectFit
+                                  .RTCVideoViewObjectFitContain,
+                        ),
                       ),
                     ),
-                  ),
-                  if (callInfo.isVideoCall) ...[
                     if (service.localStream != null)
                       // Video từ local
                       Positioned(
@@ -241,6 +248,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                           ),
                         ),
                       ),
+                  ] else ...[
+                    Positioned.fill(
+                      child: Center(
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage:
+                              otherUser!["avatar_url"] != null
+                                  ? CachedNetworkImageProvider(
+                                    otherUser!["avatar_url"],
+                                    cacheManager: CustomCacheManager(),
+                                  )
+                                  : null,
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -267,7 +289,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
                     ElevatedButton.icon(
                       icon: const Icon(Icons.call_end),
-                      label: const Text('Gác máy'),
+                      label: const Text('Kết thúc'),
                       onPressed: () async {
                         await performHangup();
                       },
@@ -284,7 +306,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 ? Icon(Icons.mic)
                                 : Icon(Icons.mic_off),
                       ),
-                      if (service.isVideoOn) ...[
+                      if (callInfo.isVideoCall) ...[
                         IconButton(
                           onPressed: service.toggleVideo,
                           icon:
