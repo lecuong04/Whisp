@@ -41,7 +41,7 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
   }
 
   void updateFriendStatuses() {
-    Timer(Duration(minutes: 2), () async {
+    Timer.periodic(Duration(minutes: 2), (_) async {
       oldFriends = await this.friends;
       var friends = await FriendService().listFriends();
       if (friends.isEmpty) return;
@@ -94,7 +94,10 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
                     labelStyle: TextStyle(color: Colors.white),
                     unselectedLabelStyle: TextStyle(color: Colors.black),
                     controller: tabController,
-                    tabs: [ClassifyTabItem(name: "Tất cả"), ...tags],
+                    tabs: [
+                      ClassifyTabItem(name: "Tất cả"),
+                      ...tags,
+                    ],
                   ),
                 ),
                 VerticalDivider(width: 0),
@@ -265,13 +268,14 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
                     Row(
                       crossAxisAlignment:
                           isTap || nameController.text.isNotEmpty
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.center,
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.center,
                       children: [
                         Padding(
                           padding: EdgeInsets.only(
-                            bottom:
-                                isTap || nameController.text.isNotEmpty ? 4 : 0,
+                            bottom: isTap || nameController.text.isNotEmpty
+                                ? 4
+                                : 0,
                           ),
                           child: Icon(
                             Icons.bookmark,
@@ -322,17 +326,13 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
                   child: Text('Hủy'),
                 ),
                 ElevatedButton(
-                  onPressed:
-                      nameController.text.isEmpty
-                          ? null
-                          : () {
-                            final name = nameController.text.trim();
-                            if (name.isEmpty) return;
-                            Navigator.pop(
-                              context,
-                              Tag("", name, selectedColor),
-                            );
-                          },
+                  onPressed: nameController.text.isEmpty
+                      ? null
+                      : () {
+                          final name = nameController.text.trim();
+                          if (name.isEmpty) return;
+                          Navigator.pop(context, Tag("", name, selectedColor));
+                        },
                   child: Text('Thêm'),
                 ),
               ],
@@ -369,15 +369,15 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
                 alignment: WrapAlignment.start,
                 children: [
                   Row(
-                    crossAxisAlignment:
-                        isTap || nameController.text.isNotEmpty
-                            ? CrossAxisAlignment.end
-                            : CrossAxisAlignment.center,
+                    crossAxisAlignment: isTap || nameController.text.isNotEmpty
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.center,
                     children: [
                       Padding(
                         padding: EdgeInsets.only(
-                          bottom:
-                              isTap || nameController.text.isNotEmpty ? 4 : 0,
+                          bottom: isTap || nameController.text.isNotEmpty
+                              ? 4
+                              : 0,
                         ),
                         child: Icon(
                           Icons.bookmark,
@@ -427,17 +427,13 @@ class _FriendsState extends State<Friends> with TickerProviderStateMixin {
                   child: Text('Hủy'),
                 ),
                 ElevatedButton(
-                  onPressed:
-                      nameController.text.isEmpty
-                          ? null
-                          : () {
-                            final name = nameController.text.trim();
-                            if (name.isEmpty) return;
-                            Navigator.pop(
-                              context,
-                              Tag("", name, selectedColor),
-                            );
-                          },
+                  onPressed: nameController.text.isEmpty
+                      ? null
+                      : () {
+                          final name = nameController.text.trim();
+                          if (name.isEmpty) return;
+                          Navigator.pop(context, Tag("", name, selectedColor));
+                        },
                   child: Text('Thay đổi'),
                 ),
               ],
